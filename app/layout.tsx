@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { PWAStatus } from '@/components/ui/pwa-status';
 
 export const metadata: Metadata = {
-  title: 'Senior Citizen Information Management System',
+  title: 'Cellular Reproduction Learning Module',
   description:
     'Comprehensive senior citizen registration and management system for OSCA and BASCA',
   generator: 'Next.js',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: 'Senior Citizen Information Management System',
+    siteName: 'Cellular Reproduction Learning Module',
     title: 'SCIMS - Senior Citizen Management',
     description:
       'Comprehensive senior citizen registration and management system for OSCA and BASCA'

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export interface HomepageStats {
   totalStudents: number;
@@ -31,32 +31,32 @@ export class StatsAPI {
         recentTeachersResult
       ] = await Promise.all([
         // Total students
-        supabase
+        supabaseAdmin
           .from('profiles')
           .select('id', { count: 'exact' })
           .eq('role', 'student'),
 
         // Total teachers
-        supabase
+        supabaseAdmin
           .from('profiles')
           .select('id', { count: 'exact' })
           .eq('role', 'teacher'),
 
         // Total modules
-        supabase
+        supabaseAdmin
           .from('vark_modules')
           .select('id', { count: 'exact' })
           .eq('is_published', true),
 
         // Completed modules (students with onboarding completed)
-        supabase
+        supabaseAdmin
           .from('profiles')
           .select('id', { count: 'exact' })
           .eq('role', 'student')
           .eq('onboarding_completed', true),
 
         // Recent students (last 30 days)
-        supabase
+        supabaseAdmin
           .from('profiles')
           .select('id', { count: 'exact' })
           .eq('role', 'student')
@@ -66,7 +66,7 @@ export class StatsAPI {
           ),
 
         // Recent teachers (last 30 days)
-        supabase
+        supabaseAdmin
           .from('profiles')
           .select('id', { count: 'exact' })
           .eq('role', 'teacher')
@@ -146,7 +146,7 @@ export class StatsAPI {
   }> {
     try {
       // Simple health check
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('profiles')
         .select('id', { count: 'exact' })
         .limit(1);
