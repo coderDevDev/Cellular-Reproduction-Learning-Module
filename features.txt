@@ -1,0 +1,259 @@
+1. Core System Structure
+
+Authentication & Authorization
+
+Supabase Auth (Email/Password, optionally OAuth if needed)
+
+Role-based access: student vs teacher
+
+Password reset, account activation
+
+Responsive UI
+
+Tailwind CSS for adaptive layouts (desktop, tablet, mobile)
+
+User Profiles
+
+Store name, email, grade level, and profile photo
+
+Store learning style type once assessed
+
+2. Student Features
+
+Learning Style Assessment
+
+Interactive quiz to determine learning style (VARK: Visual, Auditory, Reading/Writing, Kinesthetic)
+
+Store results in Supabase (learning_style field in profiles table)
+
+Display results instantly
+
+Access Tailored Lessons
+
+Filter lessons by learning style
+
+Lesson types:
+
+Visual → infographics, videos
+
+Auditory → narrated slides, podcasts
+
+Reading/Writing → text modules, summaries
+
+Kinesthetic → simulations, interactive activities
+
+Search and category filters
+
+Assessments
+
+Pre-test and post-test quizzes
+
+Multiple-choice, true/false, matching, etc.
+
+Instant scoring and feedback display
+
+Store results in Supabase for teacher review
+
+Progress Tracking
+
+Dashboard showing:
+
+Completed modules
+
+Quiz scores
+
+Time spent per lesson/module
+
+3. Teacher Features
+
+Student Masterlist
+
+View all registered students
+
+See their learning style results
+
+Track progress status (modules completed, quiz scores)
+
+Create & Assign Quizzes
+
+Build pretest and post-test
+
+Add multiple question types
+
+Assign quizzes to specific students, classes, or all
+
+Monitor Scores
+
+View quiz results instantly
+
+Export scores (CSV/Excel)
+
+Add & Organize Lessons
+
+Upload learning materials (modules, videos, images, audio)
+
+Tag content by VARK learning style
+
+Organize lessons by subject, topic, or grade level
+
+Upload Activities
+
+Attach rubrics for grading
+
+Set deadlines and grading criteria
+
+Mark submissions and provide feedback
+
+4. Shared Features
+
+Notification System
+
+Announcements for new lessons, upcoming deadlines
+
+Search & Filtering
+
+Find lessons, quizzes, students, or activities quickly
+
+File Storage
+
+Supabase Storage for lesson files, images, and videos
+
+5. Database (Supabase) Suggested Tables
+
+profiles → id, name, email, role, learning_style, profile_photo
+
+lessons → id, title, content_url, type, vark_tag, created_by
+
+quizzes → id, title, type (pre/post), created_by
+
+quiz_questions → id, quiz_id, question, options, correct_answer
+
+quiz_results → id, quiz_id, student_id, score, submitted_at
+
+activities → id, title, rubric_url, deadline, grading_mode, assigned_by
+
+submissions → id, activity_id, student_id, file_url, score, feedback
+
+
+
+
+Page Flow & Navigation Structure
+1. Authentication & Onboarding
+
+🔹 /login
+
+Inputs: username/email, password
+
+Role-based redirect after login:
+
+teacher → /teacher/dashboard
+
+student (with onboarding completed) → /student/dashboard
+
+new student (onboarding not completed) → /onboarding/vark
+
+🔹 /signup
+
+Role selection:
+
+Teacher
+
+Student (existing)
+
+New Student
+
+Username + password
+
+Store role & onboarding_completed = false in Supabase
+
+🔹 /onboarding/vark
+
+Questionnaire with VARK questions (multiple pages or single scroll form)
+
+After submit:
+
+Calculate learning style
+
+Store in profiles.learning_style
+
+Set onboarding_completed = true
+
+Redirect to /student/dashboard
+
+2. Student Pages
+
+🔹 /student/dashboard
+
+Personalized lessons list based on learning_style
+
+Progress summary (completed modules, quiz scores)
+
+Notifications (new lessons, deadlines)
+
+🔹 /student/lessons
+
+List + search lessons filtered by learning style
+
+Click to open /student/lessons/[id]
+
+🔹 /student/quizzes
+
+Pre-test & post-test list
+
+/student/quizzes/[id] → quiz attempt page with instant score
+
+🔹 /student/activities
+
+Assigned activities with deadlines
+
+File upload submission
+
+View feedback & grades
+
+3. Teacher Pages
+
+🔹 /teacher/dashboard
+
+Overview: total students, average scores, recent activity submissions
+
+🔹 /teacher/students
+
+Student masterlist with:
+
+Learning style
+
+Progress
+
+Quiz scores
+
+🔹 /teacher/lessons
+
+Add new lesson (upload files, videos, tag by VARK style)
+
+Manage lesson list
+
+🔹 /teacher/quizzes
+
+Create quiz (pre-test or post-test)
+
+Assign to specific students or all
+
+View results per student
+
+🔹 /teacher/activities
+
+Upload activity with rubric, set deadline
+
+View submissions, grade, and give feedback
+
+4. Shared Pages
+
+🔹 /profile
+
+Edit profile info, change password
+
+For students: option to retake VARK assessment (with confirmation)
+
+🔹 /notifications
+
+All system announcements

@@ -1,0 +1,7 @@
+
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#00af8f"/>
+  <rect x="102.4" y="102.4" width="307.2" height="307.2" fill="white" rx="51.2"/>
+  <text x="256" y="281.6" text-anchor="middle" font-family="Arial, sans-serif" font-size="76.8" font-weight="bold" fill="#00af8f">SC</text>
+  <text x="256" y="358.4" text-anchor="middle" font-family="Arial, sans-serif" font-size="40.96" fill="#00af8f">IMS</text>
+</svg>

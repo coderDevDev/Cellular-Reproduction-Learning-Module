@@ -1,0 +1,84 @@
+Instrument for SOP 1
+Learning Styles Preferences based on VARK and Determining the Key Features and Functionalities of Mobile-Based Learning module for Cellular Reproduction
+
+Dear Respondents,
+The undersigned request your assistance by answering this survey questionnaire entitled Learning Styles Preferences based on VARK and Determining the Key Features and Functionalities of Mobile-Based Learning module for Cellular Reproduction. This is to determine the preferred learning style of the students and determine an effective key features and functionalities of the mobile-based learning module that can enhance the students’ understanding towards the cellular reproduction. Please supply your answers to the following part and each items in the table. 
+
+Researchers Made- Likert Scale Based Survey Questionnaire
+Name:  Student 1
+Grade and Section: 
+Instructions: Kindly indicate your level of agreement for each statement, using the following parameters below: 
+1 - Strongly Disagree
+2 – Disagree
+3- Undecided
+4 - Agree
+5 - Strongly Agree
+
+Part I: Learning Style Preferences
+Statement	5	4	3
+	2
+	1
+
+I prefer to…					
+1.learn through animations and videos that illustrate mitosis and meiosis.					
+2.learn by listening to someone instruction and explanation rather than reading about cellular reproduction.					
+3.learn when I can participate and actively involve in the discussion.					
+4.learn through reading a detailed discussions about cellular reproduction.					
+5.watch video presentations with step-by-step explanations to visualize and understand the concept of cellular reproduction clearly.					
+6.learn using a recorded discussion as a learning material.					
+7.learn through hands-on digital activities like virtual simulations.					
+8.take down notes and use as a learning material.					
+9.use a diagram and concept maps in learning complex concepts like cellular reproduction concepts.					
+10.use verbal and audio instructions to guide my learning about cellular reproduction.					
+11.learn by doing online tasks that allow me to apply concepts in real-time.					
+12.learn when I’m able to read on my own and explore complex topics in detail.					
+13.learn using interactive charts that visually demonstrate biological processes like cellular reproduction.					
+14.learn biology topics through a question-and-answer discussion.					
+15.learn through various activities that engage my senses and movement to reinforce concepts.					
+16.learn through a reading and writing activities.					
+17.use a colored-contents and images materials in learning biological processes.  					
+18.discuss or share my knowledge with others to deepen my understanding of the concepts.					
+19.learn through exploring and manipulating various materials to understand cellular reproduction better.					
+20.learn and engage with the discussion through a text-based explanations.					
+
+THE QUESTIONS PER LEARNING STYLE
+
+A.Visual Learners 
+1.I prefer to learn through animations and videos that illustrate mitosis and meiosis.
+5.I prefer to watch video presentations with step-by-step explanations to visualize and understand the concept of cellular reproduction clearly.
+9.I prefer to use a diagram and concept maps in learning complex concepts like cellular reproduction concepts.
+      13. I prefer to learn using interactive charts that visually demonstrate biological    processes   like cellular reproduction.
+
+              19.  use a colored-contents and images    materials in learning biological processes.  
+
+
+B.Aural Learners 
+2.I prefer to learn by listening to someone instruction and explanation rather than reading about cellular reproduction.
+1.I prefer to learn using a recorded discussion as a learning material.
+            10.I prefer to use verbal and audio instructions to guide my learning about cellular reproduction
+     14. I prefer to learn biology topics through a question-and-answer discussion.
+
+            18. I prefer to discuss or share my knowledge with others to deepen my understanding of the concepts
+
+
+C.Kinesthetic 
+3.I prefer to learn when I can participate and actively involve in the discussion.
+2.learn through hands-on digital activities like virtual simulations.
+10.I prefer to learn by doing online tasks that allow me to apply concepts in real-time.
+     15. I prefer to learn through various activities that engage my senses and movement to reinforce concepts.
+
+              19.  I prefer to learn through exploring and manipulating various materials to understand cellular reproduction better.
+
+D.Read/ Write Learners 
+4.I prefer to learn through reading a detailed discussions about cellular reproduction.
+3.I prefer to take down notes and use as a learning material.
+11.I prefer to learn when I’m able to read on my own and explore complex topics in detail.
+        16. I prefer to learn through a reading and writing activities
+              20. I prefer to learn and engage with the discussion through a text-based explanations.
+
+Guidelines: 
+1.The survey-questionnaire contains 20 statements which were divided into four main categories determined through VARK (Visual, Aural, Read/Write and Kinesthetic). Each category has 5 statements that are randomly distributed.
+2.The respondents are required to rate according to their preferred learning style using the following scale: 5 (Strongly Agree), 4 (Agre), 3 (Undecided), 2 (Disagree), 1 - Strongly Disagree.
+3.The four categories have a corresponds 5 statements which will have an overall 25 points.
+4.The respondents must obtain 20 point per category to indicate the most preferred learning style. If multiple categories reach 20 points or higher, the respondent may have a multimodal learning style.
+5.After scoring, the results will be analyzed to identify dominant or combined learning preferences, which can guide the features of mobile-based learning module, ensuring they align with the diverse learning styles identified through the survey.
