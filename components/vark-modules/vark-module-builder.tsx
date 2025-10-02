@@ -56,6 +56,7 @@ import {
 } from '@/types/vark-module';
 import { Class } from '@/types/class';
 import { sampleCellDivisionModule } from '@/data/sample-cell-division-module';
+import { module1CellDivisionReadingWriting } from '@/data/module1-cell-division-reading-writing';
 import ConfirmationModal from '@/components/ui/confirmation-modal';
 import BasicInfoStep from './steps/basic-info-step';
 import ContentStructureStep from './steps/content-structure-step';
@@ -160,11 +161,13 @@ export default function VARKModuleBuilder({
 }: VARKModuleBuilderProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
 
   // Modal states
   const [sampleDataModal, setSampleDataModal] = useState({
     isOpen: false,
-    type: 'warning' as const
+    type: 'warning' as const,
+    sampleType: 'multi-style' as 'multi-style' | 'reading-writing'
   });
   const [successModal, setSuccessModal] = useState({
     isOpen: false,
@@ -331,12 +334,49 @@ export default function VARKModuleBuilder({
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
+  const getPreviewSectionIndex = () => {
+    const sections = formData.content_structure?.sections || [];
+
+    if (sections.length === 0) {
+      return 0; // No sections yet, show placeholder
+    }
+
+    // If we're on step 2 (Content Structure), show the first content section
+    if (currentStep === 2) {
+      return 0; // Show first content section
+    }
+
+    // For other steps, try to find a relevant section based on step
+    switch (currentStep) {
+      case 1: // Basic Info - show first section
+        return 0;
+      case 3: // Multimedia - show first section with multimedia content
+        return 0;
+      case 4: // Interactive Elements - show first section
+        return 0;
+      case 5: // Assessment - try to find assessment section
+        const assessmentIndex = sections.findIndex(
+          section => section.content_type === 'assessment'
+        );
+        return assessmentIndex >= 0 ? assessmentIndex : 0;
+      case 6: // Review - show first section
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
   const openPreview = () => {
+    setActiveSectionIndex(getPreviewSectionIndex());
     setIsPreviewOpen(true);
   };
 
   const populateSampleData = () => {
-    setSampleDataModal({ isOpen: true, type: 'warning' });
+    setSampleDataModal({
+      isOpen: true,
+      type: 'warning',
+      sampleType: 'multi-style'
+    });
   };
 
   const confirmPopulateSampleData = () => {
@@ -383,7 +423,75 @@ export default function VARKModuleBuilder({
     });
 
     // Close the confirmation modal
-    setSampleDataModal({ isOpen: false, type: 'warning' });
+    setSampleDataModal({
+      isOpen: false,
+      type: 'warning',
+      sampleType: 'multi-style'
+    });
+  };
+
+  const populateReadingWritingModule = () => {
+    setSampleDataModal({
+      isOpen: true,
+      type: 'warning',
+      sampleType: 'reading-writing'
+    });
+  };
+
+  const confirmPopulateReadingWritingModule = () => {
+    // Populate form with reading/writing focused module data
+    const populatedData = {
+      id: crypto.randomUUID(),
+      category_id: module1CellDivisionReadingWriting.category_id,
+      title: module1CellDivisionReadingWriting.title,
+      description: module1CellDivisionReadingWriting.description,
+      learning_objectives:
+        module1CellDivisionReadingWriting.learning_objectives,
+      content_structure: module1CellDivisionReadingWriting.content_structure,
+      difficulty_level: module1CellDivisionReadingWriting.difficulty_level,
+      estimated_duration_minutes:
+        module1CellDivisionReadingWriting.estimated_duration_minutes,
+      prerequisites: module1CellDivisionReadingWriting.prerequisites,
+      multimedia_content: module1CellDivisionReadingWriting.multimedia_content,
+      interactive_elements:
+        module1CellDivisionReadingWriting.interactive_elements,
+      assessment_questions:
+        module1CellDivisionReadingWriting.assessment_questions,
+      module_metadata: module1CellDivisionReadingWriting.module_metadata,
+      is_published: false, // Keep as draft for editing
+      created_by: initialData?.created_by || 'teacher-001',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      // Class targeting fields
+      target_class_id: '',
+      target_learning_styles: ['reading_writing']
+    };
+
+    console.log('Populating reading/writing module data:', populatedData);
+
+    setFormData(populatedData);
+
+    // Show success message
+    setSuccessModal({
+      isOpen: true,
+      message:
+        'Reading/Writing focused module data populated successfully! This module emphasizes text-based learning and written comprehension activities.'
+    });
+
+    // Close the confirmation modal
+    setSampleDataModal({
+      isOpen: false,
+      type: 'warning',
+      sampleType: 'reading-writing'
+    });
+  };
+
+  const handleSampleDataConfirmation = () => {
+    if (sampleDataModal.sampleType === 'reading-writing') {
+      confirmPopulateReadingWritingModule();
+    } else {
+      confirmPopulateSampleData();
+    }
   };
 
   const getPreviewModuleData = useCallback((): VARKModule => {
@@ -736,14 +844,24 @@ export default function VARKModuleBuilder({
               </div>
 
               <div className="flex items-center space-x-3">
-                {/* Populate Sample Data Button */}
-                <Button
-                  variant="outline"
-                  onClick={populateSampleData}
-                  className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-200 shadow-md hover:shadow-lg">
-                  <Database className="w-4 h-4 mr-2" />
-                  Populate Sample Data
-                </Button>
+                {/* Sample Data Buttons */}
+                <div className="flex items-center space-x-2">
+                  {/* <Button
+                    variant="outline"
+                    onClick={populateSampleData}
+                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-200 shadow-md hover:shadow-lg">
+                    <Database className="w-4 h-4 mr-2" />
+                    Multi-Style Sample
+                  </Button> */}
+
+                  <Button
+                    variant="outline"
+                    onClick={populateReadingWritingModule}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 shadow-md hover:shadow-lg">
+                    <PenTool className="w-4 h-4 mr-2" />
+                    Reading/Writing Sample
+                  </Button>
+                </div>
 
                 {/* Preview Button */}
                 <Button
@@ -752,6 +870,12 @@ export default function VARKModuleBuilder({
                   className="border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 transition-all duration-200 shadow-md hover:shadow-lg">
                   <Eye className="w-4 h-4 mr-2" />
                   Preview Module
+                  {formData.content_structure?.sections &&
+                    formData.content_structure.sections.length > 0 && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {formData.content_structure.sections.length} sections
+                      </Badge>
+                    )}
                 </Button>
               </div>
             </div>
@@ -853,26 +977,90 @@ export default function VARKModuleBuilder({
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden bg-white/95 backdrop-blur-md border-0 shadow-2xl">
           <DialogHeader className="bg-gradient-to-r from-teal-50 to-emerald-50 p-6 border-b border-teal-100">
-            <DialogTitle className="text-3xl font-bold flex items-center space-x-3 text-gray-900">
-              <div className="p-2 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl">
-                <Eye className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <span>Module Preview</span>
-                <p className="text-lg font-normal text-gray-600 mt-1">
-                  See exactly how your module will appear to students
-                </p>
-              </div>
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-3xl font-bold flex items-center space-x-3 text-gray-900">
+                <div className="p-2 bg-gradient-to-r from-teal-500 to-emerald-500 rounded-xl">
+                  <Eye className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <span>Module Preview</span>
+                  <p className="text-lg font-normal text-gray-600 mt-1">
+                    See exactly how your module will appear to students
+                  </p>
+                </div>
+              </DialogTitle>
+
+              {/* Section Selector */}
+              {previewModuleData?.content_structure?.sections &&
+                previewModuleData.content_structure.sections.length > 1 && (
+                  <div className="flex items-center space-x-3">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Preview Section:
+                    </Label>
+                    <Select
+                      value={activeSectionIndex.toString()}
+                      onValueChange={value =>
+                        setActiveSectionIndex(parseInt(value))
+                      }>
+                      <SelectTrigger className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {previewModuleData.content_structure.sections.map(
+                          (section, index) => (
+                            <SelectItem
+                              key={section.id}
+                              value={index.toString()}>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium">
+                                  {section.title || `Section ${index + 1}`}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {section.content_type}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          )
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+            </div>
           </DialogHeader>
 
           <div className="overflow-y-auto max-h-[70vh] pr-2 p-6">
+            {/* Section Preview Indicator */}
+            {previewModuleData?.content_structure?.sections &&
+              previewModuleData.content_structure.sections.length > 1 && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-2 text-sm text-blue-700">
+                    <Eye className="w-4 h-4" />
+                    <span>
+                      Previewing:{' '}
+                      <strong>
+                        {previewModuleData.content_structure.sections[
+                          activeSectionIndex
+                        ]?.title || `Section ${activeSectionIndex + 1}`}
+                      </strong>
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {previewModuleData.content_structure.sections[
+                          activeSectionIndex
+                        ]?.content_type || 'content'}
+                      </Badge>
+                    </span>
+                  </div>
+                </div>
+              )}
+
             {previewModuleData ? (
               <DynamicModuleViewer
                 key={previewModuleData.id}
                 module={previewModuleData}
                 onProgressUpdate={handleProgressUpdate}
                 onSectionComplete={handleSectionComplete}
+                previewMode={true}
+                activeSectionIndex={activeSectionIndex} // Show the active section being edited
               />
             ) : (
               <div className="text-center py-12">
@@ -889,11 +1077,29 @@ export default function VARKModuleBuilder({
       {/* Sample Data Confirmation Modal */}
       <ConfirmationModal
         isOpen={sampleDataModal.isOpen}
-        onClose={() => setSampleDataModal({ isOpen: false, type: 'warning' })}
-        onConfirm={confirmPopulateSampleData}
-        title="Populate Sample Data"
-        description="This will populate all form fields with sample data from a Cell Division module. Any existing data will be replaced. Continue?"
-        confirmText="Yes, Populate Data"
+        onClose={() =>
+          setSampleDataModal({
+            isOpen: false,
+            type: 'warning',
+            sampleType: 'multi-style'
+          })
+        }
+        onConfirm={handleSampleDataConfirmation}
+        title={
+          sampleDataModal.sampleType === 'reading-writing'
+            ? 'Populate Reading/Writing Module'
+            : 'Populate Sample Data'
+        }
+        description={
+          sampleDataModal.sampleType === 'reading-writing'
+            ? 'This will populate all form fields with a reading/writing focused Cell Division module. This module emphasizes text-based learning and written comprehension activities. Any existing data will be replaced. Continue?'
+            : 'This will populate all form fields with sample data from a comprehensive Cell Division module with multiple learning styles. Any existing data will be replaced. Continue?'
+        }
+        confirmText={
+          sampleDataModal.sampleType === 'reading-writing'
+            ? 'Yes, Populate Reading/Writing Module'
+            : 'Yes, Populate Data'
+        }
         cancelText="Cancel"
         type="warning"
       />

@@ -37,10 +37,16 @@ interface AssessmentStepProps {
 
 const questionTypes = [
   {
+    value: 'single_choice',
+    label: 'Single Choice',
+    icon: CheckCircle,
+    description: 'Choose one correct answer from options'
+  },
+  {
     value: 'multiple_choice',
     label: 'Multiple Choice',
     icon: CheckCircle,
-    description: 'Choose from predefined options'
+    description: 'Choose multiple correct answers from options'
   },
   {
     value: 'true_false',
@@ -117,7 +123,7 @@ export default function AssessmentStep({
   const addQuestion = () => {
     const newQuestion: VARKAssessmentQuestion = {
       id: `question-${Date.now()}`,
-      type: 'multiple_choice',
+      type: 'single_choice',
       question: '',
       options: [''],
       correct_answer: '',
@@ -225,7 +231,9 @@ export default function AssessmentStep({
         </div>
 
         {/* Options for Multiple Choice */}
-        {(type === 'multiple_choice' || type === 'matching') && (
+        {(type === 'single_choice' ||
+          type === 'multiple_choice' ||
+          type === 'matching') && (
           <div>
             <Label className="text-sm font-medium text-gray-700">Options</Label>
             <div className="space-y-2">

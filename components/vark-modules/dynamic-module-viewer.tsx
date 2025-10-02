@@ -25,7 +25,8 @@ import {
   Brain,
   Zap,
   Headphones,
-  PenTool
+  PenTool,
+  FileText
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +36,8 @@ interface DynamicModuleViewerProps {
   onProgressUpdate?: (sectionId: string, completed: boolean) => void;
   onSectionComplete?: (sectionId: string) => void;
   initialProgress?: Record<string, boolean>;
+  previewMode?: boolean;
+  activeSectionIndex?: number;
 }
 
 const learningStyleIcons = {
@@ -55,7 +58,9 @@ export default function DynamicModuleViewer({
   module,
   onProgressUpdate,
   onSectionComplete,
-  initialProgress = {}
+  initialProgress = {},
+  previewMode = false,
+  activeSectionIndex = 0
 }: DynamicModuleViewerProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sectionProgress, setSectionProgress] =
@@ -68,7 +73,10 @@ export default function DynamicModuleViewer({
   const mountedRef = useRef(true);
   const previousSectionsRef = useRef<string[]>([]);
 
-  const currentSection = module.content_structure.sections[currentSectionIndex];
+  const currentSection =
+    module.content_structure.sections[
+      previewMode ? activeSectionIndex : currentSectionIndex
+    ];
   const totalSections = module.content_structure.sections.length;
   const completedSections =
     Object.values(sectionProgress).filter(Boolean).length;
@@ -636,6 +644,346 @@ export default function DynamicModuleViewer({
         );
 
       case 'assessment':
+        // Handle multiple assessment questions (Pre-Test/Post-Test)
+        if (
+          module.assessment_questions &&
+          module.assessment_questions.length > 0
+        ) {
+          // Filter questions based on section type
+          let assessmentQuestions = module.assessment_questions;
+
+          if (section.id === 'pre-test-section') {
+            // Show only Pre-Test questions (first 5)
+            assessmentQuestions = module.assessment_questions.filter(q =>
+              q.id.startsWith('pre-test')
+            );
+          } else if (section.id === 'post-test-section') {
+            // Show only Post-Test questions (last 10)
+            assessmentQuestions = module.assessment_questions.filter(q =>
+              q.id.startsWith('post-test')
+            );
+          }
+
+          const sectionAnswers = quizAnswers[section.id] || {};
+          const showResults = showQuizResults[section.id];
+
+          const renderQuestion = (question: any, questionIndex: number) => {
+            const questionAnswers =
+              sectionAnswers[`question_${questionIndex}`] || {};
+
+            const renderQuestionInput = () => {
+              switch (question.type) {
+                case 'single_choice':
+                case 'multiple_choice':
+                  return (
+                    <div className="space-y-3">
+                      {(question.options || []).map(
+                        (option: string, optionIndex: number) => (
+                          <div
+                            key={`${section.id}-q${questionIndex}-option-${optionIndex}`}
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <RadioGroup
+                              value={
+                                questionAnswers[`option_${optionIndex}`] || ''
+                              }
+                              onValueChange={value => {
+                                const newAnswers = {
+                                  ...questionAnswers,
+                                  [`option_${optionIndex}`]: value
+                                };
+                                handleQuizAnswerChange(
+                                  section.id,
+                                  questionIndex,
+                                  newAnswers
+                                );
+                              }}>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem
+                                  value={option}
+                                  id={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                                />
+                                <Label
+                                  htmlFor={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                                  className="text-sm font-medium text-gray-700 cursor-pointer">
+                                  {option}
+                                </Label>
+                              </div>
+                            </RadioGroup>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  );
+
+                case 'true_false':
+                  return (
+                    <div className="space-y-3">
+                      {['True', 'False'].map((option, optionIndex) => (
+                        <div
+                          key={`${section.id}-q${questionIndex}-option-${optionIndex}`}
+                          className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                          <RadioGroup
+                            value={
+                              questionAnswers[`option_${optionIndex}`] || ''
+                            }
+                            onValueChange={value => {
+                              const newAnswers = {
+                                ...questionAnswers,
+                                [`option_${optionIndex}`]: value
+                              };
+                              handleQuizAnswerChange(
+                                section.id,
+                                questionIndex,
+                                newAnswers
+                              );
+                            }}>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem
+                                value={option}
+                                id={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                              />
+                              <Label
+                                htmlFor={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                                className="text-sm font-medium text-gray-700 cursor-pointer">
+                                {option}
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </div>
+                      ))}
+                    </div>
+                  );
+
+                case 'short_answer':
+                  return (
+                    <div className="space-y-3">
+                      <div className="p-3 border border-gray-200 rounded-lg">
+                        <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                          Your Answer:
+                        </Label>
+                        <Textarea
+                          placeholder="Type your answer here..."
+                          value={questionAnswers[`answer`] || ''}
+                          onChange={e => {
+                            const newAnswers = {
+                              ...questionAnswers,
+                              [`answer`]: e.target.value
+                            };
+                            handleQuizAnswerChange(
+                              section.id,
+                              questionIndex,
+                              newAnswers
+                            );
+                          }}
+                          className="min-h-[80px] resize-none"
+                        />
+                      </div>
+                    </div>
+                  );
+
+                default:
+                  return (
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-gray-600">
+                        Question type "{question.type}" not yet supported in
+                        preview.
+                      </p>
+                    </div>
+                  );
+              }
+            };
+
+            return (
+              <div
+                key={questionIndex}
+                className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <div className="flex items-start space-x-3 mb-4">
+                  <span className="text-lg font-bold text-blue-600 bg-blue-100 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    {questionIndex + 1}
+                  </span>
+                  <div className="flex-1">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-3">
+                      {question.question}
+                    </h5>
+                    {question.points && (
+                      <Badge variant="outline" className="text-xs mb-3">
+                        {question.points} point
+                        {question.points !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {renderQuestionInput()}
+              </div>
+            );
+          };
+
+          return (
+            <div className="space-y-6">
+              {/* Assessment Header */}
+              <div
+                className={`p-6 bg-gradient-to-r ${
+                  section.id === 'pre-test-section'
+                    ? 'from-blue-50 to-blue-100 border-blue-200'
+                    : section.id === 'post-test-section'
+                    ? 'from-green-50 to-green-100 border-green-200'
+                    : 'from-yellow-50 to-yellow-100 border-yellow-200'
+                } border rounded-xl`}>
+                <div className="flex items-center space-x-3 mb-4">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      section.id === 'pre-test-section'
+                        ? 'bg-blue-500'
+                        : section.id === 'post-test-section'
+                        ? 'bg-green-500'
+                        : 'bg-yellow-500'
+                    }`}>
+                    <FileText className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4
+                      className={`text-xl font-bold ${
+                        section.id === 'pre-test-section'
+                          ? 'text-blue-800'
+                          : section.id === 'post-test-section'
+                          ? 'text-green-800'
+                          : 'text-yellow-800'
+                      }`}>
+                      📝 {title || 'Assessment'}
+                    </h4>
+                    <p
+                      className={`${
+                        section.id === 'pre-test-section'
+                          ? 'text-blue-700'
+                          : section.id === 'post-test-section'
+                          ? 'text-green-700'
+                          : 'text-yellow-700'
+                      }`}>
+                      {section.id === 'pre-test-section'
+                        ? 'Let us first check what you already know!'
+                        : section.id === 'post-test-section'
+                        ? 'Are you ready to check what you have learned?'
+                        : 'Complete all questions to proceed'}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`flex items-center space-x-4 text-sm ${
+                    section.id === 'pre-test-section'
+                      ? 'text-blue-700'
+                      : section.id === 'post-test-section'
+                      ? 'text-green-700'
+                      : 'text-yellow-700'
+                  }`}>
+                  <div className="flex items-center space-x-2">
+                    <Target className="w-4 h-4" />
+                    <span>{assessmentQuestions.length} Questions</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>
+                      {assessmentQuestions.reduce(
+                        (sum: number, q: any) => sum + (q.points || 1),
+                        0
+                      )}{' '}
+                      Total Points
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {!showResults ? (
+                <div className="space-y-6">
+                  {/* Questions */}
+                  {assessmentQuestions.map(
+                    (question: any, questionIndex: number) =>
+                      renderQuestion(question, questionIndex)
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <Button
+                      onClick={() =>
+                        handleQuizSubmit(section.id, sectionAnswers)
+                      }
+                      className={`w-full bg-gradient-to-r ${
+                        section.id === 'pre-test-section'
+                          ? 'from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+                          : section.id === 'post-test-section'
+                          ? 'from-green-600 to-green-700 hover:from-green-700 hover:to-green-800'
+                          : 'from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800'
+                      } text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300`}
+                      disabled={assessmentQuestions.some(
+                        (question: any, questionIndex: number) => {
+                          const questionAnswers =
+                            sectionAnswers[`question_${questionIndex}`] || {};
+                          if (
+                            question.type === 'single_choice' ||
+                            question.type === 'multiple_choice' ||
+                            question.type === 'true_false'
+                          ) {
+                            return !Object.values(questionAnswers).some(
+                              answer => answer
+                            );
+                          } else if (question.type === 'short_answer') {
+                            return !questionAnswers[`answer`];
+                          }
+                          return false;
+                        }
+                      )}>
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      {section.id === 'pre-test-section'
+                        ? 'Submit Pre-Test'
+                        : section.id === 'post-test-section'
+                        ? 'Submit Post-Test'
+                        : 'Submit Assessment'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-green-800">
+                        ✅ Assessment Complete!
+                      </h4>
+                      <p className="text-green-700">
+                        Great job! You've completed this assessment.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-white rounded-lg border border-green-200">
+                      <h5 className="font-semibold text-green-800 mb-2">
+                        Score Summary
+                      </h5>
+                      <p className="text-sm text-green-700">
+                        You answered all {assessmentQuestions.length} questions
+                        successfully!
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white rounded-lg border border-green-200">
+                      <h5 className="font-semibold text-green-800 mb-2">
+                        Next Steps
+                      </h5>
+                      <p className="text-sm text-green-700">
+                        Continue to the next section to keep learning.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Handle single quiz data (legacy support)
         if (content_data.quiz_data) {
           const quiz = content_data.quiz_data;
           const sectionAnswers = quizAnswers[section.id] || {};
@@ -649,6 +997,7 @@ export default function DynamicModuleViewer({
 
           const renderQuestionInput = () => {
             switch (quiz.type) {
+              case 'single_choice':
               case 'multiple_choice':
                 return (
                   <div className="space-y-4">
@@ -842,6 +1191,7 @@ export default function DynamicModuleViewer({
                     onClick={() => handleQuizSubmit(section.id, sectionAnswers)}
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={
+                      quiz.type === 'single_choice' ||
                       quiz.type === 'multiple_choice' ||
                       quiz.type === 'true_false'
                         ? !Object.values(sectionAnswers).some(answer => answer)
@@ -915,6 +1265,269 @@ export default function DynamicModuleViewer({
       case 'activity':
         if (content_data.activity_data) {
           const activity = content_data.activity_data;
+
+          // Fill-in-the-Blanks Activity
+          if (activity.type === 'discussion') {
+            return (
+              <div className="space-y-6">
+                {/* Activity Header */}
+                <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-blue-800">
+                        📝 Fill-in-the-Blanks Activity
+                      </h4>
+                      <h5 className="text-lg font-semibold text-blue-700">
+                        {activity.title}
+                      </h5>
+                    </div>
+                  </div>
+                  <p className="text-blue-700 mb-4">{activity.description}</p>
+
+                  {/* Instructions */}
+                  <div className="space-y-3">
+                    <h6 className="font-semibold text-blue-800 flex items-center">
+                      <Target className="w-4 h-4 mr-2" />
+                      Instructions:
+                    </h6>
+                    <ul className="list-decimal list-inside space-y-2 text-blue-700">
+                      {activity.instructions.map((instruction, index) => (
+                        <li key={index} className="font-medium">
+                          {instruction}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Word Bank */}
+                {activity.word_bank && activity.word_bank.length > 0 && (
+                  <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                    <h6 className="font-bold text-blue-800 mb-4 flex items-center">
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      WORD BANK
+                    </h6>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {activity.word_bank.map((word, index) => (
+                        <div
+                          key={index}
+                          className="p-3 bg-white border border-blue-300 rounded-lg text-center font-semibold text-blue-800 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                          data-word-bank-item>
+                          {word}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Questions */}
+                {activity.questions && activity.questions.length > 0 && (
+                  <div className="space-y-4">
+                    <h6 className="font-bold text-gray-800 text-lg flex items-center">
+                      <PenTool className="w-5 h-5 mr-2" />
+                      Questions:
+                    </h6>
+                    {activity.questions.map((question, index) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <div className="flex items-start space-x-3">
+                          <span className="text-lg font-bold text-blue-600 bg-blue-100 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-gray-800 font-medium mb-3">
+                              {question.replace(/_____/g, '__________')}
+                            </p>
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                className="w-full px-3 py-2 border-2 border-blue-400 bg-blue-50 rounded-lg text-blue-800 font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-colors"
+                                placeholder="Type your answer here..."
+                                data-question-index={index}
+                                onChange={e => {
+                                  const inputValue = e.target.value
+                                    .toLowerCase()
+                                    .trim();
+                                  // Disable/enable word bank items based on input
+                                  const wordBankItems =
+                                    document.querySelectorAll(
+                                      `[data-word-bank-item]`
+                                    );
+                                  wordBankItems.forEach((item: any) => {
+                                    const word = item.textContent
+                                      ?.toLowerCase()
+                                      .trim();
+                                    if (word === inputValue) {
+                                      item.classList.add(
+                                        'opacity-50',
+                                        'cursor-not-allowed'
+                                      );
+                                      item.style.pointerEvents = 'none';
+                                    } else {
+                                      item.classList.remove(
+                                        'opacity-50',
+                                        'cursor-not-allowed'
+                                      );
+                                      item.style.pointerEvents = 'auto';
+                                    }
+                                  });
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Expected Outcome */}
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h6 className="font-semibold text-green-800 mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Expected Outcome:
+                  </h6>
+                  <p className="text-green-700">{activity.expected_outcome}</p>
+                </div>
+
+                {/* Complete Button */}
+                <Button
+                  onClick={() => handleSectionComplete(section.id)}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Complete Fill-in-the-Blanks Activity
+                </Button>
+              </div>
+            );
+          }
+
+          // Matching Activity
+          if (activity.type === 'matching') {
+            return (
+              <div className="space-y-6">
+                {/* Activity Header */}
+                <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-green-800">
+                        🔗 Matching Activity
+                      </h4>
+                      <h5 className="text-lg font-semibold text-green-700">
+                        {activity.title}
+                      </h5>
+                    </div>
+                  </div>
+                  <p className="text-green-700 mb-4">{activity.description}</p>
+
+                  {/* Instructions */}
+                  <div className="space-y-3">
+                    <h6 className="font-semibold text-green-800 flex items-center">
+                      <Target className="w-4 h-4 mr-2" />
+                      Instructions:
+                    </h6>
+                    <ul className="list-decimal list-inside space-y-2 text-green-700">
+                      {activity.instructions.map((instruction, index) => (
+                        <li key={index} className="font-medium">
+                          {instruction}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Matching Table */}
+                {activity.matching_pairs &&
+                  activity.matching_pairs.length > 0 && (
+                    <div className="space-y-4">
+                      <h6 className="font-bold text-gray-800 text-lg flex items-center">
+                        <PenTool className="w-5 h-5 mr-2" />
+                        Match the Following:
+                      </h6>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden shadow-lg">
+                          <thead className="bg-green-100">
+                            <tr>
+                              <th className="border border-gray-300 px-4 py-3 text-left font-bold text-green-800">
+                                Answer
+                              </th>
+                              <th className="border border-gray-300 px-4 py-3 text-left font-bold text-green-800">
+                                Column A
+                              </th>
+                              <th className="border border-gray-300 px-4 py-3 text-left font-bold text-green-800">
+                                Column B
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {activity.matching_pairs.map((pair, index) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="border border-gray-300 px-4 py-3">
+                                  <input
+                                    type="text"
+                                    className="w-full px-2 py-1 border border-gray-300 rounded text-center font-semibold focus:outline-none focus:border-green-500"
+                                    placeholder="?"
+                                    maxLength={1}
+                                  />
+                                </td>
+                                <td className="border border-gray-300 px-4 py-3">
+                                  <span className="font-medium text-gray-800">
+                                    {index + 1}. {pair.description}
+                                  </span>
+                                </td>
+                                <td className="border border-gray-300 px-4 py-3">
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {activity.matching_pairs &&
+                                      activity.matching_pairs.map(
+                                        (pair, termIndex) => (
+                                          <div
+                                            key={termIndex}
+                                            className="p-2 bg-gray-100 rounded text-center font-medium text-gray-700 hover:bg-gray-200 cursor-pointer transition-colors">
+                                            {String.fromCharCode(
+                                              65 + termIndex
+                                            )}
+                                            . {pair.term}
+                                          </div>
+                                        )
+                                      )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Expected Outcome */}
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h6 className="font-semibold text-green-800 mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Expected Outcome:
+                  </h6>
+                  <p className="text-green-700">{activity.expected_outcome}</p>
+                </div>
+
+                {/* Complete Button */}
+                <Button
+                  onClick={() => handleSectionComplete(section.id)}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Complete Matching Activity
+                </Button>
+              </div>
+            );
+          }
+
+          // Default Activity (for other types)
           return (
             <div className="space-y-6">
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
@@ -1015,66 +1628,70 @@ export default function DynamicModuleViewer({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Module Header */}
-      <Card className="mb-6 border-0 shadow-lg">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
-                {module.title}
-              </CardTitle>
-              <p className="text-gray-600 mb-4">{module.description}</p>
+      {/* Module Header - Only show in full mode */}
+      {!previewMode && (
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
+                  {module.title}
+                </CardTitle>
+                <p className="text-gray-600 mb-4">{module.description}</p>
 
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>
-                    Progress: {completedSections} of {totalSections} sections
-                  </span>
-                  <span>{Math.round(progressPercentage)}%</span>
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>
+                      Progress: {completedSections} of {totalSections} sections
+                    </span>
+                    <span>{Math.round(progressPercentage)}%</span>
+                  </div>
+                  <Progress value={progressPercentage} className="h-2" />
                 </div>
-                <Progress value={progressPercentage} className="h-2" />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="border-gray-300">
+                  <Clock className="w-4 h-4 mr-1" />
+                  {module.estimated_duration_minutes} min
+                </Badge>
+                <Badge variant="outline" className="border-gray-300">
+                  <Target className="w-4 h-4 mr-1" />
+                  {module.difficulty_level}
+                </Badge>
               </div>
             </div>
+          </CardHeader>
+        </Card>
+      )}
 
-            <div className="flex items-center space-x-2">
-              <Badge variant="outline" className="border-gray-300">
-                <Clock className="w-4 h-4 mr-1" />
-                {module.estimated_duration_minutes} min
-              </Badge>
-              <Badge variant="outline" className="border-gray-300">
-                <Target className="w-4 h-4 mr-1" />
-                {module.difficulty_level}
-              </Badge>
-            </div>
+      {/* Section Navigation - Only show in full mode */}
+      {!previewMode && (
+        <div className="flex items-center justify-between mb-6">
+          <Button
+            variant="outline"
+            onClick={goToPreviousSection}
+            disabled={currentSectionIndex === 0}
+            className="flex items-center space-x-2">
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+
+          <div className="text-sm text-gray-600">
+            Section {currentSectionIndex + 1} of {totalSections}
           </div>
-        </CardHeader>
-      </Card>
 
-      {/* Section Navigation */}
-      <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="outline"
-          onClick={goToPreviousSection}
-          disabled={currentSectionIndex === 0}
-          className="flex items-center space-x-2">
-          <ChevronLeft className="w-4 h-4" />
-          Previous
-        </Button>
-
-        <div className="text-sm text-gray-600">
-          Section {currentSectionIndex + 1} of {totalSections}
+          <Button
+            variant="outline"
+            onClick={goToNextSection}
+            disabled={currentSectionIndex === totalSections - 1}
+            className="flex items-center space-x-2">
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
-
-        <Button
-          variant="outline"
-          onClick={goToNextSection}
-          disabled={currentSectionIndex === totalSections - 1}
-          className="flex items-center space-x-2">
-          Next
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
+      )}
 
       {/* Current Section */}
       <Card className="mb-6 border-0 shadow-lg">
@@ -1104,20 +1721,22 @@ export default function DynamicModuleViewer({
               </div>
             </div>
 
-            {/* Section Status */}
-            <div className="flex items-center space-x-2">
-              {sectionProgress[currentSection.id] ? (
-                <Badge className="bg-green-100 text-green-800">
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  Completed
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="border-gray-300">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Pending
-                </Badge>
-              )}
-            </div>
+            {/* Section Status - Only show in full mode */}
+            {!previewMode && (
+              <div className="flex items-center space-x-2">
+                {sectionProgress[currentSection.id] ? (
+                  <Badge className="bg-green-100 text-green-800">
+                    <CheckCircle className="w-4 h-4 mr-1" />
+                    Completed
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="border-gray-300">
+                    <Clock className="w-4 h-4 mr-1" />
+                    Pending
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
 
@@ -1126,31 +1745,33 @@ export default function DynamicModuleViewer({
         </CardContent>
       </Card>
 
-      {/* Section Navigation Footer */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={goToPreviousSection}
-          disabled={currentSectionIndex === 0}
-          className="flex items-center space-x-2">
-          <ChevronLeft className="w-4 h-4" />
-          Previous Section
-        </Button>
+      {/* Section Navigation Footer - Only show in full mode */}
+      {!previewMode && (
+        <div className="flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={goToPreviousSection}
+            disabled={currentSectionIndex === 0}
+            className="flex items-center space-x-2">
+            <ChevronLeft className="w-4 h-4" />
+            Previous Section
+          </Button>
 
-        <div className="text-sm text-gray-500">
-          {currentSectionIndex + 1} of {totalSections} sections
+          <div className="text-sm text-gray-500">
+            {currentSectionIndex + 1} of {totalSections} sections
+          </div>
+
+          <Button
+            onClick={goToNextSection}
+            disabled={currentSectionIndex === totalSections - 1}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
+            {currentSectionIndex === totalSections - 1
+              ? 'Complete Module'
+              : 'Next Section'}
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
-
-        <Button
-          onClick={goToNextSection}
-          disabled={currentSectionIndex === totalSections - 1}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
-          {currentSectionIndex === totalSections - 1
-            ? 'Complete Module'
-            : 'Next Section'}
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

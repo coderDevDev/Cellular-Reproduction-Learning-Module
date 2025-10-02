@@ -184,6 +184,20 @@ export default function ContentStructureStep({
   >(null);
   const sections = formData.content_structure?.sections || [];
 
+  // Filter assessment questions based on section ID
+  const getFilteredAssessmentQuestions = (sectionId: string) => {
+    const allQuestions = formData.assessment_questions || [];
+
+    if (sectionId === 'pre-test-section') {
+      return allQuestions.filter(q => q.id.startsWith('pre-test'));
+    } else if (sectionId === 'post-test-section') {
+      return allQuestions.filter(q => q.id.startsWith('post-test'));
+    }
+
+    // For other assessment sections, show all questions
+    return allQuestions;
+  };
+
   const renderContentTypeForm = (
     section: VARKModuleContentSection,
     index: number
@@ -558,13 +572,13 @@ export default function ContentStructureStep({
       case 'assessment':
         return (
           <div className="space-y-6">
-            {/* Question Input */}
+            {/* Assessment Title */}
             <div>
               <Label className="text-sm font-medium text-gray-700">
-                Question *
+                Assessment Title *
               </Label>
-              <Textarea
-                placeholder="Enter the assessment question..."
+              <Input
+                placeholder="Enter assessment title (e.g., Pre-Test, Post-Test, Quiz)"
                 value={section.content_data?.quiz_data?.question || ''}
                 onChange={e =>
                   updateContentSection(index, {
@@ -577,13 +591,327 @@ export default function ContentStructureStep({
                     }
                   })
                 }
-                className="min-h-[100px] resize-none"
               />
               {!section.content_data?.quiz_data?.question && (
                 <p className="text-sm text-red-500 mt-1">
-                  Question is required
+                  Assessment title is required
                 </p>
               )}
+            </div>
+
+            {/* Multiple Questions Support */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Assessment Questions
+                  </Label>
+                  {section.id === 'pre-test-section' && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      📝 Pre-Test Questions (5 questions)
+                    </p>
+                  )}
+                  {section.id === 'post-test-section' && (
+                    <p className="text-xs text-green-600 mt-1">
+                      📊 Post-Test Questions (10 questions)
+                    </p>
+                  )}
+                  {section.id !== 'pre-test-section' &&
+                    section.id !== 'post-test-section' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Showing all assessment questions
+                      </p>
+                    )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Add a new question to the assessment_questions array
+                    const currentQuestions =
+                      formData.assessment_questions || [];
+
+                    // Generate ID prefix based on section
+                    let idPrefix = 'question';
+                    if (section.id === 'pre-test-section') {
+                      idPrefix = 'pre-test';
+                    } else if (section.id === 'post-test-section') {
+                      idPrefix = 'post-test';
+                    }
+
+                    const newQuestion = {
+                      id: `${idPrefix}-${Date.now()}`,
+                      type: 'single_choice' as const,
+                      question: '',
+                      options: [''],
+                      correct_answer: '',
+                      points: 10
+                    };
+                    updateFormData({
+                      assessment_questions: [...currentQuestions, newQuestion]
+                    });
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white">
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Question
+                </Button>
+              </div>
+
+              {/* Questions List */}
+              <div className="space-y-3">
+                {getFilteredAssessmentQuestions(section.id).map(
+                  (question, qIndex) => (
+                    <Card key={question.id} className="border border-gray-200">
+                      <CardContent className="p-4">
+                        <div className="space-y-4">
+                          {/* Question Header */}
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-gray-900">
+                              Question {qIndex + 1}
+                            </h4>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const updatedQuestions = (
+                                  formData.assessment_questions || []
+                                ).filter((_, i) => i !== qIndex);
+                                updateFormData({
+                                  assessment_questions: updatedQuestions
+                                });
+                              }}
+                              className="text-red-600 hover:text-red-700">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          {/* Question Text */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">
+                              Question Text
+                            </Label>
+                            <Textarea
+                              placeholder="Enter the question..."
+                              value={question.question || ''}
+                              onChange={e => {
+                                const updatedQuestions = [
+                                  ...(formData.assessment_questions || [])
+                                ];
+                                updatedQuestions[qIndex] = {
+                                  ...updatedQuestions[qIndex],
+                                  question: e.target.value
+                                };
+                                updateFormData({
+                                  assessment_questions: updatedQuestions
+                                });
+                              }}
+                              className="min-h-[80px] resize-none"
+                            />
+                          </div>
+
+                          {/* Question Type */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">
+                              Question Type
+                            </Label>
+                            <Select
+                              value={question.type || 'single_choice'}
+                              onValueChange={value => {
+                                const updatedQuestions = [
+                                  ...(formData.assessment_questions || [])
+                                ];
+                                updatedQuestions[qIndex] = {
+                                  ...updatedQuestions[qIndex],
+                                  type: value as
+                                    | 'multiple_choice'
+                                    | 'true_false'
+                                    | 'short_answer'
+                                };
+                                updateFormData({
+                                  assessment_questions: updatedQuestions
+                                });
+                              }}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="multiple_choice">
+                                  Multiple Choice
+                                </SelectItem>
+                                <SelectItem value="true_false">
+                                  True/False
+                                </SelectItem>
+                                <SelectItem value="short_answer">
+                                  Short Answer
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Options for Multiple Choice */}
+                          {question.type === 'single_choice' && (
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">
+                                Options
+                              </Label>
+                              <div className="space-y-2">
+                                {(question.options || ['']).map(
+                                  (option, optionIndex) => (
+                                    <div
+                                      key={optionIndex}
+                                      className="flex items-center space-x-2">
+                                      <Input
+                                        placeholder={`Option ${
+                                          optionIndex + 1
+                                        }`}
+                                        value={option}
+                                        onChange={e => {
+                                          const updatedQuestions = [
+                                            ...(formData.assessment_questions ||
+                                              [])
+                                          ];
+                                          const newOptions = [
+                                            ...(updatedQuestions[qIndex]
+                                              .options || [])
+                                          ];
+                                          newOptions[optionIndex] =
+                                            e.target.value;
+                                          updatedQuestions[qIndex] = {
+                                            ...updatedQuestions[qIndex],
+                                            options: newOptions
+                                          };
+                                          updateFormData({
+                                            assessment_questions:
+                                              updatedQuestions
+                                          });
+                                        }}
+                                        className="flex-1"
+                                      />
+                                      {(question.options || []).length > 1 && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            const updatedQuestions = [
+                                              ...(formData.assessment_questions ||
+                                                [])
+                                            ];
+                                            const newOptions = (
+                                              updatedQuestions[qIndex]
+                                                .options || []
+                                            ).filter(
+                                              (_, i) => i !== optionIndex
+                                            );
+                                            updatedQuestions[qIndex] = {
+                                              ...updatedQuestions[qIndex],
+                                              options: newOptions
+                                            };
+                                            updateFormData({
+                                              assessment_questions:
+                                                updatedQuestions
+                                            });
+                                          }}
+                                          className="text-red-600 hover:text-red-700">
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const updatedQuestions = [
+                                      ...(formData.assessment_questions || [])
+                                    ];
+                                    const newOptions = [
+                                      ...(updatedQuestions[qIndex].options ||
+                                        []),
+                                      ''
+                                    ];
+                                    updatedQuestions[qIndex] = {
+                                      ...updatedQuestions[qIndex],
+                                      options: newOptions
+                                    };
+                                    updateFormData({
+                                      assessment_questions: updatedQuestions
+                                    });
+                                  }}
+                                  className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add Option
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Correct Answer */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">
+                              Correct Answer
+                            </Label>
+                            <Input
+                              placeholder="Enter the correct answer..."
+                              value={question.correct_answer || ''}
+                              onChange={e => {
+                                const updatedQuestions = [
+                                  ...(formData.assessment_questions || [])
+                                ];
+                                updatedQuestions[qIndex] = {
+                                  ...updatedQuestions[qIndex],
+                                  correct_answer: e.target.value
+                                };
+                                updateFormData({
+                                  assessment_questions: updatedQuestions
+                                });
+                              }}
+                            />
+                          </div>
+
+                          {/* Points */}
+                          <div>
+                            <Label className="text-sm font-medium text-gray-700">
+                              Points
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              placeholder="10"
+                              value={question.points || ''}
+                              onChange={e => {
+                                const updatedQuestions = [
+                                  ...(formData.assessment_questions || [])
+                                ];
+                                updatedQuestions[qIndex] = {
+                                  ...updatedQuestions[qIndex],
+                                  points: parseInt(e.target.value) || 0
+                                };
+                                updateFormData({
+                                  assessment_questions: updatedQuestions
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
+
+                {getFilteredAssessmentQuestions(section.id).length === 0 && (
+                  <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
+                    <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No assessment questions yet</p>
+                    <p className="text-sm">
+                      Click "Add Question" to get started
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Question Type and Points */}
@@ -594,7 +922,7 @@ export default function ContentStructureStep({
                 </Label>
                 <Select
                   value={
-                    section.content_data?.quiz_data?.type || 'multiple_choice'
+                    section.content_data?.quiz_data?.type || 'single_choice'
                   }
                   onValueChange={value => {
                     const newType = value as any;
@@ -696,7 +1024,8 @@ export default function ContentStructureStep({
             </div>
 
             {/* Options Section - Dynamic based on question type */}
-            {(section.content_data?.quiz_data?.type === 'multiple_choice' ||
+            {(section.content_data?.quiz_data?.type === 'single_choice' ||
+              section.content_data?.quiz_data?.type === 'multiple_choice' ||
               section.content_data?.quiz_data?.type === 'matching') && (
               <div>
                 <Label className="text-sm font-medium text-gray-700">
@@ -798,7 +1127,7 @@ export default function ContentStructureStep({
                 Correct Answer *
               </Label>
 
-              {section.content_data?.quiz_data?.type === 'multiple_choice' && (
+              {section.content_data?.quiz_data?.type === 'single_choice' && (
                 <Select
                   value={
                     (section.content_data?.quiz_data
@@ -1182,7 +1511,8 @@ export default function ContentStructureStep({
                       : '✗ Required'}
                   </span>
                 </div>
-                {(section.content_data?.quiz_data?.type === 'multiple_choice' ||
+                {(section.content_data?.quiz_data?.type === 'single_choice' ||
+                  section.content_data?.quiz_data?.type === 'multiple_choice' ||
                   section.content_data?.quiz_data?.type === 'matching') && (
                   <div
                     className={`flex items-center space-x-2 ${
@@ -1214,10 +1544,11 @@ export default function ContentStructureStep({
 
       case 'activity':
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Activity Title */}
             <div>
               <Label className="text-sm font-medium text-gray-700">
-                Activity Title
+                Activity Title *
               </Label>
               <Input
                 placeholder="Enter activity title..."
@@ -1234,7 +1565,14 @@ export default function ContentStructureStep({
                   })
                 }
               />
+              {!section.content_data?.activity_data?.title && (
+                <p className="text-sm text-red-500 mt-1">
+                  Activity title is required
+                </p>
+              )}
             </div>
+
+            {/* Activity Description */}
             <div>
               <Label className="text-sm font-medium text-gray-700">
                 Activity Description
@@ -1253,15 +1591,379 @@ export default function ContentStructureStep({
                     }
                   })
                 }
-                className="min-h-[100px] resize-none"
               />
             </div>
+
+            {/* Activity Type */}
             <div>
               <Label className="text-sm font-medium text-gray-700">
-                Instructions (one per line)
+                Activity Type *
+              </Label>
+              <Select
+                value={
+                  section.content_data?.activity_data?.type || 'discussion'
+                }
+                onValueChange={value =>
+                  updateContentSection(index, {
+                    content_data: {
+                      ...section.content_data,
+                      activity_data: {
+                        ...section.content_data?.activity_data,
+                        type: value as any
+                      }
+                    }
+                  })
+                }>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select activity type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="discussion">Fill-in-the-Blanks</SelectItem>
+                  <SelectItem value="matching">Matching</SelectItem>
+                  <SelectItem value="labeling">Labeling</SelectItem>
+                  <SelectItem value="drag_drop">Drag & Drop</SelectItem>
+                  <SelectItem value="simulation">Simulation</SelectItem>
+                  <SelectItem value="experiment">Experiment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Fill-in-the-Blanks Activity */}
+            {section.content_data?.activity_data?.type === 'discussion' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                    <Type className="w-4 h-4 mr-2" />
+                    Fill-in-the-Blanks Activity
+                  </h4>
+                  <p className="text-sm text-blue-700">
+                    Create interactive fill-in-the-blank questions with a word
+                    bank
+                  </p>
+                </div>
+
+                {/* Word Bank */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Word Bank
+                  </Label>
+                  <div className="space-y-2">
+                    {(
+                      section.content_data?.activity_data?.word_bank || ['']
+                    ).map((word, wordIndex) => (
+                      <div
+                        key={wordIndex}
+                        className="flex items-center space-x-2">
+                        <Input
+                          placeholder={`Word ${wordIndex + 1}`}
+                          value={word}
+                          onChange={e => {
+                            const currentWordBank = section.content_data
+                              ?.activity_data?.word_bank || [''];
+                            const newWordBank = [...currentWordBank];
+                            newWordBank[wordIndex] = e.target.value;
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  word_bank: newWordBank
+                                }
+                              }
+                            });
+                          }}
+                          className="flex-1"
+                        />
+                        {(section.content_data?.activity_data?.word_bank || [])
+                          .length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentWordBank = section.content_data
+                                ?.activity_data?.word_bank || [''];
+                              const newWordBank = currentWordBank.filter(
+                                (_, i) => i !== wordIndex
+                              );
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    word_bank: newWordBank
+                                  }
+                                }
+                              });
+                            }}
+                            className="text-red-600 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentWordBank = section.content_data
+                          ?.activity_data?.word_bank || [''];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              word_bank: [...currentWordBank, '']
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Word to Bank
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Fill-in-the-Blank Questions */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Fill-in-the-Blank Questions
+                  </Label>
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.questions || ['']
+                    ).map((question, qIndex) => (
+                      <div key={qIndex} className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600 w-8">
+                          {qIndex + 1}.
+                        </span>
+                        <Input
+                          placeholder="Enter question with blanks (use _____ for blanks)"
+                          value={question}
+                          onChange={e => {
+                            const currentQuestions = section.content_data
+                              ?.activity_data?.questions || [''];
+                            const newQuestions = [...currentQuestions];
+                            newQuestions[qIndex] = e.target.value;
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  questions: newQuestions
+                                }
+                              }
+                            });
+                          }}
+                          className="flex-1"
+                        />
+                        {(section.content_data?.activity_data?.questions || [])
+                          .length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentQuestions = section.content_data
+                                ?.activity_data?.questions || [''];
+                              const newQuestions = currentQuestions.filter(
+                                (_, i) => i !== qIndex
+                              );
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    questions: newQuestions
+                                  }
+                                }
+                              });
+                            }}
+                            className="text-red-600 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentQuestions = section.content_data
+                          ?.activity_data?.questions || [''];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              questions: [...currentQuestions, '']
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Question
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Matching Activity */}
+            {section.content_data?.activity_data?.type === 'matching' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h4 className="font-semibold text-green-800 mb-2 flex items-center">
+                    <Table className="w-4 h-4 mr-2" />
+                    Matching Activity
+                  </h4>
+                  <p className="text-sm text-green-700">
+                    Create matching pairs between descriptions and terms
+                  </p>
+                </div>
+
+                {/* Matching Pairs */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Matching Pairs
+                  </Label>
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.matching_pairs || [
+                        { description: '', term: '' }
+                      ]
+                    ).map((pair, pairIndex) => (
+                      <Card key={pairIndex} className="border border-gray-200">
+                        <CardContent className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">
+                                Column A (Description)
+                              </Label>
+                              <Textarea
+                                placeholder="Enter description..."
+                                value={pair.description || ''}
+                                onChange={e => {
+                                  const currentPairs = section.content_data
+                                    ?.activity_data?.matching_pairs || [
+                                    { description: '', term: '' }
+                                  ];
+                                  const newPairs = [...currentPairs];
+                                  newPairs[pairIndex] = {
+                                    ...newPairs[pairIndex],
+                                    description: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        matching_pairs: newPairs
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[80px] resize-none"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">
+                                Column B (Term)
+                              </Label>
+                              <Input
+                                placeholder="Enter term..."
+                                value={pair.term || ''}
+                                onChange={e => {
+                                  const currentPairs = section.content_data
+                                    ?.activity_data?.matching_pairs || [
+                                    { description: '', term: '' }
+                                  ];
+                                  const newPairs = [...currentPairs];
+                                  newPairs[pairIndex] = {
+                                    ...newPairs[pairIndex],
+                                    term: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        matching_pairs: newPairs
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-end mt-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const currentPairs = section.content_data
+                                  ?.activity_data?.matching_pairs || [
+                                  { description: '', term: '' }
+                                ];
+                                const newPairs = currentPairs.filter(
+                                  (_, i) => i !== pairIndex
+                                );
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      matching_pairs: newPairs
+                                    }
+                                  }
+                                });
+                              }}
+                              className="text-red-600 hover:text-red-700">
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Remove Pair
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentPairs = section.content_data?.activity_data
+                          ?.matching_pairs || [{ description: '', term: '' }];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              matching_pairs: [
+                                ...currentPairs,
+                                { description: '', term: '' }
+                              ]
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Matching Pair
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* General Instructions */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Instructions
               </Label>
               <Textarea
-                placeholder="Step 1: ...&#10;Step 2: ...&#10;Step 3: ..."
+                placeholder="Enter step-by-step instructions..."
                 value={
                   section.content_data?.activity_data?.instructions?.join(
                     '\n'
@@ -1273,13 +1975,125 @@ export default function ContentStructureStep({
                       ...section.content_data,
                       activity_data: {
                         ...section.content_data?.activity_data,
-                        instructions: e.target.value.split('\n').filter(Boolean)
+                        instructions: e.target.value
+                          .split('\n')
+                          .filter(line => line.trim())
                       }
                     }
                   })
                 }
-                className="min-h-[100px] resize-none"
               />
+            </div>
+
+            {/* Expected Outcome */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Expected Outcome
+              </Label>
+              <Input
+                placeholder="What should students achieve?"
+                value={
+                  section.content_data?.activity_data?.expected_outcome || ''
+                }
+                onChange={e =>
+                  updateContentSection(index, {
+                    content_data: {
+                      ...section.content_data,
+                      activity_data: {
+                        ...section.content_data?.activity_data,
+                        expected_outcome: e.target.value
+                      }
+                    }
+                  })
+                }
+              />
+            </div>
+
+            {/* Assessment Criteria */}
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Assessment Criteria
+              </Label>
+              <div className="space-y-2">
+                {(
+                  section.content_data?.activity_data?.assessment_criteria || [
+                    ''
+                  ]
+                ).map((criteria, criteriaIndex) => (
+                  <div
+                    key={criteriaIndex}
+                    className="flex items-center space-x-2">
+                    <Input
+                      placeholder={`Criteria ${criteriaIndex + 1}`}
+                      value={criteria}
+                      onChange={e => {
+                        const currentCriteria = section.content_data
+                          ?.activity_data?.assessment_criteria || [''];
+                        const newCriteria = [...currentCriteria];
+                        newCriteria[criteriaIndex] = e.target.value;
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              assessment_criteria: newCriteria
+                            }
+                          }
+                        });
+                      }}
+                      className="flex-1"
+                    />
+                    {(
+                      section.content_data?.activity_data
+                        ?.assessment_criteria || []
+                    ).length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const currentCriteria = section.content_data
+                            ?.activity_data?.assessment_criteria || [''];
+                          const newCriteria = currentCriteria.filter(
+                            (_, i) => i !== criteriaIndex
+                          );
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                assessment_criteria: newCriteria
+                              }
+                            }
+                          });
+                        }}
+                        className="text-red-600 hover:text-red-700">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const currentCriteria = section.content_data?.activity_data
+                      ?.assessment_criteria || [''];
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          assessment_criteria: [...currentCriteria, '']
+                        }
+                      }
+                    });
+                  }}
+                  className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Assessment Criteria
+                </Button>
+              </div>
             </div>
           </div>
         );
@@ -2036,19 +2850,160 @@ export default function ContentStructureStep({
         );
       case 'activity':
         return (
-          <div className="prose dark:prose-invert">
-            <h4 className="font-medium text-gray-900 text-sm">
-              {section.content_data?.activity_data?.title || 'Activity Preview'}
-            </h4>
-            <p className="text-sm text-gray-700">
-              {section.content_data?.activity_data?.description ||
-                'No activity description provided.'}
-            </p>
-            <p className="text-sm text-gray-700">
-              Instructions:{' '}
-              {section.content_data?.activity_data?.instructions?.join(', ') ||
-                'None'}
-            </p>
+          <div className="space-y-4">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-gray-900 text-lg mb-2 flex items-center">
+                <Activity className="w-5 h-5 mr-2 text-blue-600" />
+                {section.content_data?.activity_data?.title ||
+                  'Activity Preview'}
+              </h4>
+              <p className="text-sm text-gray-700 mb-3">
+                {section.content_data?.activity_data?.description ||
+                  'No activity description provided.'}
+              </p>
+
+              {/* Activity Type Badge */}
+              <div className="mb-3">
+                <Badge className="bg-blue-100 text-blue-800">
+                  {section.content_data?.activity_data?.type === 'discussion'
+                    ? 'Fill-in-the-Blanks'
+                    : section.content_data?.activity_data?.type === 'matching'
+                    ? 'Matching Activity'
+                    : section.content_data?.activity_data?.type || 'Activity'}
+                </Badge>
+              </div>
+
+              {/* Fill-in-the-Blanks Preview */}
+              {section.content_data?.activity_data?.type === 'discussion' && (
+                <div className="space-y-3">
+                  {/* Word Bank Preview */}
+                  {section.content_data?.activity_data?.word_bank &&
+                    section.content_data.activity_data.word_bank.length > 0 && (
+                      <div className="p-3 bg-blue-100 rounded-lg">
+                        <h5 className="font-medium text-blue-800 mb-2">
+                          Word Bank:
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                          {section.content_data.activity_data.word_bank.map(
+                            (word, index) => (
+                              <Badge
+                                key={index}
+                                variant="secondary"
+                                className="bg-white text-blue-700">
+                                {word}
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Questions Preview */}
+                  {section.content_data?.activity_data?.questions &&
+                    section.content_data.activity_data.questions.length > 0 && (
+                      <div className="space-y-2">
+                        <h5 className="font-medium text-gray-800">
+                          Questions:
+                        </h5>
+                        {section.content_data.activity_data.questions
+                          .slice(0, 3)
+                          .map((question, index) => (
+                            <p key={index} className="text-sm text-gray-700">
+                              {index + 1}. {question}
+                            </p>
+                          ))}
+                        {section.content_data.activity_data.questions.length >
+                          3 && (
+                          <p className="text-xs text-gray-500">
+                            ... and{' '}
+                            {section.content_data.activity_data.questions
+                              .length - 3}{' '}
+                            more questions
+                          </p>
+                        )}
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* Matching Activity Preview */}
+              {section.content_data?.activity_data?.type === 'matching' && (
+                <div className="space-y-3">
+                  {section.content_data?.activity_data?.matching_pairs &&
+                    section.content_data.activity_data.matching_pairs.length >
+                      0 && (
+                      <div className="space-y-2">
+                        <h5 className="font-medium text-gray-800">
+                          Matching Pairs:
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {section.content_data.activity_data.matching_pairs
+                            .slice(0, 3)
+                            .map((pair, index) => (
+                              <div
+                                key={index}
+                                className="p-2 bg-green-50 rounded border border-green-200">
+                                <p className="text-xs text-gray-600 mb-1">
+                                  Description:
+                                </p>
+                                <p className="text-sm text-gray-800 mb-2">
+                                  {pair.description}
+                                </p>
+                                <p className="text-xs text-gray-600 mb-1">
+                                  Term:
+                                </p>
+                                <p className="text-sm font-medium text-green-800">
+                                  {pair.term}
+                                </p>
+                              </div>
+                            ))}
+                        </div>
+                        {section.content_data.activity_data.matching_pairs
+                          .length > 3 && (
+                          <p className="text-xs text-gray-500">
+                            ... and{' '}
+                            {section.content_data.activity_data.matching_pairs
+                              .length - 3}{' '}
+                            more pairs
+                          </p>
+                        )}
+                      </div>
+                    )}
+                </div>
+              )}
+
+              {/* Instructions Preview */}
+              {section.content_data?.activity_data?.instructions &&
+                section.content_data.activity_data.instructions.length > 0 && (
+                  <div className="mt-3">
+                    <h5 className="font-medium text-gray-800 mb-2">
+                      Instructions:
+                    </h5>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {section.content_data.activity_data.instructions.map(
+                        (instruction, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="text-blue-500 mr-2">•</span>
+                            {instruction}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Expected Outcome */}
+              {section.content_data?.activity_data?.expected_outcome && (
+                <div className="mt-3 p-2 bg-green-50 rounded border border-green-200">
+                  <h5 className="font-medium text-green-800 mb-1">
+                    Expected Outcome:
+                  </h5>
+                  <p className="text-sm text-green-700">
+                    {section.content_data.activity_data.expected_outcome}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         );
       case 'quick_check':

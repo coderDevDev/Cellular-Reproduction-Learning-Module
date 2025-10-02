@@ -107,6 +107,7 @@ export interface VARKTableData {
 export interface VARKQuizData {
   question: string;
   type:
+    | 'single_choice'
     | 'multiple_choice'
     | 'true_false'
     | 'matching'
@@ -138,6 +139,14 @@ export interface VARKActivityData {
   materials_needed?: string[];
   expected_outcome: string;
   assessment_criteria: string[];
+  // Fill-in-the-blanks activity fields
+  word_bank?: string[];
+  questions?: string[];
+  // Matching activity fields
+  matching_pairs?: Array<{
+    description: string;
+    term: string;
+  }>;
 }
 
 export interface VARKMultimediaData {
@@ -319,6 +328,7 @@ export interface VARKModuleFeedback {
 export interface VARKAssessmentQuestion {
   id: string;
   type:
+    | 'single_choice'
     | 'multiple_choice'
     | 'true_false'
     | 'matching'
