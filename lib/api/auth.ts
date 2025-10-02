@@ -106,19 +106,34 @@ export class AuthAPI {
 
         if (insertError) {
           console.error('Regular client profile creation failed:', insertError);
-          // Try with admin client as fallback
-          console.log('Trying admin client as fallback...');
-          const { data: adminResult, error: adminErr } = await supabaseAdmin
-            .from('profiles')
-            .insert(profileData)
-            .select();
 
-          insertData = adminResult;
-          insertError = adminErr;
+          // Check if we have a valid service role key before trying admin client
+          const hasServiceRoleKey =
+            process.env.SUPABASE_SERVICE_ROLE_KEY &&
+            process.env.SUPABASE_SERVICE_ROLE_KEY !==
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+          if (hasServiceRoleKey) {
+            console.log('Trying admin client as fallback...');
+            const { data: adminResult, error: adminErr } = await supabaseAdmin
+              .from('profiles')
+              .insert(profileData)
+              .select();
+
+            insertData = adminResult;
+            insertError = adminErr;
+          } else {
+            console.warn(
+              'No service role key available, skipping admin client fallback'
+            );
+            insertError = new Error(
+              'Profile creation failed: No service role key available for admin operations'
+            );
+          }
         }
 
         if (insertError) {
-          console.error('Both profile creation attempts failed:', insertError);
+          console.error('Profile creation failed:', insertError);
           toast.error('Profile Creation Failed', {
             description: `Failed to create user profile: ${insertError.message}`
           });
