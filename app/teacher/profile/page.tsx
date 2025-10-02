@@ -27,19 +27,11 @@ import {
   CheckCircle,
   AlertCircle,
   Edit3,
-  Target,
-  Trophy
+  Shield
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const GRADE_LEVELS = [
-  'Kindergarten',
-  'Grade 1',
-  'Grade 2',
-  'Grade 3',
-  'Grade 4',
-  'Grade 5',
-  'Grade 6',
   'Grade 7',
   'Grade 8',
   'Grade 9',
@@ -53,30 +45,26 @@ const LEARNING_STYLES = [
   {
     value: 'visual',
     label: 'Visual',
-    description: 'Learn through images, diagrams, and visual aids',
-    color: 'bg-blue-100 text-blue-800'
+    description: 'Learn through images, diagrams, and visual aids'
   },
   {
     value: 'auditory',
     label: 'Auditory',
-    description: 'Learn through listening and sound',
-    color: 'bg-green-100 text-green-800'
+    description: 'Learn through listening and sound'
   },
   {
     value: 'reading_writing',
     label: 'Reading/Writing',
-    description: 'Learn through reading and writing',
-    color: 'bg-purple-100 text-purple-800'
+    description: 'Learn through reading and writing'
   },
   {
     value: 'kinesthetic',
     label: 'Kinesthetic',
-    description: 'Learn through hands-on activities and movement',
-    color: 'bg-orange-100 text-orange-800'
+    description: 'Learn through hands-on activities and movement'
   }
 ];
 
-export default function StudentProfilePage() {
+export default function TeacherProfilePage() {
   const { user, updateProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -214,10 +202,6 @@ export default function StudentProfilePage() {
     );
   }
 
-  const currentLearningStyle = LEARNING_STYLES.find(
-    style => style.value === profileData.learningStyle
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 lg:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -227,7 +211,7 @@ export default function StudentProfilePage() {
             My Profile
           </h1>
           <p className="text-gray-600">
-            Manage your personal information and learning preferences
+            Manage your personal information and account settings
           </p>
         </div>
 
@@ -243,7 +227,7 @@ export default function StudentProfilePage() {
                     <AvatarFallback className="bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white text-3xl font-bold">
                       {profileData.firstName?.charAt(0) ||
                         profileData.email?.charAt(0) ||
-                        'S'}
+                        'T'}
                     </AvatarFallback>
                   </Avatar>
 
@@ -268,30 +252,25 @@ export default function StudentProfilePage() {
 
                 {/* Basic Info */}
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  {profileData.fullName || profileData.firstName || 'Student'}
+                  {profileData.fullName || profileData.firstName || 'Teacher'}
                 </h2>
                 <p className="text-gray-600 mb-4">{profileData.email}</p>
 
                 {/* Role Badge */}
                 <Badge className="bg-gradient-to-r from-[#00af8f] to-[#00af90] text-white px-4 py-2 text-sm mb-4">
-                  <User className="w-4 h-4 mr-1" />
-                  Student
+                  <Shield className="w-4 h-4 mr-1" />
+                  Teacher
                 </Badge>
 
                 {/* Learning Style Badge */}
-                {profileData.learningStyle && currentLearningStyle && (
-                  <Badge
-                    className={`${currentLearningStyle.color} px-4 py-2 text-sm mb-4`}>
-                    <Target className="w-4 h-4 mr-1" />
-                    {currentLearningStyle.label} Learner
-                  </Badge>
-                )}
-
-                {/* Grade Level */}
-                {profileData.gradeLevel && (
-                  <Badge variant="outline" className="text-sm mb-4">
-                    <GraduationCap className="w-4 h-4 mr-1" />
-                    {profileData.gradeLevel}
+                {profileData.learningStyle && (
+                  <Badge variant="secondary" className="text-sm">
+                    {
+                      LEARNING_STYLES.find(
+                        style => style.value === profileData.learningStyle
+                      )?.label
+                    }{' '}
+                    Learner
                   </Badge>
                 )}
 
@@ -416,11 +395,11 @@ export default function StudentProfilePage() {
 
                 <Separator />
 
-                {/* Learning Information */}
+                {/* Professional Information */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Target className="w-5 h-5 mr-2 text-[#00af8f]" />
-                    Learning Information
+                    <GraduationCap className="w-5 h-5 mr-2 text-[#00af8f]" />
+                    Professional Information
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -479,26 +458,6 @@ export default function StudentProfilePage() {
                       </Select>
                     </div>
                   </div>
-
-                  {/* Learning Style Description */}
-                  {currentLearningStyle && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-teal-50 to-[#00af8f]/5 rounded-xl border border-teal-100">
-                      <div className="flex items-start space-x-3">
-                        <div
-                          className={`w-8 h-8 rounded-full ${currentLearningStyle.color} flex items-center justify-center flex-shrink-0`}>
-                          <Target className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900 mb-1">
-                            {currentLearningStyle.label} Learning Style
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {currentLearningStyle.description}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Save Button */}

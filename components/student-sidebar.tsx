@@ -4,6 +4,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import {
   Home,
   BookOpen,
@@ -33,12 +45,12 @@ const navigationItems = [
   { icon: Home, label: 'Dashboard', href: '/student/dashboard' },
   { icon: Target, label: 'VARK Modules', href: '/student/vark-modules' },
   { icon: BookOpen, label: 'My Classes', href: '/student/classes' },
-  { icon: Activity, label: 'Activities', href: '/student/activities' },
-  { icon: FileText, label: 'Quizzes', href: '/student/quizzes' },
-  { icon: TrendingUp, label: 'Progress', href: '/student/progress' },
-  { icon: Trophy, label: 'Achievements', href: '/student/achievements' },
-  { icon: Calendar, label: 'Schedule', href: '/student/schedule' },
-  { icon: Settings, label: 'Settings', href: '/student/settings' }
+  // { icon: Activity, label: 'Activities', href: '/student/activities' },
+  // { icon: FileText, label: 'Quizzes', href: '/student/quizzes' },
+  // { icon: TrendingUp, label: 'Progress', href: '/student/progress' },
+  // { icon: Trophy, label: 'Achievements', href: '/student/achievements' },
+  // { icon: Calendar, label: 'Schedule', href: '/student/schedule' },
+  { icon: Settings, label: 'My Profile', href: '/student/profile' }
 ];
 
 export function StudentSidebar({
@@ -159,13 +171,17 @@ export function StudentSidebar({
           {/* Enhanced User Profile & Logout */}
           <div className="p-4 border-t border-teal-100/30">
             <div className="flex items-center space-x-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-gray-50 to-teal-50/50">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-sm">
-                  {user?.firstName?.charAt(0) ||
-                    user?.fullName?.charAt(0) ||
-                    user?.email?.charAt(0).toUpperCase() ||
-                    'S'}
-                </span>
+              <div className="relative">
+                <Avatar className="w-12 h-12 ring-2 ring-teal-100 shadow-lg">
+                  <AvatarImage src={user?.profilePhoto} />
+                  <AvatarFallback className="bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white font-semibold">
+                    {user?.firstName?.charAt(0) ||
+                      user?.fullName?.charAt(0) ||
+                      user?.email?.charAt(0).toUpperCase() ||
+                      'S'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
@@ -186,23 +202,59 @@ export function StudentSidebar({
                 )}
               </div>
             </div>
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              disabled={isLoggingOut}
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50 disabled:opacity-50 transition-all duration-300 border-teal-200 hover:shadow-md">
-              {isLoggingOut ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Signing Out...
-                </>
-              ) : (
-                <>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </>
-              )}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={isLoggingOut}
+                  className="w-full justify-start text-gray-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50 disabled:opacity-50 transition-all duration-300 border-teal-200 hover:shadow-md">
+                  {isLoggingOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                      <LogOut className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span>Sign Out</span>
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-600">
+                    Are you sure you want to sign out? You'll need to log in
+                    again to access your account and continue your learning
+                    journey.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-2">
+                  <AlertDialogCancel disabled={isLoggingOut} className="flex-1">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleSignOut}
+                    disabled={isLoggingOut}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                    {isLoggingOut ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Signing Out...</span>
+                      </div>
+                    ) : (
+                      'Sign Out'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>

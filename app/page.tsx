@@ -15,7 +15,8 @@ import {
   Users,
   GraduationCap,
   Menu,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import Link from 'next/link';
 import DebugSessionInfo from '@/components/debug-session-info';
@@ -424,7 +425,7 @@ export default function HomePage() {
         )}
 
         {/* Real Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-16">
           <div className="text-center">
             <div className="text-4xl font-bold text-[#00af8f] mb-2 flex items-center justify-center">
               {statsLoading ? (
@@ -499,6 +500,63 @@ export default function HomePage() {
             </div>
             <div className="text-sm text-gray-500 mt-1">
               {stats ? stats.totalModules : '25'} modules available
+            </div>
+          </div>
+
+          {/* Classes Stat */}
+          <div className="text-center">
+            <div className="text-4xl font-bold text-blue-600 mb-2 flex items-center justify-center">
+              {statsLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin" />
+              ) : (
+                <>
+                  {stats ? stats.totalClasses : '15'}
+                  {stats && stats.totalClasses >= 10 && '+'}
+                  {!stats && '+'}
+                </>
+              )}
+            </div>
+            <div className="text-gray-600 flex items-center justify-center">
+              <GraduationCap className="w-4 h-4 mr-1" />
+              Active Classes
+            </div>
+          </div>
+
+          {/* Quizzes Stat */}
+          <div className="text-center">
+            <div className="text-4xl font-bold text-purple-600 mb-2 flex items-center justify-center">
+              {statsLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin" />
+              ) : (
+                <>
+                  {stats ? stats.totalQuizzes : '45'}
+                  {stats && stats.totalQuizzes >= 40 && '+'}
+                  {!stats && '+'}
+                </>
+              )}
+            </div>
+            <div className="text-gray-600 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 mr-1" />
+              Published Quizzes
+            </div>
+          </div>
+
+          {/* Activities Stat */}
+          <div className="text-center">
+            <div className="text-4xl font-bold text-orange-600 mb-2 flex items-center justify-center">
+              {statsLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin" />
+              ) : (
+                <>
+                  {stats ? stats.totalActivities : '30'}
+                  {stats && stats.totalActivities >= 25 && '+'}
+                  {!stats && '+'}
+                </>
+              )}
+            </div>
+            <div className="text-gray-600 flex items-center justify-center">
+              <Activity className="w-4 h-4 mr-1" />
+              Learning Activities
             </div>
           </div>
         </div>

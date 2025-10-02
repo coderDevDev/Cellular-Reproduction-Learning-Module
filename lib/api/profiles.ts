@@ -2,10 +2,10 @@ import { supabase, supabaseAdmin } from '@/lib/supabase';
 import type { User } from '@/types/auth';
 
 export interface ProfileUpdateData {
-  id: string;
   firstName?: string;
   middleName?: string;
   lastName?: string;
+  fullName?: string;
   gradeLevel?: string;
   profilePhoto?: string;
   learningStyle?: string;
@@ -28,6 +28,18 @@ export class ProfileAPI {
     try {
       console.log('ProfileAPI.updateProfile called with:', updates);
 
+      // Get current user ID from auth
+      const {
+        data: { user: authUser }
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        return {
+          success: false,
+          message: 'User not authenticated'
+        };
+      }
+
       // Extract the fields that should be updated in the profiles table
       const profileUpdates: any = {};
 
@@ -37,6 +49,8 @@ export class ProfileAPI {
         profileUpdates.middle_name = updates.middleName;
       if (updates.lastName !== undefined)
         profileUpdates.last_name = updates.lastName;
+      if (updates.fullName !== undefined)
+        profileUpdates.full_name = updates.fullName;
       if (updates.gradeLevel !== undefined)
         profileUpdates.grade_level = updates.gradeLevel;
       if (updates.profilePhoto !== undefined)
@@ -48,12 +62,12 @@ export class ProfileAPI {
 
       console.log('Profile updates to apply:', profileUpdates);
 
-      console.log('Updating profile with ID:', updates.id);
-      // Use admin client to bypass RLS for profile updates
-      const { data, error } = await supabaseAdmin
+      console.log('Updating profile with ID:', authUser.id);
+      // Use regular client for profile updates (RLS should allow users to update their own profiles)
+      const { data, error } = await supabase
         .from('profiles')
         .update(profileUpdates)
-        .eq('id', updates.id)
+        .eq('id', authUser.id)
         .select('*')
         .single();
 

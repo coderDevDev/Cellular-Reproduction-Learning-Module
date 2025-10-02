@@ -4,6 +4,18 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import {
   Home,
   GraduationCap,
@@ -17,22 +29,24 @@ import {
   Menu,
   X,
   GraduationCap as GraduationCapIcon,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { toast } from 'sonner';
 
 const navigationItems = [
   { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
   { icon: GraduationCap, label: 'Classes', href: '/teacher/classes' },
   { icon: Target, label: 'VARK Modules', href: '/teacher/vark-modules' },
   { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
-  { icon: FileText, label: 'Quizzes', href: '/teacher/quizzes' },
-  { icon: Activity, label: 'Activities', href: '/teacher/activities' },
-  { icon: Users, label: 'Students', href: '/teacher/students' },
-  { icon: BarChart3, label: 'Analytics', href: '/teacher/analytics' },
-  { icon: Settings, label: 'Settings', href: '/teacher/settings' }
+  // { icon: FileText, label: 'Quizzes', href: '/teacher/quizzes' },
+  // { icon: Activity, label: 'Activities', href: '/teacher/activities' },
+  // { icon: Users, label: 'Students', href: '/teacher/students' },
+  { icon: Settings, label: 'My Profile', href: '/teacher/profile' }
+  // { icon: BarChart3, label: 'Analytics', href: '/teacher/analytics' },
 ];
 
 export default function TeacherLayout({
@@ -43,12 +57,34 @@ export default function TeacherLayout({
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [lottieError, setLottieError] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Close sidebar on route change
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  const handleSignOut = async () => {
+    try {
+      setIsLoggingOut(true);
+      console.log('Starting logout process from teacher sidebar...');
+
+      await logout();
+
+      console.log('Logout successful, redirecting to home...');
+      toast.success('Successfully signed out');
+
+      // Redirect to home page after successful logout
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast.error('Failed to sign out. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -167,10 +203,16 @@ export default function TeacherLayout({
           {/* Enhanced User Profile & Logout */}
           <div className="p-4 border-t border-teal-100/30">
             <div className="flex items-center space-x-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-gray-50 to-teal-50/50">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-sm">
-                  {user.firstName?.charAt(0) || user.fullName?.charAt(0) || 'T'}
-                </span>
+              <div className="relative">
+                <Avatar className="w-12 h-12 ring-2 ring-teal-100 shadow-lg">
+                  <AvatarImage src={user.profilePhoto} />
+                  <AvatarFallback className="bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white font-semibold">
+                    {user.firstName?.charAt(0) ||
+                      user.fullName?.charAt(0) ||
+                      'T'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
@@ -179,13 +221,59 @@ export default function TeacherLayout({
                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
               </div>
             </div>
-            <Button
-              onClick={logout}
-              variant="outline"
-              className="w-full justify-start text-gray-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition-all duration-300 border-teal-200 hover:shadow-md">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={isLoggingOut}
+                  className="w-full justify-start text-gray-700 hover:text-red-600 hover:border-red-300 hover:bg-red-50 disabled:opacity-50 transition-all duration-300 border-teal-200 hover:shadow-md">
+                  {isLoggingOut ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Signing Out...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                      <LogOut className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span>Sign Out</span>
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-gray-600">
+                    Are you sure you want to sign out? You'll need to log in
+                    again to access your account and continue your teaching
+                    activities.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="gap-2">
+                  <AlertDialogCancel disabled={isLoggingOut} className="flex-1">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleSignOut}
+                    disabled={isLoggingOut}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                    {isLoggingOut ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Signing Out...</span>
+                      </div>
+                    ) : (
+                      'Sign Out'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>
@@ -217,6 +305,14 @@ export default function TeacherLayout({
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
                 Online
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className="p-2 rounded-xl text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 transition-all duration-300">
+                <LogOut className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </div>
