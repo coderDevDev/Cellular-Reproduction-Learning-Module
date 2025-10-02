@@ -125,17 +125,6 @@ export default function TeacherVARKModulesPage() {
         setLoading(true);
       }
 
-      // Load categories first
-      const categoriesData = await varkAPI.getCategories();
-      console.log('📚 Loaded categories:', categoriesData);
-      console.log('📚 Categories count:', categoriesData.length);
-      if (categoriesData.length === 0) {
-        console.warn(
-          '⚠️ No categories found! This will cause foreign key constraint errors.'
-        );
-      }
-      setCategories(categoriesData);
-
       // Load teacher classes for module targeting
       if (user?.id) {
         const classesData = await ClassesAPI.getTeacherClasses(user.id);
@@ -145,6 +134,9 @@ export default function TeacherVARKModulesPage() {
       // Load all modules (teachers can see all)
       const modulesData = await varkAPI.getModules();
       setModules(modulesData);
+
+      // Set empty categories array since we're not using category foreign keys anymore
+      setCategories([]);
     } catch (error) {
       console.error('Error loading VARK modules data:', error);
       toast.error('Failed to load VARK modules data');
@@ -230,7 +222,9 @@ export default function TeacherVARKModulesPage() {
     // For now, we'll show module details in a toast
     // In the future, this could open a detailed view modal
     toast.success(
-      `${module.title} - Subject: ${module.category?.subject} | Learning Style: ${module.category?.learning_style} | Difficulty: ${module.difficulty_level}`
+      `${module.title} - Learning Styles: ${
+        module.target_learning_styles?.join(', ') || 'None'
+      } | Difficulty: ${module.difficulty_level}`
     );
   };
 
@@ -380,9 +374,10 @@ export default function TeacherVARKModulesPage() {
   const filteredModules = modules.filter(module => {
     const matchesSearch =
       module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      module.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (module.description &&
+        module.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesSubject =
-      selectedSubject === 'all' || module.category?.subject === selectedSubject;
+      selectedSubject === 'all' || module.category_id === selectedSubject;
     const matchesLearningStyle =
       selectedLearningStyle === 'all' ||
       (module.target_learning_styles &&
@@ -404,7 +399,9 @@ export default function TeacherVARKModulesPage() {
     );
   });
 
-  const subjects = Array.from(new Set(categories.map(cat => cat.subject)));
+  const subjects = Array.from(
+    new Set(modules.map(module => module.category_id).filter(Boolean))
+  );
   const learningStyles = [
     'visual',
     'auditory',
@@ -800,10 +797,16 @@ export default function TeacherVARKModulesPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-purple-600">
-                      Categories
+                      Learning Styles
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {categories.length}
+                      {
+                        Array.from(
+                          new Set(
+                            modules.flatMap(m => m.target_learning_styles || [])
+                          )
+                        ).length
+                      }
                     </p>
                   </div>
                   <Target className="w-8 h-8 text-purple-600" />
@@ -986,9 +989,8 @@ export default function TeacherVARKModulesPage() {
                                     learningStyle = module
                                       .target_learning_styles[0] as keyof typeof learningStyleIcons;
                                   } else {
-                                    learningStyle = (module.category
-                                      ?.learning_style ||
-                                      'visual') as keyof typeof learningStyleIcons;
+                                    learningStyle =
+                                      'visual' as keyof typeof learningStyleIcons;
                                   }
 
                                   const Icon =
@@ -1047,10 +1049,9 @@ export default function TeacherVARKModulesPage() {
                                   </div>
                                 );
                               } else {
-                                // Fallback to category learning style if no target styles
-                                const learningStyle = (module.category
-                                  ?.learning_style ||
-                                  'visual') as keyof typeof learningStyleIcons;
+                                // Fallback to visual if no target styles
+                                const learningStyle =
+                                  'visual' as keyof typeof learningStyleIcons;
                                 return (
                                   <Badge
                                     className={`bg-gradient-to-r ${learningStyleColors[learningStyle]} text-white`}>
