@@ -674,29 +674,26 @@ export default function DynamicModuleViewer({
             const renderQuestionInput = () => {
               switch (question.type) {
                 case 'single_choice':
-                case 'multiple_choice':
                   return (
-                    <div className="space-y-3">
-                      {(question.options || []).map(
-                        (option: string, optionIndex: number) => (
-                          <div
-                            key={`${section.id}-q${questionIndex}-option-${optionIndex}`}
-                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                            <RadioGroup
-                              value={
-                                questionAnswers[`option_${optionIndex}`] || ''
-                              }
-                              onValueChange={value => {
-                                const newAnswers = {
-                                  ...questionAnswers,
-                                  [`option_${optionIndex}`]: value
-                                };
-                                handleQuizAnswerChange(
-                                  section.id,
-                                  questionIndex,
-                                  newAnswers
-                                );
-                              }}>
+                    <RadioGroup
+                      value={questionAnswers.selected || ''}
+                      onValueChange={value => {
+                        const newAnswers = {
+                          ...questionAnswers,
+                          selected: value
+                        };
+                        handleQuizAnswerChange(
+                          section.id,
+                          questionIndex,
+                          newAnswers
+                        );
+                      }}>
+                      <div className="space-y-3">
+                        {(question.options || []).map(
+                          (option: string, optionIndex: number) => (
+                            <div
+                              key={`${section.id}-q${questionIndex}-option-${optionIndex}`}
+                              className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                               <div className="flex items-center space-x-2">
                                 <RadioGroupItem
                                   value={option}
@@ -708,7 +705,48 @@ export default function DynamicModuleViewer({
                                   {option}
                                 </Label>
                               </div>
-                            </RadioGroup>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </RadioGroup>
+                  );
+
+                case 'multiple_choice':
+                  return (
+                    <div className="space-y-3">
+                      {(question.options || []).map(
+                        (option: string, optionIndex: number) => (
+                          <div
+                            key={`${section.id}-q${questionIndex}-option-${optionIndex}`}
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                                checked={
+                                  questionAnswers[`option_${optionIndex}`] ===
+                                  option
+                                }
+                                onCheckedChange={checked => {
+                                  const newAnswers = {
+                                    ...questionAnswers,
+                                    [`option_${optionIndex}`]: checked
+                                      ? option
+                                      : ''
+                                  };
+                                  handleQuizAnswerChange(
+                                    section.id,
+                                    questionIndex,
+                                    newAnswers
+                                  );
+                                }}
+                              />
+                              <Label
+                                htmlFor={`option_${section.id}_${questionIndex}_${optionIndex}`}
+                                className="text-sm font-medium text-gray-700 cursor-pointer">
+                                {option}
+                              </Label>
+                            </div>
                           </div>
                         )
                       )}
@@ -919,8 +957,9 @@ export default function DynamicModuleViewer({
                         (question: any, questionIndex: number) => {
                           const questionAnswers =
                             sectionAnswers[`question_${questionIndex}`] || {};
-                          if (
-                            question.type === 'single_choice' ||
+                          if (question.type === 'single_choice') {
+                            return !questionAnswers.selected;
+                          } else if (
                             question.type === 'multiple_choice' ||
                             question.type === 'true_false'
                           ) {
@@ -998,23 +1037,20 @@ export default function DynamicModuleViewer({
           const renderQuestionInput = () => {
             switch (quiz.type) {
               case 'single_choice':
-              case 'multiple_choice':
                 return (
-                  <div className="space-y-4">
-                    {(quiz.options || memoizedQuizOptions).map(
-                      (option, index) => (
-                        <div
-                          key={`${section.id}-option-${index}`}
-                          className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                          <RadioGroup
-                            key={`${section.id}-${index}`}
-                            value={sectionAnswers[`question_${index}`] || ''}
-                            onValueChange={value => {
-                              handleQuizAnswerChange(section.id, index, value);
-                            }}>
+                  <RadioGroup
+                    value={sectionAnswers.question_0 || ''}
+                    onValueChange={value => {
+                      handleQuizAnswerChange(section.id, 0, value);
+                    }}>
+                    <div className="space-y-4">
+                      {(quiz.options || memoizedQuizOptions).map(
+                        (option, index) => (
+                          <div
+                            key={`${section.id}-option-${index}`}
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem
-                                key={`${section.id}-${index}-${option}`}
                                 value={option}
                                 id={`option_${section.id}_${index}`}
                               />
@@ -1024,7 +1060,41 @@ export default function DynamicModuleViewer({
                                 {option}
                               </Label>
                             </div>
-                          </RadioGroup>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </RadioGroup>
+                );
+
+              case 'multiple_choice':
+                return (
+                  <div className="space-y-4">
+                    {(quiz.options || memoizedQuizOptions).map(
+                      (option, index) => (
+                        <div
+                          key={`${section.id}-option-${index}`}
+                          className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`option_${section.id}_${index}`}
+                              checked={
+                                sectionAnswers[`question_${index}`] === option
+                              }
+                              onCheckedChange={checked => {
+                                handleQuizAnswerChange(
+                                  section.id,
+                                  index,
+                                  checked ? option : ''
+                                );
+                              }}
+                            />
+                            <Label
+                              htmlFor={`option_${section.id}_${index}`}
+                              className="text-sm font-medium text-gray-700 cursor-pointer">
+                              {option}
+                            </Label>
+                          </div>
                         </div>
                       )
                     )}
@@ -1191,9 +1261,10 @@ export default function DynamicModuleViewer({
                     onClick={() => handleQuizSubmit(section.id, sectionAnswers)}
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={
-                      quiz.type === 'single_choice' ||
-                      quiz.type === 'multiple_choice' ||
-                      quiz.type === 'true_false'
+                      quiz.type === 'single_choice'
+                        ? !sectionAnswers.question_0
+                        : quiz.type === 'multiple_choice' ||
+                          quiz.type === 'true_false'
                         ? !Object.values(sectionAnswers).some(answer => answer)
                         : quiz.type === 'short_answer'
                         ? !sectionAnswers[`question_0`]

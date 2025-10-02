@@ -725,6 +725,7 @@ export default function ContentStructureStep({
                                 updatedQuestions[qIndex] = {
                                   ...updatedQuestions[qIndex],
                                   type: value as
+                                    | 'single_choice'
                                     | 'multiple_choice'
                                     | 'true_false'
                                     | 'short_answer'
@@ -737,6 +738,9 @@ export default function ContentStructureStep({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="single_choice">
+                                  Single Choice
+                                </SelectItem>
                                 <SelectItem value="multiple_choice">
                                   Multiple Choice
                                 </SelectItem>
@@ -984,6 +988,7 @@ export default function ContentStructureStep({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="single_choice">Single Choice</SelectItem>
                     <SelectItem value="multiple_choice">
                       Multiple Choice
                     </SelectItem>

@@ -23,14 +23,57 @@ export class VARKModulesAPI {
       .eq('is_active', true)
       .order('name');
 
-    console.log({ data });
+    console.log('📚 Categories query result:', { data, error });
 
     if (error) {
       console.error('Error fetching VARK module categories:', error);
       throw new Error('Failed to fetch VARK module categories');
     }
 
+    // If no categories exist, create a default one
+    if (!data || data.length === 0) {
+      console.warn('⚠️ No categories found, creating default category...');
+      return await this.createDefaultCategory();
+    }
+
     return data || [];
+  }
+
+  async createDefaultCategory(): Promise<VARKModuleCategory[]> {
+    console.log('🆕 Creating default category...');
+
+    const defaultCategory = {
+      name: 'General Education',
+      description: 'General educational content covering various subjects',
+      subject: 'General',
+      grade_level: 'All Levels',
+      learning_style: 'visual',
+      icon_name: 'book-open',
+      color_scheme: 'from-blue-500 to-indigo-600',
+      is_active: true
+    };
+
+    console.log('📝 Inserting default category:', defaultCategory);
+
+    const { data, error } = await this.supabase
+      .from('vark_module_categories')
+      .insert(defaultCategory)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating default category:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Failed to create default category: ${error.message}`);
+    }
+
+    console.log('✅ Default category created:', data);
+    return [data];
   }
 
   async getCategoryById(id: string): Promise<VARKModuleCategory | null> {
@@ -50,30 +93,29 @@ export class VARKModulesAPI {
 
   // VARK Modules
   async getModules(filters?: VARKModuleFilters): Promise<VARKModule[]> {
+    console.log('Fetching VARK modules...');
+
     let query = this.supabase.from('vark_modules').select(
       `
         *,
-        category: vark_module_categories(*),
-        profiles!vark_modules_created_by_fkey(first_name, last_name)
+        profiles:created_by (
+          first_name,
+          last_name
+        )
       `
     );
-    // .eq('is_published', true);
 
     if (filters) {
       if (filters.subject) {
-        query = query.eq('vark_module_categories.subject', filters.subject);
+        query = query.contains('target_learning_styles', [filters.subject]);
       }
       if (filters.grade_level) {
-        query = query.eq(
-          'vark_module_categories.grade_level',
-          filters.grade_level
-        );
+        query = query.eq('target_class_id', filters.grade_level);
       }
       if (filters.learning_style) {
-        query = query.eq(
-          'vark_module_categories.learning_style',
+        query = query.contains('target_learning_styles', [
           filters.learning_style
-        );
+        ]);
       }
       if (filters.difficulty_level) {
         query = query.eq('difficulty_level', filters.difficulty_level);
@@ -109,8 +151,10 @@ export class VARKModulesAPI {
       .select(
         `
         *,
-        category: vark_module_categories(*),
-        profiles!vark_modules_created_by_fkey(first_name, last_name)
+        profiles:created_by (
+          first_name,
+          last_name
+        )
       `
       )
       .eq('id', id)
@@ -135,25 +179,67 @@ export class VARKModulesAPI {
 
   async createModule(moduleData: CreateVARKModuleData): Promise<VARKModule> {
     console.log('Creating VARK module with data:', moduleData);
-    console.log(
-      'Module ID type:',
-      typeof moduleData.id,
-      'Value:',
-      moduleData.id
-    );
 
-    const { data, error } = await this.supabase
-      .from('vark_modules')
-      .insert(moduleData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating VARK module:', error);
-      throw new Error('Failed to create VARK module');
+    // Ensure no id field is passed for new modules
+    const { id, ...cleanModuleData } = moduleData as any;
+    if (id !== undefined) {
+      console.warn(
+        'ID field was included in createModule call, removing it:',
+        id
+      );
     }
 
-    return data;
+    // Handle category_id - use default if not provided
+    if (
+      !cleanModuleData.category_id ||
+      cleanModuleData.category_id === 'default-category-id'
+    ) {
+      console.log(
+        '🔄 No category_id provided, ensuring we have a valid category...'
+      );
+
+      console.log('🔄 No category_id provided, using default category...');
+      cleanModuleData.category_id = 'general-education';
+    } else {
+      console.log(
+        '✅ Using provided category_id:',
+        cleanModuleData.category_id
+      );
+    }
+
+    console.log('Clean module data (without id):', cleanModuleData);
+    console.log('Attempting to insert into vark_modules table...');
+
+    try {
+      const { data, error } = await this.supabase
+        .from('vark_modules')
+        .insert(cleanModuleData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Database insertion failed:', error);
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw new Error(`Failed to create VARK module: ${error.message}`);
+      }
+
+      console.log('✅ Successfully created VARK module:', data);
+      console.log('Module ID:', data.id);
+      console.log('Module Title:', data.title);
+
+      return data;
+    } catch (error) {
+      console.error('❌ Error in createModule:', error);
+      if (error instanceof Error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+      throw new Error('Unknown error occurred while creating module');
+    }
   }
 
   async updateModule(

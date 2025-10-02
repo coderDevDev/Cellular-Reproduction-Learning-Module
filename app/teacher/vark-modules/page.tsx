@@ -127,6 +127,13 @@ export default function TeacherVARKModulesPage() {
 
       // Load categories first
       const categoriesData = await varkAPI.getCategories();
+      console.log('📚 Loaded categories:', categoriesData);
+      console.log('📚 Categories count:', categoriesData.length);
+      if (categoriesData.length === 0) {
+        console.warn(
+          '⚠️ No categories found! This will cause foreign key constraint errors.'
+        );
+      }
       setCategories(categoriesData);
 
       // Load teacher classes for module targeting
@@ -235,7 +242,10 @@ export default function TeacherVARKModulesPage() {
   const handleModuleSave = async (moduleData: VARKModule) => {
     try {
       setIsSaving(true);
+      console.log('🔄 Starting module save process...');
+
       if (editingModule) {
+        console.log('📝 Updating existing module:', editingModule.id);
         // Update existing module
         const updatedModule = await varkAPI.updateModule(
           editingModule.id,
@@ -247,22 +257,35 @@ export default function TeacherVARKModulesPage() {
           )
         );
         toast.success('Module updated successfully');
+        console.log('✅ Module updated successfully');
       } else {
-        // Create new module
+        console.log('🆕 Creating new module...');
+        // Create new module - ensure no id field is passed
         const { id, ...moduleDataWithoutId } = moduleData;
+        console.log('📤 Sending data to API:', {
+          title: moduleDataWithoutId.title,
+          category_id: moduleDataWithoutId.category_id,
+          created_by: user!.id
+        });
+
         const newModule = await varkAPI.createModule({
           ...moduleDataWithoutId,
           created_by: user!.id
         });
+
+        console.log('✅ Module created successfully:', newModule.id);
         setModules(prev => [newModule, ...prev]);
-        toast.success('Module created successfully');
+        toast.success(`Module "${newModule.title}" created successfully!`);
       }
+
       handleBuilderClose();
       // Refetch data to show the new/updated module
       await loadData(true);
     } catch (error) {
-      console.error('Error saving module:', error);
-      toast.error('Failed to save module');
+      console.error('❌ Error saving module:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to save module: ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
@@ -912,9 +935,7 @@ export default function TeacherVARKModulesPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Module
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Target Learning Styles
                       </th>
@@ -924,9 +945,7 @@ export default function TeacherVARKModulesPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Stats
-                      </th>
+
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
@@ -1005,15 +1024,6 @@ export default function TeacherVARKModulesPage() {
                           </td>
 
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {module.category?.subject}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {module.category?.grade_level}
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-4 whitespace-nowrap">
                             {(() => {
                               if (
                                 module.target_learning_styles &&
@@ -1072,25 +1082,6 @@ export default function TeacherVARKModulesPage() {
                               }>
                               {module.is_published ? 'Published' : 'Draft'}
                             </Badge>
-                          </td>
-
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              <div className="flex items-center space-x-4">
-                                <div className="flex items-center space-x-1">
-                                  <Users className="w-4 h-4 text-gray-400" />
-                                  <span>{stats.totalStudents}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Star className="w-4 h-4 text-yellow-400" />
-                                  <span>{stats.averageRating}</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <Clock className="w-4 h-4 text-gray-400" />
-                                  <span>{stats.totalTimeSpent}m</span>
-                                </div>
-                              </div>
-                            </div>
                           </td>
 
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

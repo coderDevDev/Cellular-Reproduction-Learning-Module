@@ -36,10 +36,6 @@ import {
   FileText,
   Activity,
   Brain,
-  Video,
-  Image,
-  Play,
-  Mic,
   Type,
   Table,
   BarChart3,
@@ -47,7 +43,8 @@ import {
   GraduationCap,
   Lightbulb,
   Rocket,
-  Database
+  Database,
+  Loader2
 } from 'lucide-react';
 import {
   VARKModule,
@@ -60,9 +57,6 @@ import { module1CellDivisionReadingWriting } from '@/data/module1-cell-division-
 import ConfirmationModal from '@/components/ui/confirmation-modal';
 import BasicInfoStep from './steps/basic-info-step';
 import ContentStructureStep from './steps/content-structure-step';
-import MultimediaStep from './steps/multimedia-step';
-import InteractiveElementsStep from './steps/interactive-elements-step';
-import AssessmentStep from './steps/assessment-step';
 import ReviewStep from './steps/review-step';
 import DynamicModuleViewer from './dynamic-module-viewer';
 import {
@@ -96,9 +90,9 @@ const learningStyleColors = {
 
 const contentTypeIcons = {
   text: Type,
-  video: Video,
-  audio: Mic,
-  interactive: Play,
+  // video: Video,
+  // audio: Mic,
+  // interactive: Play,
   activity: Activity,
   assessment: FileText,
   quick_check: CheckCircle,
@@ -124,27 +118,6 @@ const stepConfig = [
   },
   {
     step: 3,
-    title: 'Multimedia',
-    description: 'Add rich content',
-    icon: Video,
-    color: 'from-teal-600 to-emerald-600'
-  },
-  {
-    step: 4,
-    title: 'Interactive Elements',
-    description: 'Engage learners',
-    icon: Play,
-    color: 'from-emerald-600 to-teal-700'
-  },
-  {
-    step: 5,
-    title: 'Assessment',
-    description: 'Test knowledge',
-    icon: FileText,
-    color: 'from-teal-700 to-emerald-700'
-  },
-  {
-    step: 6,
     title: 'Review & Save',
     description: 'Finalize module',
     icon: CheckCircle,
@@ -162,6 +135,7 @@ export default function VARKModuleBuilder({
   const [currentStep, setCurrentStep] = useState(1);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Modal states
   const [sampleDataModal, setSampleDataModal] = useState({
@@ -241,7 +215,7 @@ export default function VARKModuleBuilder({
     target_learning_styles: initialData?.target_learning_styles || []
   });
 
-  const totalSteps = 6;
+  const totalSteps = 3;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   const updateFormData = (updates: Partial<VARKModule>) => {
@@ -323,12 +297,58 @@ export default function VARKModuleBuilder({
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Validation checks
     if (formData.content_structure?.sections?.length === 0) {
       alert('Please add at least one content section before saving.');
       return;
     }
-    onSave(formData as VARKModule);
+
+    if (!formData.title || formData.title.trim() === '') {
+      alert('Please enter a title for your module.');
+      return;
+    }
+
+    if (!formData.description || formData.description.trim() === '') {
+      alert('Please enter a description for your module.');
+      return;
+    }
+
+    if (
+      !formData.target_learning_styles ||
+      formData.target_learning_styles.length === 0
+    ) {
+      alert(
+        'Please select at least one target learning style for your module.'
+      );
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      console.log('🔄 VARK Module Builder: Starting save process...');
+      console.log('📋 Form data:', {
+        title: formData.title,
+        target_learning_styles: formData.target_learning_styles,
+        target_class_id: formData.target_class_id,
+        sections_count: formData.content_structure?.sections?.length || 0
+      });
+
+      // Set a default category_id if none provided (for database compatibility)
+      const moduleData = {
+        ...formData,
+        category_id: formData.category_id || 'default-category-id' // We'll handle this in the API
+      };
+
+      await onSave(moduleData as VARKModule);
+
+      console.log('✅ VARK Module Builder: Save completed successfully');
+    } catch (error) {
+      console.error('❌ VARK Module Builder: Save failed:', error);
+      // Error handling is done in the parent component
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
@@ -350,16 +370,7 @@ export default function VARKModuleBuilder({
     switch (currentStep) {
       case 1: // Basic Info - show first section
         return 0;
-      case 3: // Multimedia - show first section with multimedia content
-        return 0;
-      case 4: // Interactive Elements - show first section
-        return 0;
-      case 5: // Assessment - try to find assessment section
-        const assessmentIndex = sections.findIndex(
-          section => section.content_type === 'assessment'
-        );
-        return assessmentIndex >= 0 ? assessmentIndex : 0;
-      case 6: // Review - show first section
+      case 3: // Review - show first section
         return 0;
       default:
         return 0;
@@ -733,7 +744,7 @@ export default function VARKModuleBuilder({
               </div>
 
               {/* Step Indicators */}
-              <div className="grid grid-cols-6 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 {stepConfig.map(step => {
                   const isActive = step.step === currentStep;
                   const isCompleted = step.step < currentStep;
@@ -902,30 +913,6 @@ export default function VARKModuleBuilder({
             )}
 
             {currentStep === 3 && (
-              <MultimediaStep
-                formData={formData}
-                updateFormData={updateFormData}
-                addArrayItem={addArrayItem}
-                removeArrayItem={removeArrayItem}
-                updateArrayItem={updateArrayItem}
-              />
-            )}
-
-            {currentStep === 4 && (
-              <InteractiveElementsStep
-                formData={formData}
-                updateFormData={updateFormData}
-              />
-            )}
-
-            {currentStep === 5 && (
-              <AssessmentStep
-                formData={formData}
-                updateFormData={updateFormData}
-              />
-            )}
-
-            {currentStep === 6 && (
               <ReviewStep formData={formData} onSave={handleSave} />
             )}
           </CardContent>
@@ -962,9 +949,19 @@ export default function VARKModuleBuilder({
                 ) : (
                   <Button
                     onClick={handleSave}
-                    className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200">
-                    <Save className="w-5 h-5" />
-                    <span>Save Module</span>
+                    disabled={isSaving}
+                    className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Saving Module...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        <span>Save Module</span>
+                      </>
+                    )}
                   </Button>
                 )}
               </div>

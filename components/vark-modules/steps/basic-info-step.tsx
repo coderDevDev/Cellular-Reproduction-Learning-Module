@@ -109,34 +109,6 @@ export default function BasicInfoStep({
             />
           </div>
 
-          {/* Category Selection */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="category"
-              className="text-sm font-medium text-gray-700">
-              Category *
-            </Label>
-            <Select
-              value={formData.category_id || ''}
-              onValueChange={value => updateFormData({ category_id: value })}>
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder="Select a category for your module" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(category => (
-                  <SelectItem key={category.id} value={category.id}>
-                    <div className="flex items-center space-x-2">
-                      <span>{category.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        {category.subject} • {category.grade_level}
-                      </Badge>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Target Class Selection */}
           <div className="space-y-2">
             <Label
@@ -201,7 +173,7 @@ export default function BasicInfoStep({
           {/* Learning Style Targeting */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">
-              Target Learning Styles
+              Target Learning Styles *
             </Label>
             <div className="grid grid-cols-2 gap-2">
               {['visual', 'auditory', 'reading_writing', 'kinesthetic'].map(
@@ -240,6 +212,32 @@ export default function BasicInfoStep({
                 )
               )}
             </div>
+
+            {/* Target Learning Styles Validation Indicator */}
+            {formData.target_learning_styles &&
+              formData.target_learning_styles.length > 0 && (
+                <div className="flex items-center space-x-2 text-sm text-green-600">
+                  <Target className="w-4 h-4" />
+                  <span>
+                    Selected: {formData.target_learning_styles.length} learning
+                    style(s) -{' '}
+                    {formData.target_learning_styles
+                      .map(s => s.replace('_', ' '))
+                      .join(', ')}
+                  </span>
+                </div>
+              )}
+
+            {(!formData.target_learning_styles ||
+              formData.target_learning_styles.length === 0) && (
+              <div className="flex items-center space-x-2 text-sm text-red-600">
+                <Target className="w-4 h-4" />
+                <span>
+                  Please select at least one target learning style to continue
+                </span>
+              </div>
+            )}
+
             <p className="text-xs text-gray-500">
               Select which learning styles this module is designed for
             </p>
