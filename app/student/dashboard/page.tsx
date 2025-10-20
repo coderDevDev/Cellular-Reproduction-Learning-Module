@@ -285,28 +285,34 @@ export default function StudentDashboard() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {
-                      learningStyleLabels[
-                        userLearningStyle as keyof typeof learningStyleLabels
-                      ]
-                    }{' '}
-                    Learner
+                    {user?.learningType && user.learningType}
+                    <span className="text-gray-600 ml-4"> Learner</span>
                   </h3>
                   <p className="text-gray-600">
-                    Your learning style is optimized for{' '}
-                    {learningStyleLabels[
-                      userLearningStyle as keyof typeof learningStyleLabels
-                    ].toLowerCase()}{' '}
-                    content
+                    Your learning style is optimized for
+                    {user?.preferredModules &&
+                      user.preferredModules.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {user.preferredModules
+                            .slice(0, 4)
+                            .map((module: string, idx: number) => (
+                              <Badge
+                                key={idx}
+                                variant="outline"
+                                className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                                {module}
+                              </Badge>
+                            ))}
+                          {user.preferredModules.length > 4 && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 bg-gray-100 text-gray-600">
+                              +{user.preferredModules.length - 4}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                   </p>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <Badge
-                      variant="secondary"
-                      className="bg-[#00af8f]/20 text-[#00af8f]">
-                      Personalized Content
-                    </Badge>
-                    <Badge variant="outline">AI Optimized</Badge>
-                  </div>
                 </div>
               </div>
               <div className="text-right">

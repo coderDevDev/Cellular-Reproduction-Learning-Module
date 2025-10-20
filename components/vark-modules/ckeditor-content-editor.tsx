@@ -36,7 +36,9 @@ import {
   Font,
   Alignment,
   AutoLink,
-  Base64UploadAdapter
+  Base64UploadAdapter,
+  PasteFromOffice,
+  GeneralHtmlSupport
 } from 'ckeditor5';
 
 import 'ckeditor5/ckeditor5.css';
@@ -102,7 +104,9 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
             RemoveFormat,
             Undo,
             Font,
-            Alignment
+            Alignment,
+            PasteFromOffice,
+            GeneralHtmlSupport
           ],
           toolbar: {
             items: [
@@ -159,19 +163,52 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
           image: {
             toolbar: [
               'imageStyle:inline',
-              'imageStyle:block',
-              'imageStyle:side',
+              'imageStyle:wrapText',
+              'imageStyle:breakText',
+              '|',
+              'imageStyle:alignLeft',
+              'imageStyle:alignCenter',
+              'imageStyle:alignRight',
               '|',
               'toggleImageCaption',
               'imageTextAlternative',
               '|',
               'resizeImage'
             ],
+            styles: {
+              options: [
+                'inline',
+                'alignLeft',
+                'alignCenter',
+                'alignRight',
+                'block',
+                'side',
+                {
+                  name: 'wrapText',
+                  title: 'Wrap text (Left)',
+                  icon: 'left',
+                  className: 'image-style-wrap-left',
+                  modelElements: ['imageBlock', 'imageInline']
+                },
+                {
+                  name: 'breakText',
+                  title: 'Break text (Center)',
+                  icon: 'center',
+                  className: 'image-style-break-text',
+                  modelElements: ['imageBlock']
+                }
+              ]
+            },
             resizeOptions: [
               {
                 name: 'resizeImage:original',
                 label: 'Original',
                 value: null
+              },
+              {
+                name: 'resizeImage:25',
+                label: '25%',
+                value: '25'
               },
               {
                 name: 'resizeImage:50',
@@ -187,6 +224,38 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
           },
           table: {
             contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+          },
+          // Enable HTML support for pasted content, but strip problematic inline styles
+          htmlSupport: {
+            allow: [
+              {
+                name: /.*/,
+                attributes: true,
+                classes: true,
+                styles: {
+                  // Allow these styles
+                  'text-align': true,
+                  'background-color': true,
+                  'color': true,
+                  'border': true,
+                  'padding': true,
+                  'margin': true,
+                  'width': true,
+                  'height': true
+                }
+              }
+            ],
+            disallow: [
+              {
+                name: /.*/,
+                styles: {
+                  // Block these inline styles from Google Docs
+                  'font-family': false,
+                  'font-size': false,
+                  'line-height': false
+                }
+              }
+            ]
           },
           placeholder: placeholder,
           link: {

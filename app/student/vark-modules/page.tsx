@@ -126,43 +126,14 @@ export default function StudentVARKModulesPage() {
     try {
       setLoading(true);
 
-      // Load categories first
-      const categoriesData = await varkAPI.getCategories();
-      setCategories(categoriesData);
-
       // Load all available modules
       const modulesData = await varkAPI.getModules();
 
-      // Filter modules based on student access and teacher configuration
-      const userLearningStyle = user?.learningStyle || 'visual';
+      // Show ALL published modules to students
+      // Content filtering will apply when viewing module sections/content
       const filteredModules = modulesData.filter(module => {
-        // Check if module is published
-        if (!module.is_published) return false;
-
-        // Check if student has access based on class targeting
-        if (module.target_class_id) {
-          // If module targets a specific class, student must be enrolled
-          // This would need to be implemented based on your class enrollment logic
-          return true; // For now, show all published modules
-        }
-
-        // Check if module targets student's learning style
-        if (
-          module.target_learning_styles &&
-          module.target_learning_styles.length > 0
-        ) {
-          return module.target_learning_styles.includes(
-            userLearningStyle as any
-          );
-        }
-
-        // Check if module category matches student's learning style
-        if (module.category?.learning_style === userLearningStyle) {
-          return true;
-        }
-
-        // Show general modules if no specific targeting
-        return true;
+        // Only filter by published status
+        return module.is_published === true;
       });
 
       setModules(filteredModules);

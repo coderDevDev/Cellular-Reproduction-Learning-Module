@@ -153,6 +153,9 @@ export default function TeacherVARKModulesPage() {
     moduleId: string,
     currentStatus: boolean
   ) => {
+    const action = currentStatus ? 'unpublishing' : 'publishing';
+    console.log(`${action} module ${moduleId}...`);
+    
     try {
       await varkAPI.toggleModulePublish(moduleId, !currentStatus);
 
@@ -165,12 +168,15 @@ export default function TeacherVARKModulesPage() {
         )
       );
 
-      toast.success(
-        `Module ${currentStatus ? 'unpublished' : 'published'} successfully`
-      );
+      const successMessage = currentStatus 
+        ? '✅ Module unpublished successfully' 
+        : '✅ Module published successfully';
+      
+      toast.success(successMessage);
+      console.log(`Successfully ${action} module ${moduleId}`);
     } catch (error) {
-      console.error('Error toggling module publish status:', error);
-      toast.error('Failed to update module status');
+      console.error(`Error ${action} module:`, error);
+      toast.error(`Failed to ${currentStatus ? 'unpublish' : 'publish'} module`);
     }
   };
 
@@ -184,7 +190,12 @@ export default function TeacherVARKModulesPage() {
   };
 
   const confirmDeleteModule = async () => {
-    if (!deleteModal.moduleId) return;
+    if (!deleteModal.moduleId) {
+      console.error('No module ID provided for deletion');
+      return;
+    }
+
+    console.log(`Deleting module ${deleteModal.moduleId}...`);
 
     try {
       await varkAPI.deleteModule(deleteModal.moduleId);
@@ -194,10 +205,11 @@ export default function TeacherVARKModulesPage() {
         prev.filter(module => module.id !== deleteModal.moduleId)
       );
 
-      toast.success('Module deleted successfully');
+      toast.success('✅ Module deleted successfully');
+      console.log(`Successfully deleted module ${deleteModal.moduleId}`);
     } catch (error) {
       console.error('Error deleting module:', error);
-      toast.error('Failed to delete module');
+      toast.error('❌ Failed to delete module. Please try again.');
     } finally {
       setDeleteModal({
         isOpen: false,
@@ -343,7 +355,12 @@ export default function TeacherVARKModulesPage() {
   };
 
   const confirmBulkDelete = async () => {
-    if (selectedModules.length === 0) return;
+    if (selectedModules.length === 0) {
+      console.error('No modules selected for bulk deletion');
+      return;
+    }
+
+    console.log(`Bulk deleting ${selectedModules.length} modules...`);
 
     try {
       const promises = selectedModules.map(moduleId =>
@@ -356,11 +373,13 @@ export default function TeacherVARKModulesPage() {
         prev.filter(module => !selectedModules.includes(module.id))
       );
 
+      const count = selectedModules.length;
       setSelectedModules([]);
-      toast.success(`${selectedModules.length} modules deleted successfully`);
+      toast.success(`✅ ${count} module${count > 1 ? 's' : ''} deleted successfully`);
+      console.log(`Successfully deleted ${count} modules`);
     } catch (error) {
       console.error('Error bulk deleting modules:', error);
-      toast.error('Failed to delete some modules');
+      toast.error('❌ Failed to delete some modules. Please try again.');
     } finally {
       setDeleteModal({
         isOpen: false,
@@ -1135,29 +1154,32 @@ export default function TeacherVARKModulesPage() {
                           </td>
 
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center space-x-2">
-                              {/* <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewModule(module)}>
-                                <Eye className="w-4 h-4" />
-                              </Button> */}
-
+                            <div className="flex items-center gap-1">
+                              {/* Edit Button */}
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleEditModule(module)}>
+                                title="Edit module"
+                                onClick={() => handleEditModule(module)}
+                                className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
                                 <Edit className="w-4 h-4" />
                               </Button>
 
+                              {/* Publish/Unpublish Button */}
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                title={module.is_published ? 'Unpublish module' : 'Publish module'}
                                 onClick={() =>
                                   handleTogglePublish(
                                     module.id,
                                     module.is_published
                                   )
+                                }
+                                className={
+                                  module.is_published
+                                    ? 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50'
+                                    : 'text-green-600 hover:text-green-800 hover:bg-green-50'
                                 }>
                                 {module.is_published ? (
                                   <Pause className="w-4 h-4" />
@@ -1166,11 +1188,13 @@ export default function TeacherVARKModulesPage() {
                                 )}
                               </Button>
 
+                              {/* Delete Button */}
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                title="Delete module"
                                 onClick={() => handleDeleteModule(module.id)}
-                                className="text-red-600 hover:text-red-800">
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </div>

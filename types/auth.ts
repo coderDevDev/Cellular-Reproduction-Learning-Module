@@ -8,6 +8,8 @@ export interface User {
   fullName?: string;
   profilePhoto?: string;
   learningStyle?: 'visual' | 'auditory' | 'reading_writing' | 'kinesthetic';
+  preferredModules?: string[]; // ["Visual", "Aural", "Read/Write", "Kinesthetic", "General Module"]
+  learningType?: string; // "Unimodal", "Bimodal", "Trimodal", "Multimodal"
   gradeLevel?: string;
   onboardingCompleted?: boolean;
   createdAt: string;

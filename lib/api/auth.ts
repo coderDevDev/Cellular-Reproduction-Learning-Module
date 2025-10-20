@@ -427,6 +427,8 @@ export class AuthAPI {
         fullName: userData.full_name ?? undefined,
         profilePhoto: userData.profile_photo ?? undefined,
         learningStyle: userData.learning_style ?? undefined,
+        preferredModules: userData.preferred_modules ?? undefined,
+        learningType: userData.learning_type ?? undefined,
         gradeLevel: userData.grade_level ?? undefined,
         onboardingCompleted: userData.onboarding_completed ?? undefined,
         createdAt: userData.created_at,

@@ -99,20 +99,41 @@ export default function StudentVARKModulePage() {
         return;
       }
 
-      // Check if student has access to this module
-      const userLearningStyle = user?.learningStyle || 'visual';
-      const hasAccess =
-        moduleData.is_published &&
-        (!moduleData.target_class_id || // No class targeting
-          moduleData.target_learning_styles?.includes(
-            userLearningStyle as any
-          ) || // Matches learning style
-          moduleData.category?.learning_style === userLearningStyle); // Category matches
-
-      if (!hasAccess) {
-        toast.error('You do not have access to this module');
+      // Check if module is published
+      if (!moduleData.is_published) {
+        toast.error('This module is not available');
         router.push('/student/vark-modules');
         return;
+      }
+
+      // Apply content filtering to sections based on student's preferred modules
+      if (moduleData.content_structure?.sections) {
+        const studentPreferredModules = user?.preferredModules || [];
+        
+        // Mapping from student preferred modules to content learning styles
+        const moduleToStyleMap: Record<string, string> = {
+          'Visual': 'visual',
+          'Aural': 'auditory',
+          'Read/Write': 'reading_writing',
+          'Kinesthetic': 'kinesthetic',
+          'General Module': 'general'
+        };
+
+        // Filter sections based on learning style tags
+        moduleData.content_structure.sections = moduleData.content_structure.sections.filter(section => {
+          // If section has no learning style tags, show to everyone
+          const sectionTags = section.learning_style_tags || [];
+          if (sectionTags.length === 0) return true;
+
+          // If student has no preferred modules, show all sections
+          if (studentPreferredModules.length === 0) return true;
+
+          // Check if any student preferred module matches section tags
+          return studentPreferredModules.some(module => {
+            const mappedStyle = moduleToStyleMap[module];
+            return mappedStyle && sectionTags.includes(mappedStyle);
+          });
+        });
       }
 
       setModule(moduleData);

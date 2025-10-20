@@ -203,3 +203,123 @@ body {
     @apply bg-gradient-to-r from-[#00af8f] to-[#ffd416];
   }
 }
+
+/* ===== CKEditor Image Alignment & Text Wrapping ===== */
+/* Support for images with text wrapping (like textbook layout) */
+
+/* Align Left - Text wraps on right */
+.ck-content .image-style-align-left,
+.ck-content .image.image_resized.image-style-align-left,
+.ck-content .image-style-wrap-left {
+  float: left !important;
+  margin-right: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  margin-left: 0 !important;
+  max-width: 50% !important;
+}
+
+/* Align Right - Text wraps on left */
+.ck-content .image-style-align-right,
+.ck-content .image.image_resized.image-style-align-right {
+  float: right !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  margin-right: 0 !important;
+  max-width: 50% !important;
+}
+
+/* Align Center - No text wrapping */
+.ck-content .image-style-align-center,
+.ck-content .image-style-break-text {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-bottom: 1rem !important;
+  float: none !important;
+  clear: both !important;
+}
+
+/* Block style - Full width, no wrapping */
+.ck-content .image-style-block {
+  display: block !important;
+  margin: 1.5rem auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  float: none !important;
+  clear: both !important;
+}
+
+/* Side style - Float left with wrapping */
+.ck-content .image-style-side {
+  float: right !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  max-width: 40% !important;
+}
+
+/* Inline style - Within text */
+.ck-content .image-style-inline {
+  display: inline-block !important;
+  margin: 0 0.5rem !important;
+  max-width: 30% !important;
+}
+
+/* Image captions */
+.ck-content .image > figcaption {
+  margin-top: 0.5rem !important;
+  font-size: 0.875rem !important;
+  color: #666 !important;
+  font-style: italic !important;
+  text-align: center !important;
+}
+
+/* Clear floats after paragraphs with images */
+.ck-content p::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Ensure proper spacing for paragraphs after images */
+.ck-content .image + p,
+.ck-content figure + p {
+  clear: both;
+}
+
+/* Mobile responsive - Images stack on small screens */
+@media (max-width: 768px) {
+  .ck-content .image-style-align-left,
+  .ck-content .image-style-align-right,
+  .ck-content .image-style-side,
+  .ck-content .image-style-wrap-left {
+    float: none !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+}
+
+/* Apply same styles to preview views */
+.prose .image-style-align-left,
+.prose .image-style-wrap-left {
+  float: left !important;
+  margin-right: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  max-width: 50% !important;
+}
+
+.prose .image-style-align-right {
+  float: right !important;
+  margin-left: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  max-width: 50% !important;
+}
+
+.prose .image-style-align-center,
+.prose .image-style-break-text {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  clear: both !important;
+}

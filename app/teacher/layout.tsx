@@ -39,9 +39,11 @@ import { toast } from 'sonner';
 
 const navigationItems = [
   { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
+  { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
   { icon: GraduationCap, label: 'Classes', href: '/teacher/classes' },
   { icon: Target, label: 'VARK Modules', href: '/teacher/vark-modules' },
-  { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
+
+  { icon: Users, label: 'Students', href: '/teacher/students' },
   // { icon: FileText, label: 'Quizzes', href: '/teacher/quizzes' },
   // { icon: Activity, label: 'Activities', href: '/teacher/activities' },
   // { icon: Users, label: 'Students', href: '/teacher/students' },

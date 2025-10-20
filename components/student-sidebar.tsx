@@ -193,12 +193,31 @@ export function StudentSidebar({
                 <p className="text-xs text-gray-500 truncate">
                   {user?.email || 'student@example.com'}
                 </p>
-                {user?.learningStyle && (
+                {user?.learningType && (
                   <Badge
                     variant="secondary"
-                    className="text-xs px-2 py-0.5 mt-1 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
-                    {user.learningStyle} Learner
+                    className="text-xs px-2 py-0.5 mt-1 bg-gradient-to-r from-indigo-500/10 to-purple-400/10 text-indigo-600 border border-indigo-500/20">
+                    {user.learningType}
                   </Badge>
+                )}
+                {user?.preferredModules && user.preferredModules.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {user.preferredModules.slice(0, 2).map((module: string, idx: number) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                        {module}
+                      </Badge>
+                    ))}
+                    {user.preferredModules.length > 2 && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs px-1.5 py-0 bg-gray-100 text-gray-600">
+                        +{user.preferredModules.length - 2}
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

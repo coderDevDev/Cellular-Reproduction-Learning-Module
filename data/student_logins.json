@@ -1,0 +1,391 @@
+[
+    {
+        "name": "Austria, Aiden J.",
+        "username": "aiden.austria",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Barias, Jade C.",
+        "username": "jade.barias",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Barrosa, Ronnie Jr. G.",
+        "username": "ronnie.barrosa",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Batalla, Ivan M.",
+        "username": "ivan.batalla",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Buena, Aaron",
+        "username": "aaron.buena",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "Caballas, Brenran L.",
+        "username": "brenran.caballas",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "De Leon, Christian D.",
+        "username": "christian.deleon",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Delos Reyes, Rainer John",
+        "username": "rainer.delosreyes",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Kinesthetic"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Eballar, Justine Rabos",
+        "username": "justine.eballar",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Kinesthetic"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Encinas, Joseph Nathaniel",
+        "username": "joseph.encinas",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Grijalvo, Gerald",
+        "username": "gerald.grijalvo",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Martinez, Alberto Jr. V.",
+        "username": "alberto.martinez",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Megenio, Shawn Kean",
+        "username": "shawn.megenio",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Mollasgo, Rho-Jhon P.",
+        "username": "rhojhon.mollasgo",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Nasol, Jio A.",
+        "username": "jio.nasol",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Ocfemia, Mark Emmanuel",
+        "username": "mark.ocfemia",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Perez, Noeh O.",
+        "username": "noeh.perez",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Ragay, Michael A.",
+        "username": "michael.ragay",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Reforsado, Terence B.",
+        "username": "terence.reforsado",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Regaldo, Justine L.",
+        "username": "justine.regaldo",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "San Jose, Jay-v N.",
+        "username": "jayv.sanjose",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Kinesthetic"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "San Jose, Luis III N.",
+        "username": "luis.sanjose",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Apetrior, Trisha Mae S.",
+        "username": "trishamae.apetrior",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Balbedina, Yuanne R.",
+        "username": "yuanne.balbedina",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Bayonito, Francin P.",
+        "username": "francin.bayonito",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Belleza, Crystal Mezh",
+        "username": "crystal.belleza",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "Capistrano, Keillan Joan",
+        "username": "keillan.capistrano",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Ceneta, Wencel Jane Aira",
+        "username": "wenceljane.ceneta",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Cerillo, Kate Cynthia",
+        "username": "kate.cerillo",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Dabal, Jameen A.",
+        "username": "jameen.dabal",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "Dagal, Reyna D.",
+        "username": "reyna.dagal",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write"
+        ],
+        "type": "Unimodal"
+    },
+    {
+        "name": "Delos Reyes, Raya Isabel",
+        "username": "raya.delosreyes",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Delos Santos, Celine O.",
+        "username": "celine.delossantos",
+        "password": "learn2025",
+        "preferred_modules": [
+            "General Module"
+        ],
+        "type": null
+    },
+    {
+        "name": "Esnero, Jailyn R.",
+        "username": "jailyn.esnero",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Multimodal"
+    },
+    {
+        "name": "Listana, Jean Andrea Mae",
+        "username": "jeanandrea.listana",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Mari\u00f1as, Jecel",
+        "username": "jecel.marinas",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Trimodal"
+    },
+    {
+        "name": "Obal, Jasmin DS.",
+        "username": "jasmin.obal",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Read/Write",
+            "Kinesthetic"
+        ],
+        "type": "Bimodal"
+    },
+    {
+        "name": "Singson, Xandra Lourine",
+        "username": "xandra.singson",
+        "password": "learn2025",
+        "preferred_modules": [
+            "Visual",
+            "Aural",
+            "Read/Write"
+        ],
+        "type": "Trimodal"
+    }
+]
