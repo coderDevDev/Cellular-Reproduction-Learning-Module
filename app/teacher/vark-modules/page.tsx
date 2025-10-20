@@ -815,6 +815,55 @@ export default function TeacherVARKModulesPage() {
             </Card>
           </div>
 
+          {/* Editor.js Feature Banner */}
+          <Card className="mb-8 border-2 border-teal-200 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50">
+            <CardContent className="p-6">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 p-3 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl">
+                  <PenTool className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                      ✨ New: Enhanced Content Creation with Editor.js
+                    </h3>
+                  </div>
+                  <p className="text-gray-700 mb-3">
+                    Create rich, structured content faster with our WYSIWYG editor! Editor.js provides a block-style editing experience similar to Google Docs and Notion, perfect for building engaging lessons.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-teal-600 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Block-Style Editing</p>
+                        <p className="text-xs text-gray-600">Add headers, lists, tables, quotes with ease</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-teal-600 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Clean JSON Output</p>
+                        <p className="text-xs text-gray-600">Structured data for consistent rendering</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <span className="text-teal-600 mt-0.5">✓</span>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Auto Key Points</p>
+                        <p className="text-xs text-gray-600">Automatically extract important concepts</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 bg-white/50 rounded-lg border border-teal-200">
+                    <p className="text-sm text-gray-700">
+                      <strong>How to use:</strong> Create a new module or edit an existing section, then click the <span className="inline-flex items-center px-2 py-1 rounded bg-teal-100 text-teal-700 text-xs font-semibold">✨ Use Editor.js</span> button to start editing with the enhanced WYSIWYG editor.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Modules Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Bulk Actions */}

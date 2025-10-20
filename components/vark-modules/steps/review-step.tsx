@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   CheckCircle,
   Clock,
@@ -18,9 +20,11 @@ import {
   Headphones,
   PenTool,
   Zap,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { VARKModule } from '@/types/vark-module';
+import { toast } from 'sonner';
 
 interface ReviewStepProps {
   formData: Partial<VARKModule>;
@@ -75,7 +79,7 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
     return !!(
       formData.title &&
       formData.description &&
-      formData.category_id &&
+      // Category is optional - will default to 'general-education' in API
       formData.learning_objectives?.some(obj => obj.trim()) &&
       sections.length > 0
     );
@@ -86,7 +90,8 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
 
     if (!formData.title) issues.push('Module title is required');
     if (!formData.description) issues.push('Module description is required');
-    if (!formData.category_id) issues.push('Category selection is required');
+    // Category is optional - API will use 'general-education' as default
+    // if (!formData.category_id) issues.push('Category selection is required');
     if (!formData.learning_objectives?.some(obj => obj.trim())) {
       issues.push('At least one learning objective is required');
     }
@@ -95,13 +100,21 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
 
     // Check sections have required content
     sections.forEach((section, index) => {
-      if (!section.title) issues.push(`Section ${index + 1} title is required`);
-      if (
-        !section.content_data?.text &&
-        !section.content_data?.table_data &&
-        !section.content_data?.quiz_data &&
-        !section.content_data?.activity_data
-      ) {
+      // ✅ Section title is optional - defaults to "Section X"
+      // if (!section.title) issues.push(`Section ${index + 1} title is required`);
+      
+      // ✅ Check for any type of content (CKEditor uses simple text field)
+      const hasContent = 
+        (section.content_data?.text && section.content_data.text.trim().length > 0) ||
+        section.content_data?.table_data ||
+        section.content_data?.quiz_data ||
+        section.content_data?.activity_data ||
+        section.content_data?.video_data ||
+        section.content_data?.audio_data ||
+        section.content_data?.highlight_data ||
+        section.content_data?.diagram_data;
+
+      if (!hasContent) {
         issues.push(`Section ${index + 1} content is required`);
       }
     });
@@ -111,6 +124,43 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
 
   const validationIssues = getValidationIssues();
   const isValid = hasRequiredFields() && validationIssues.length === 0;
+
+  // Export data as JSON file
+  const handleExportJSON = () => {
+    try {
+      // Get current timestamp for filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `vark-module-${timestamp}.json`;
+      
+      // Create a clean copy of the data (what will be sent to Supabase)
+      const exportData = {
+        ...formData,
+        // Add timestamp for reference
+        _exported_at: new Date().toISOString(),
+        _note: 'This is the exact data structure that will be sent to Supabase'
+      };
+      
+      // Convert to pretty JSON
+      const jsonString = JSON.stringify(exportData, null, 2);
+      
+      // Create blob and download
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Data exported to ${filename}`);
+      console.log('📥 Exported module data:', exportData);
+    } catch (error) {
+      console.error('Error exporting JSON:', error);
+      toast.error('Failed to export JSON file');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -409,18 +459,36 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
           </div>
         )}
 
-        <Button
-          onClick={onSave}
-          disabled={!isValid}
-          size="lg"
-          className={`px-8 py-4 text-lg font-semibold ${
-            isValid
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}>
-          <CheckCircle className="w-6 h-6 mr-2" />
-          {isValid ? 'Save VARK Module' : 'Fix Issues to Save'}
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+          {/* Export JSON Button */}
+          <Button
+            onClick={handleExportJSON}
+            variant="outline"
+            size="lg"
+            className="px-6 py-4 text-lg font-semibold border-2 border-blue-500 text-blue-600 hover:bg-blue-50">
+            <Download className="w-6 h-6 mr-2" />
+            Export as JSON
+          </Button>
+
+          {/* Save Button */}
+          <Button
+            onClick={onSave}
+            disabled={!isValid}
+            size="lg"
+            className={`px-8 py-4 text-lg font-semibold ${
+              isValid
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}>
+            <CheckCircle className="w-6 h-6 mr-2" />
+            {isValid ? 'Save to Supabase' : 'Fix Issues to Save'}
+          </Button>
+        </div>
+
+        <p className="text-xs text-center text-gray-500 mt-4">
+          💡 Tip: Click "Export as JSON" to see the exact data structure that will be saved to the database
+        </p>
 
         {!isValid && (
           <p className="text-sm text-red-600 mt-3">

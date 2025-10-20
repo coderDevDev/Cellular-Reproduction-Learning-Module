@@ -3,7 +3,7 @@ import { VARKModule, VARKModuleCategory } from '@/types/vark-module';
 export const module1CellDivisionReadingWriting: VARKModule = {
   id: 'module1-cell-division-reading-writing-001',
   category_id: '14b8bda7-5fe0-4e10-88d0-db4ba8b55137', // Biology category UUID from database
-  title: '📖 Lesson 1: Understanding Cell Division - Reading/Writing Focus',
+  title: '📖 Lesson 1: Understanding Cell Divisionss - Reading/Writing Focus',
   description:
     'A comprehensive reading/writing focused module on cell division, mitosis, and meiosis. This module emphasizes text-based learning, note-taking, and written comprehension activities.',
   learning_objectives: [

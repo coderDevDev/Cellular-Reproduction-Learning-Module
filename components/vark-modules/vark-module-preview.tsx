@@ -308,11 +308,34 @@ const renderContentPreview = (section: VARKModuleContentSection) => {
 
   switch (content_type) {
     case 'text':
+      // CKEditor content is stored as HTML
+      const htmlContent = content_data?.text || '<p class="text-gray-500 italic">Text content will appear here...</p>';
+      
       return (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <p className="text-gray-700">
-            {content_data?.text || 'Text content will appear here...'}
-          </p>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          {/* Render CKEditor HTML content with enhanced styling */}
+          <div 
+            className="prose prose-sm max-w-none
+              prose-headings:text-gray-900 prose-headings:font-bold
+              prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base
+              prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4
+              prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-gray-900 prose-strong:font-semibold
+              prose-ul:list-disc prose-ul:ml-6 prose-ul:mb-4
+              prose-ol:list-decimal prose-ol:ml-6 prose-ol:mb-4
+              prose-li:text-gray-700 prose-li:mb-1
+              prose-blockquote:border-l-4 prose-blockquote:border-blue-400 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:bg-blue-50 prose-blockquote:py-2
+              prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
+              prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-pre:my-4
+              [&_img]:mx-auto [&_img]:block [&_img]:rounded-lg [&_img]:shadow-lg [&_img]:my-6 [&_img]:max-w-full
+              [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:shadow-md [&_table]:rounded-lg [&_table]:overflow-hidden
+              [&_thead]:bg-gradient-to-r [&_thead]:from-blue-500 [&_thead]:to-blue-600
+              [&_th]:text-white [&_th]:font-semibold [&_th]:p-3 [&_th]:text-left [&_th]:border-r [&_th]:border-blue-400 [&_th:last-child]:border-r-0
+              [&_td]:p-3 [&_td]:border [&_td]:border-gray-200 [&_td]:bg-white
+              [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-blue-50
+              [&_iframe]:rounded-lg [&_iframe]:shadow-lg [&_iframe]:my-4"
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
         </div>
       );
 

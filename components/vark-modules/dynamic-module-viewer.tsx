@@ -190,23 +190,48 @@ export default function DynamicModuleViewer({
 
     switch (content_type) {
       case 'text':
+        // CKEditor content is stored as HTML
+        const htmlContent = content_data?.text || '';
+
         return (
           <div className="prose prose-lg max-w-none">
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-              {content_data.text}
-            </div>
-            {metadata?.key_points && (
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                <h4 className="font-semibold text-blue-800 mb-2">
+            {/* Render CKEditor HTML content with enhanced styling */}
+            <div 
+              className="text-gray-700 leading-relaxed
+                prose-headings:text-gray-900 prose-headings:font-bold
+                prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg
+                prose-p:text-gray-700 prose-p:leading-relaxed prose-p:mb-4
+                prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
+                prose-strong:text-gray-900 prose-strong:font-semibold
+                prose-em:italic
+                prose-ul:list-disc prose-ul:ml-6 prose-ul:mb-4
+                prose-ol:list-decimal prose-ol:ml-6 prose-ol:mb-4
+                prose-li:text-gray-700 prose-li:mb-2
+                prose-blockquote:border-l-4 prose-blockquote:border-blue-400 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:bg-blue-50 prose-blockquote:py-3 prose-blockquote:rounded-r-lg
+                prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-mono
+                prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-6
+                [&_img]:mx-auto [&_img]:block [&_img]:rounded-xl [&_img]:shadow-2xl [&_img]:my-8 [&_img]:max-w-full [&_img]:border-4 [&_img]:border-white
+                [&_table]:w-full [&_table]:border-collapse [&_table]:my-8 [&_table]:shadow-xl [&_table]:rounded-xl [&_table]:overflow-hidden
+                [&_thead]:bg-gradient-to-r [&_thead]:from-blue-600 [&_thead]:to-blue-700
+                [&_th]:text-white [&_th]:font-bold [&_th]:p-4 [&_th]:text-left [&_th]:border-r [&_th]:border-blue-500 [&_th:last-child]:border-r-0
+                [&_td]:p-4 [&_td]:border [&_td]:border-gray-200 [&_td]:bg-white
+                [&_tbody_tr]:transition-all [&_tbody_tr:hover]:bg-blue-50 [&_tbody_tr:hover]:shadow-md
+                [&_iframe]:rounded-xl [&_iframe]:shadow-2xl [&_iframe]:my-8"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+            />
+            {/* {metadata?.key_points && metadata.key_points.length > 0 && (
+              <div className="mt-8 p-6 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                <h4 className="font-semibold text-blue-800 mb-3 flex items-center">
+                  <Target className="w-5 h-5 mr-2" />
                   Key Points:
                 </h4>
-                <ul className="list-disc list-inside space-y-1 text-blue-700">
+                <ul className="list-disc list-inside space-y-2 text-blue-700">
                   {metadata.key_points.map((point, index) => (
-                    <li key={index}>{point}</li>
+                    <li key={index} className="leading-relaxed">{point}</li>
                   ))}
                 </ul>
               </div>
-            )}
+            )} */}
           </div>
         );
 

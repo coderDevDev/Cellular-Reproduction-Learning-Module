@@ -1,4 +1,5 @@
 import { Class, ClassStudent } from './class';
+import { OutputData } from '@editorjs/editorjs';
 
 export interface VARKModuleCategory {
   id: string;
@@ -82,6 +83,7 @@ export interface VARKContentData {
   text?: string;
   html?: string;
   markdown?: string;
+  editorjs_data?: OutputData; // Editor.js JSON output for WYSIWYG editing
   table_data?: VARKTableData;
   quiz_data?: VARKQuizData;
   activity_data?: VARKActivityData;

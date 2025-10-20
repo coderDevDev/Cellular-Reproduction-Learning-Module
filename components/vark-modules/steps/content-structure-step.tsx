@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,9 +38,17 @@ import {
   BarChart3,
   Clock,
   Target,
-  BookOpen
+  BookOpen,
+  Sparkles,
+  Code
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
+
+// Dynamically import CKEditor to avoid SSR issues
+const CKEditorContentEditor = dynamic(
+  () => import('../ckeditor-content-editor'),
+  { ssr: false }
+);
 
 interface ContentStructureStepProps {
   formData: Partial<VARKModule>;
@@ -182,6 +191,7 @@ export default function ContentStructureStep({
   const [selectedSectionIndex, setSelectedSectionIndex] = useState<
     number | null
   >(null);
+  // ✅ Removed useEditorJS toggle - Editor.js is always embedded in the form
   const sections = formData.content_structure?.sections || [];
 
   // Filter assessment questions based on section ID
@@ -206,24 +216,41 @@ export default function ContentStructureStep({
 
     switch (content_type) {
       case 'text':
+        // ✅ Use CKEditor for rich text content
         return (
           <div className="space-y-4">
-            <Label className="text-sm font-medium text-gray-700">
-              Content Text
-            </Label>
-            <Textarea
-              placeholder="Enter the text content for this section..."
-              value={section.content_data?.text || ''}
-              onChange={e =>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Rich Content Editor (WYSIWYG)
+              </Label>
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                <Sparkles className="w-3 h-3 mr-1" />
+                CKEditor Active
+              </Badge>
+            </div>
+            <CKEditorContentEditor
+              key={section.id}
+              data={section.content_data?.text || ''}
+              onChange={(content) => {
+                console.log(`💾 Auto-saving Section ${index + 1}:`, {
+                  sectionId: section.id,
+                  contentLength: content.length,
+                  hasContent: content.length > 0,
+                  preview: content.substring(0, 100)
+                });
+                
                 updateContentSection(index, {
                   content_data: {
                     ...section.content_data,
-                    text: e.target.value
+                    text: content
                   }
-                })
-              }
-              className="min-h-[200px] resize-none"
+                });
+              }}
+              placeholder="Start writing your content... Use the toolbar to format text, add images, tables, and more!"
             />
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Tip: Content is auto-saved as you type! Use the toolbar for formatting, images, tables, and more.
+            </p>
           </div>
         );
 
@@ -3171,7 +3198,16 @@ export default function ContentStructureStep({
                         ? 'border-teal-500 bg-gradient-to-r from-teal-50 to-emerald-50 shadow-lg'
                         : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50/30'
                     }`}
-                    onClick={() => setSelectedSectionIndex(index)}>
+                    onClick={() => {
+                      console.log(`📂 Loading Section ${index + 1}:`, {
+                        sectionId: section.id,
+                        title: section.title || `Section ${index + 1}`,
+                        hasText: !!section.content_data?.text,
+                        textLength: section.content_data?.text?.length || 0,
+                        textPreview: section.content_data?.text?.substring(0, 100) || '(empty)'
+                      });
+                      setSelectedSectionIndex(index);
+                    }}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <GripVertical className="w-4 h-4 text-gray-400" />
@@ -3222,22 +3258,28 @@ export default function ContentStructureStep({
           {selectedSectionIndex !== null && sections[selectedSectionIndex] ? (
             <Card className="border-0 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Edit Section:{' '}
-                  {sections[selectedSectionIndex].title ||
-                    `Section ${selectedSectionIndex + 1}`}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">
+                    Edit Section:{' '}
+                    {sections[selectedSectionIndex].title ||
+                      `Section ${selectedSectionIndex + 1}`}
+                  </CardTitle>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Auto-Save Enabled
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+                <CardContent>
+                  <div className="space-y-6">
                   {/* Basic Section Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium text-gray-700">
-                        Section Title
+                        Section Title ✏️
                       </Label>
                       <Input
-                        placeholder="Enter section title..."
+                        placeholder={`Section ${selectedSectionIndex + 1}`}
                         value={sections[selectedSectionIndex].title || ''}
                         onChange={e =>
                           updateContentSection(selectedSectionIndex, {
@@ -3245,6 +3287,9 @@ export default function ContentStructureStep({
                           })
                         }
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Default: "Section {selectedSectionIndex + 1}" (You can edit this)
+                      </p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-700">
@@ -3473,7 +3518,7 @@ export default function ContentStructureStep({
             <Card className="border-0 shadow-sm">
               <CardContent className="p-12 text-center">
                 <Activity className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
                   No Section Selected
                 </h3>
                 <p className="text-gray-500">

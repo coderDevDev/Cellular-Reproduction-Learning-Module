@@ -15,6 +15,116 @@ import {
 export class VARKModulesAPI {
   private supabase = supabase;
 
+  // Extract base64 images from HTML and upload to storage
+  async extractAndUploadImages(html: string, moduleId: string): Promise<string> {
+    try {
+      console.log('🖼️ Processing images in HTML content...');
+      
+      // Find all base64 images in HTML
+      const base64ImageRegex = /<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"/g;
+      let match;
+      let processedHtml = html;
+      let imageCount = 0;
+
+      while ((match = base64ImageRegex.exec(html)) !== null) {
+        const [fullMatch, imageType, base64Data] = match;
+        imageCount++;
+        
+        try {
+          // Convert base64 to blob
+          const byteCharacters = atob(base64Data);
+          const byteArrays = [];
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteArrays.push(byteCharacters.charCodeAt(i));
+          }
+          const blob = new Blob([new Uint8Array(byteArrays)], { type: `image/${imageType}` });
+
+          // Generate unique filename
+          const timestamp = Date.now();
+          const filename = `module-${moduleId}-image-${timestamp}-${imageCount}.${imageType}`;
+          const filepath = `module-images/${filename}`;
+
+          // Upload to storage
+          const { error } = await this.supabase.storage
+            .from('module-backups')
+            .upload(filepath, blob, {
+              contentType: `image/${imageType}`,
+              upsert: false
+            });
+
+          if (!error) {
+            // Get public URL
+            const { data: urlData } = this.supabase.storage
+              .from('module-backups')
+              .getPublicUrl(filepath);
+
+            // Replace base64 with URL in HTML
+            processedHtml = processedHtml.replace(
+              `data:image/${imageType};base64,${base64Data}`,
+              urlData.publicUrl
+            );
+            
+            console.log(`✅ Image ${imageCount} uploaded and replaced with URL`);
+          }
+        } catch (imgError) {
+          console.warn(`⚠️ Failed to process image ${imageCount}:`, imgError);
+        }
+      }
+
+      if (imageCount > 0) {
+        console.log(`✅ Processed ${imageCount} images in HTML`);
+      }
+
+      return processedHtml;
+    } catch (error) {
+      console.error('❌ Error processing images:', error);
+      return html; // Return original if processing fails
+    }
+  }
+
+  // Upload JSON backup to Supabase Storage
+  async uploadModuleBackup(
+    moduleData: any,
+    moduleId: string
+  ): Promise<string | null> {
+    try {
+      console.log('📤 Uploading JSON backup to storage...');
+
+      // Create JSON blob
+      const jsonString = JSON.stringify(moduleData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const filename = `module-backup-${moduleId}-${timestamp}.json`;
+      const filepath = `vark-modules/${filename}`;
+
+      // Upload to Supabase Storage
+      const { data, error } = await this.supabase.storage
+        .from('module-backups') // Storage bucket name
+        .upload(filepath, blob, {
+          contentType: 'application/json',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('❌ Failed to upload JSON backup:', error);
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = this.supabase.storage
+        .from('module-backups')
+        .getPublicUrl(filepath);
+
+      console.log('✅ JSON backup uploaded:', urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('❌ Error uploading JSON backup:', error);
+      return null;
+    }
+  }
+
   // VARK Module Categories
   // Categories are now handled as simple text fields, not foreign keys
 
@@ -138,6 +248,32 @@ export class VARKModulesAPI {
     console.log('Attempting to insert into vark_modules table...');
 
     try {
+      // Generate temporary ID for image processing
+      const tempId = crypto.randomUUID();
+      
+      // Process images in content sections to reduce payload size
+      if (cleanModuleData.content_structure?.sections) {
+        console.log('🖼️ Processing images in sections before database insert...');
+        
+        for (let i = 0; i < cleanModuleData.content_structure.sections.length; i++) {
+          const section = cleanModuleData.content_structure.sections[i];
+          
+          if (section.content_type === 'text' && section.content_data?.text) {
+            // Extract base64 images and upload to storage
+            const processedHtml = await this.extractAndUploadImages(
+              section.content_data.text,
+              tempId
+            );
+            
+            // Update section with processed HTML
+            cleanModuleData.content_structure.sections[i].content_data.text = processedHtml;
+          }
+        }
+        
+        console.log('✅ All images processed, payload size reduced');
+      }
+      
+      // First, insert the module to get the ID
       const { data, error } = await this.supabase
         .from('vark_modules')
         .insert(cleanModuleData)
@@ -158,6 +294,24 @@ export class VARKModulesAPI {
       console.log('✅ Successfully created VARK module:', data);
       console.log('Module ID:', data.id);
       console.log('Module Title:', data.title);
+
+      // Upload JSON backup to storage
+      const backupUrl = await this.uploadModuleBackup(data, data.id);
+      
+      // Update module with backup URL if upload was successful
+      if (backupUrl) {
+        const { error: updateError } = await this.supabase
+          .from('vark_modules')
+          .update({ json_backup_url: backupUrl })
+          .eq('id', data.id);
+
+        if (updateError) {
+          console.warn('⚠️ Failed to save backup URL to module:', updateError);
+        } else {
+          console.log('✅ JSON backup URL saved to module');
+          data.json_backup_url = backupUrl;
+        }
+      }
 
       return data;
     } catch (error) {
@@ -183,6 +337,21 @@ export class VARKModulesAPI {
     if (error) {
       console.error('Error updating VARK module:', error);
       throw new Error('Failed to update VARK module');
+    }
+
+    // Upload new JSON backup after update
+    const backupUrl = await this.uploadModuleBackup(data, data.id);
+    
+    if (backupUrl) {
+      const { error: updateError } = await this.supabase
+        .from('vark_modules')
+        .update({ json_backup_url: backupUrl })
+        .eq('id', id);
+
+      if (!updateError) {
+        console.log('✅ Updated JSON backup URL');
+        data.json_backup_url = backupUrl;
+      }
     }
 
     return data;

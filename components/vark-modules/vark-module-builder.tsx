@@ -44,7 +44,9 @@ import {
   Lightbulb,
   Rocket,
   Database,
-  Loader2
+  Loader2,
+  Upload,
+  FileUp
 } from 'lucide-react';
 import {
   VARKModule,
@@ -65,6 +67,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface VARKModuleBuilderProps {
   onSave: (module: VARKModule) => void;
@@ -149,10 +152,10 @@ export default function VARKModuleBuilder({
   });
   const [formData, setFormData] = useState<Partial<VARKModule>>({
     id: initialData?.id || crypto.randomUUID(),
-    category_id: initialData?.category_id || '',
-    title: initialData?.title || '',
-    description: initialData?.description || '',
-    learning_objectives: initialData?.learning_objectives || [''],
+    category_id: initialData?.category_id || (categories.length > 0 ? categories[0].id : 'general-education'),
+    title: initialData?.title || 'New VARK Module',
+    description: initialData?.description || 'A comprehensive learning module designed for diverse learning styles.',
+    learning_objectives: initialData?.learning_objectives || ['Understand the key concepts', 'Apply knowledge to real-world scenarios'],
     content_structure:
       initialData?.content_structure ||
       ({
@@ -249,7 +252,10 @@ export default function VARKModuleBuilder({
       id: crypto.randomUUID(),
       title: '',
       content_type: 'text',
-      content_data: { text: '' },
+      content_data: {
+        // ✅ Simple text field for CKEditor (stores HTML)
+        text: ''
+      },
       position: (formData.content_structure?.sections?.length || 0) + 1,
       is_required: true,
       time_estimate_minutes: 5,
@@ -278,6 +284,7 @@ export default function VARKModuleBuilder({
   ) => {
     const updatedSections = [...(formData.content_structure?.sections || [])];
     updatedSections[index] = { ...updatedSections[index], ...updates };
+    
     updateFormData({
       content_structure: {
         ...formData.content_structure,
@@ -353,6 +360,61 @@ export default function VARKModuleBuilder({
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  // Import JSON functionality
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please select a JSON file');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const importedData = JSON.parse(content);
+
+        // Remove export-only fields
+        const { _exported_at, _note, ...cleanData } = importedData;
+
+        // Validate required fields
+        if (!cleanData.title) {
+          toast.error('Invalid JSON: Missing title field');
+          return;
+        }
+
+        // Merge imported data with form data
+        setFormData(prev => ({
+          ...prev,
+          ...cleanData,
+          // Generate new ID for imported module (will be creating new)
+          id: crypto.randomUUID(),
+        }));
+
+        toast.success(`Module data imported successfully! You can now continue editing.`);
+        console.log('📥 Imported module data:', cleanData);
+        
+        // Reset to step 1 so user can review and edit
+        setCurrentStep(1);
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+        toast.error('Failed to parse JSON file. Please check the file format.');
+      }
+    };
+
+    reader.onerror = () => {
+      toast.error('Failed to read file');
+    };
+
+    reader.readAsText(file);
+    
+    // Reset input so same file can be imported again
+    event.target.value = '';
+  };
 
   const getPreviewSectionIndex = () => {
     const sections = formData.content_structure?.sections || [];
@@ -635,9 +697,37 @@ export default function VARKModuleBuilder({
                   <Lightbulb className="w-8 h-8 text-white" />
                 </div>
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 bg-clip-text text-transparent mb-4">
-                Create VARK Learning Module
-              </h1>
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 bg-clip-text text-transparent">
+                  Create VARK Learning Module
+                </h1>
+                
+                {/* Import JSON Button */}
+                <div className="relative">
+                  <input
+                    type="file"
+                    id="import-json"
+                    accept=".json"
+                    onChange={handleImportJSON}
+                    className="hidden"
+                  />
+                  <label htmlFor="import-json">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="border-2 border-blue-500 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                      onClick={() => document.getElementById('import-json')?.click()}
+                      asChild
+                    >
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Import JSON
+                      </div>
+                    </Button>
+                  </label>
+                </div>
+              </div>
               {/* <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
                 Build an interactive, dynamic learning experience tailored to
                 different learning styles. Create engaging content that adapts
