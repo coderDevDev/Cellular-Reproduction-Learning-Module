@@ -146,6 +146,7 @@ export default function TeacherVARKModulesPage() {
       if (user?.id) {
         const classesData = await ClassesAPI.getTeacherClasses(user.id);
         setTeacherClasses(classesData);
+        setLoading(false);
       }
 
       // Load all modules (teachers can see all)
@@ -154,6 +155,7 @@ export default function TeacherVARKModulesPage() {
 
       // Set empty categories array since we're not using category foreign keys anymore
       setCategories([]);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading VARK modules data:', error);
       toast.error('Failed to load VARK modules data');
@@ -172,7 +174,7 @@ export default function TeacherVARKModulesPage() {
   ) => {
     const action = currentStatus ? 'unpublishing' : 'publishing';
     console.log(`${action} module ${moduleId}...`);
-    
+
     try {
       await varkAPI.toggleModulePublish(moduleId, !currentStatus);
 
@@ -185,15 +187,17 @@ export default function TeacherVARKModulesPage() {
         )
       );
 
-      const successMessage = currentStatus 
-        ? '✅ Module unpublished successfully' 
+      const successMessage = currentStatus
+        ? '✅ Module unpublished successfully'
         : '✅ Module published successfully';
-      
+
       toast.success(successMessage);
       console.log(`Successfully ${action} module ${moduleId}`);
     } catch (error) {
       console.error(`Error ${action} module:`, error);
-      toast.error(`Failed to ${currentStatus ? 'unpublish' : 'publish'} module`);
+      toast.error(
+        `Failed to ${currentStatus ? 'unpublish' : 'publish'} module`
+      );
     }
   };
 
@@ -392,7 +396,9 @@ export default function TeacherVARKModulesPage() {
 
       const count = selectedModules.length;
       setSelectedModules([]);
-      toast.success(`✅ ${count} module${count > 1 ? 's' : ''} deleted successfully`);
+      toast.success(
+        `✅ ${count} module${count > 1 ? 's' : ''} deleted successfully`
+      );
       console.log(`Successfully deleted ${count} modules`);
     } catch (error) {
       console.error('Error bulk deleting modules:', error);
@@ -432,7 +438,9 @@ export default function TeacherVARKModulesPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${module.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.json`;
+      link.download = `${module.title
+        .replace(/[^a-z0-9]/gi, '-')
+        .toLowerCase()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -477,7 +485,9 @@ export default function TeacherVARKModulesPage() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast.success(`📥 ${selectedModules.length} modules exported successfully!`);
+      toast.success(
+        `📥 ${selectedModules.length} modules exported successfully!`
+      );
       setSelectedModules([]);
     } catch (error) {
       console.error('Bulk export error:', error);
@@ -486,7 +496,9 @@ export default function TeacherVARKModulesPage() {
   };
 
   // Handle file selection for import
-  const handleImportFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -557,9 +569,11 @@ export default function TeacherVARKModulesPage() {
         }
 
         setModules(prev => [...imported, ...prev]);
-        
+
         if (failed.length > 0) {
-          toast.warning(`⚠️ Imported ${imported.length} modules. Failed: ${failed.length}`);
+          toast.warning(
+            `⚠️ Imported ${imported.length} modules. Failed: ${failed.length}`
+          );
         } else {
           toast.success(`✅ Successfully imported ${imported.length} modules!`);
         }
@@ -579,7 +593,7 @@ export default function TeacherVARKModulesPage() {
       setShowImportModal(false);
       setImportFile(null);
       setImportPreview(null);
-      
+
       // Refresh data
       await loadData(true);
     } catch (error) {
@@ -1055,34 +1069,54 @@ export default function TeacherVARKModulesPage() {
                     </h3>
                   </div>
                   <p className="text-gray-700 mb-3">
-                    Create rich, structured content faster with our WYSIWYG editor! Editor.js provides a block-style editing experience similar to Google Docs and Notion, perfect for building engaging lessons.
+                    Create rich, structured content faster with our WYSIWYG
+                    editor! Editor.js provides a block-style editing experience
+                    similar to Google Docs and Notion, perfect for building
+                    engaging lessons.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="flex items-start space-x-2">
                       <span className="text-teal-600 mt-0.5">✓</span>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">Block-Style Editing</p>
-                        <p className="text-xs text-gray-600">Add headers, lists, tables, quotes with ease</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Block-Style Editing
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Add headers, lists, tables, quotes with ease
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-2">
                       <span className="text-teal-600 mt-0.5">✓</span>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">Clean JSON Output</p>
-                        <p className="text-xs text-gray-600">Structured data for consistent rendering</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Clean JSON Output
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Structured data for consistent rendering
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start space-x-2">
                       <span className="text-teal-600 mt-0.5">✓</span>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">Auto Key Points</p>
-                        <p className="text-xs text-gray-600">Automatically extract important concepts</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          Auto Key Points
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Automatically extract important concepts
+                        </p>
                       </div>
                     </div>
                   </div>
                   <div className="mt-4 p-3 bg-white/50 rounded-lg border border-teal-200">
                     <p className="text-sm text-gray-700">
-                      <strong>How to use:</strong> Create a new module or edit an existing section, then click the <span className="inline-flex items-center px-2 py-1 rounded bg-teal-100 text-teal-700 text-xs font-semibold">✨ Use Editor.js</span> button to start editing with the enhanced WYSIWYG editor.
+                      <strong>How to use:</strong> Create a new module or edit
+                      an existing section, then click the{' '}
+                      <span className="inline-flex items-center px-2 py-1 rounded bg-teal-100 text-teal-700 text-xs font-semibold">
+                        ✨ Use Editor.js
+                      </span>{' '}
+                      button to start editing with the enhanced WYSIWYG editor.
                     </p>
                   </div>
                 </div>
@@ -1384,7 +1418,11 @@ export default function TeacherVARKModulesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                title={module.is_published ? 'Unpublish module' : 'Publish module'}
+                                title={
+                                  module.is_published
+                                    ? 'Unpublish module'
+                                    : 'Publish module'
+                                }
                                 onClick={() =>
                                   handleTogglePublish(
                                     module.id,
@@ -1471,7 +1509,8 @@ export default function TeacherVARKModulesPage() {
           <DialogHeader>
             <DialogTitle>Import Module from JSON</DialogTitle>
             <DialogDescription>
-              Upload a JSON file to import a VARK module. The module will be imported as a draft.
+              Upload a JSON file to import a VARK module. The module will be
+              imported as a draft.
             </DialogDescription>
           </DialogHeader>
 
@@ -1492,7 +1531,9 @@ export default function TeacherVARKModulesPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => document.getElementById('import-file')?.click()}>
+                      onClick={() =>
+                        document.getElementById('import-file')?.click()
+                      }>
                       Select JSON File
                     </Button>
                   </label>
@@ -1523,25 +1564,30 @@ export default function TeacherVARKModulesPage() {
               <Card className="bg-blue-50 border-blue-200">
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {importPreview.isBulk ? 'Bulk Import Preview' : 'Module Preview'}
+                    {importPreview.isBulk
+                      ? 'Bulk Import Preview'
+                      : 'Module Preview'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {importPreview.isBulk ? (
                     <div className="space-y-2">
                       <p className="text-sm">
-                        <strong>{importPreview.count}</strong> modules ready to import
+                        <strong>{importPreview.count}</strong> modules ready to
+                        import
                       </p>
                       <div className="bg-white rounded p-3 max-h-40 overflow-y-auto">
                         <ul className="text-sm space-y-1">
-                          {importPreview.modules.slice(0, 5).map((mod: any, idx: number) => (
-                            <li key={idx} className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {mod.difficulty_level || 'N/A'}
-                              </Badge>
-                              {mod.title}
-                            </li>
-                          ))}
+                          {importPreview.modules
+                            .slice(0, 5)
+                            .map((mod: any, idx: number) => (
+                              <li key={idx} className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {mod.difficulty_level || 'N/A'}
+                                </Badge>
+                                {mod.title}
+                              </li>
+                            ))}
                           {importPreview.count > 5 && (
                             <li className="text-gray-500 italic">
                               ...and {importPreview.count - 5} more
@@ -1560,16 +1606,23 @@ export default function TeacherVARKModulesPage() {
                       </p>
                       <div className="flex gap-2 flex-wrap">
                         <Badge variant="outline">
-                          {importPreview.module.difficulty_level || 'No difficulty'}
+                          {importPreview.module.difficulty_level ||
+                            'No difficulty'}
                         </Badge>
                         <Badge variant="outline">
-                          {importPreview.module.content_structure?.sections?.length || 0} sections
+                          {importPreview.module.content_structure?.sections
+                            ?.length || 0}{' '}
+                          sections
                         </Badge>
-                        {importPreview.module.target_learning_styles?.map((style: string) => (
-                          <Badge key={style} className="bg-purple-100 text-purple-800">
-                            {style}
-                          </Badge>
-                        ))}
+                        {importPreview.module.target_learning_styles?.map(
+                          (style: string) => (
+                            <Badge
+                              key={style}
+                              className="bg-purple-100 text-purple-800">
+                              {style}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
@@ -1595,7 +1648,9 @@ export default function TeacherVARKModulesPage() {
                 onClick={handleImportConfirm}
                 disabled={!importPreview || isImporting}
                 className="bg-[#00af8f] hover:bg-[#00af90]">
-                {isImporting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isImporting && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
                 {isImporting ? 'Importing...' : 'Import Module'}
               </Button>
             </div>

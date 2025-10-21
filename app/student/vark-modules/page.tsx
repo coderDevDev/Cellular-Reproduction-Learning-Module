@@ -142,14 +142,17 @@ export default function StudentVARKModulesPage() {
       try {
         const classesData = await ClassesAPI.getStudentClasses(user!.id);
         setEnrolledClasses(classesData);
+        setLoading(false);
       } catch (error) {
         console.error('Error loading enrolled classes:', error);
         setEnrolledClasses([]);
+        setLoading(false);
       }
 
       // Load progress data (placeholder - implement based on your progress tracking)
       const progressData: VARKModuleProgress[] = [];
       setProgress(progressData);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading VARK modules data:', error);
       toast.error('Failed to load VARK modules data');

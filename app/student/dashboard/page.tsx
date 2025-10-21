@@ -158,7 +158,7 @@ export default function StudentDashboard() {
       // Load dashboard statistics
       const statsData = await StudentDashboardAPI.getDashboardStats(user!.id);
       setStats(statsData);
-
+      setLoading(false);
       // Load recent activities
       const activitiesData = await StudentDashboardAPI.getRecentActivities(
         user!.id
@@ -189,7 +189,9 @@ export default function StudentDashboard() {
       } catch (error) {
         console.error('Error loading enrolled classes:', error);
         setEnrolledClasses([]);
+        setLoading(false);
       }
+      setLoading(false);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -326,7 +328,7 @@ export default function StudentDashboard() {
         </Card>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -403,7 +405,7 @@ export default function StudentDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </div> */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recommended Modules */}
