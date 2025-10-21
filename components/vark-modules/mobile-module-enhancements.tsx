@@ -21,7 +21,8 @@ import {
   Eye,
   Headphones,
   PenTool,
-  Zap
+  Zap,
+  Clock
 } from 'lucide-react';
 import { VARKModuleContentSection } from '@/types/vark-module';
 
