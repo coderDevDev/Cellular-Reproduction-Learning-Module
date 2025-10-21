@@ -200,6 +200,14 @@ export default function DynamicModuleViewer({
     []
   );
 
+  // Clean inline styles from images for better display
+  const cleanImageStyles = (html: string): string => {
+    if (!html) return '';
+    
+    // Remove style attributes from img tags
+    return html.replace(/<img([^>]*?)\s+style\s*=\s*["'][^"']*["']([^>]*?)>/gi, '<img$1$2>');
+  };
+
   const renderContentSection = (section: VARKModuleContentSection) => {
     const { content_type, content_data, title, learning_style_tags, metadata } =
       section;
@@ -207,7 +215,9 @@ export default function DynamicModuleViewer({
     switch (content_type) {
       case 'text':
         // CKEditor content is stored as HTML
-        const htmlContent = content_data?.text || '';
+        const rawHtmlContent = content_data?.text || '';
+        // Clean inline styles from images for better responsive display
+        const htmlContent = cleanImageStyles(rawHtmlContent);
 
         return (
           <div className="prose prose-lg max-w-none">
@@ -226,7 +236,7 @@ export default function DynamicModuleViewer({
                 prose-blockquote:border-l-4 prose-blockquote:border-blue-400 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:my-4 prose-blockquote:bg-blue-50 prose-blockquote:py-3 prose-blockquote:rounded-r-lg
                 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-4 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-6
-                [&_img]:mx-auto [&_img]:block [&_img]:rounded-xl [&_img]:shadow-2xl [&_img]:my-8 [&_img]:max-w-full [&_img]:border-4 [&_img]:border-white
+                [&_img]:mx-auto [&_img]:block [&_img]:rounded-xl [&_img]:shadow-2xl [&_img]:my-8 [&_img]:max-w-full [&_img]:h-auto [&_img]:border-4 [&_img]:border-white
                 [&_table]:w-full [&_table]:border-collapse [&_table]:my-8 [&_table]:shadow-xl [&_table]:rounded-xl [&_table]:overflow-hidden
                 [&_thead]:bg-gradient-to-r [&_thead]:from-blue-600 [&_thead]:to-blue-700
                 [&_th]:text-white [&_th]:font-bold [&_th]:p-4 [&_th]:text-left [&_th]:border-r [&_th]:border-blue-500 [&_th:last-child]:border-r-0

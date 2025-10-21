@@ -65,23 +65,14 @@ export function StudentSidebar({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleSignOut = async () => {
-    try {
-      setIsLoggingOut(true);
-      console.log('Starting logout process...');
-
-      await logout();
-
-      console.log('Logout successful, redirecting to home...');
-      toast.success('Successfully signed out');
-
-      // Redirect to home page after successful logout
-      router.push('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast.error('Failed to sign out. Please try again.');
-    } finally {
-      setIsLoggingOut(false);
-    }
+    setIsLoggingOut(true);
+    
+    // Logout clears state instantly (optimistic)
+    logout();
+    
+    // Show feedback and redirect immediately
+    toast.success('Successfully signed out');
+    router.push('/');
   };
 
   return (

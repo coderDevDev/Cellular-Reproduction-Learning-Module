@@ -54,15 +54,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for current user on mount
     const checkCurrentUser = async () => {
       try {
-        const { user, session } = await AuthAPI.getCurrentUser();
+        console.log('🔍 Starting auth check...');
+        
+        // Add timeout to prevent hanging (increased to 8 seconds for slow connections)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => {
+            console.warn('⏱️ Auth check taking longer than expected...');
+            reject(new Error('Auth check timeout'));
+          }, 8000)
+        );
+        
+        const authPromise = AuthAPI.getCurrentUser();
+        
+        // Race between auth check and timeout
+        const result = await Promise.race([authPromise, timeoutPromise]);
+        const { user, session } = result as any;
 
         if (user && session) {
-          console.log('User authenticated:', {
+          console.log('✅ User authenticated:', {
             id: user.id,
             email: user.email,
-            role: user.role,
-            onboardingCompleted: user.onboardingCompleted,
-            learningStyle: user.learningStyle
+            role: user.role
           });
 
           setAuthState({
@@ -72,12 +84,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             error: null
           });
         } else {
-          console.log('No authenticated user found');
-          setAuthState(prev => ({ ...prev, isLoading: false }));
+          console.log('❌ No authenticated user found');
+          setAuthState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null
+          });
         }
-      } catch (error) {
-        console.error('Error checking current user:', error);
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+      } catch (error: any) {
+        if (error.message === 'Auth check timeout') {
+          console.error('⚠️ Auth check timed out - possible slow connection or database issue');
+          console.log('→ Treating as not authenticated');
+        } else {
+          console.error('⚠️ Error checking current user:', error);
+        }
+        
+        // Set loading to false and treat as not authenticated
+        setAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: error.message || 'Authentication check failed'
+        });
       }
     };
 
@@ -268,17 +297,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await AuthAPI.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-
+    // ⚡ Optimistic update: Clear local state immediately for instant UX
     setAuthState({
       user: null,
       isAuthenticated: false,
       isLoading: false,
       error: null
+    });
+
+    // Sign out from server in background (don't wait)
+    AuthAPI.logout().catch(error => {
+      console.error('⚠️ Background logout error (state already cleared):', error);
     });
   };
 

@@ -18,12 +18,12 @@ const API_ENDPOINTS = ['/api/auth', '/api/seniors', '/api/announcements'];
 
 // Install event - cache static assets
 self.addEventListener('install', event => {
-  console.log('Service Worker installing...');
+  // console.log('Service Worker installing...'); // Silenced for cleaner console
 
   event.waitUntil(
     Promise.all([
       caches.open(STATIC_CACHE).then(cache => {
-        console.log('Caching static assets...');
+        // console.log('Caching static assets...'); // Silenced for cleaner console
         return cache.addAll(STATIC_ASSETS);
       }),
       // Skip waiting to activate immediately
@@ -34,7 +34,7 @@ self.addEventListener('install', event => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  console.log('Service Worker activating...');
+  // console.log('Service Worker activating...'); // Silenced for cleaner console
 
   event.waitUntil(
     Promise.all([

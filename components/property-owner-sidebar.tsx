@@ -105,7 +105,7 @@ export function PropertyOwnerSidebar() {
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    router.push('/auth/login');
   };
 
   // Helper to determine if a sidebar item is active

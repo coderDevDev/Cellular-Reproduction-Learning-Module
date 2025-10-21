@@ -14,7 +14,7 @@ export default function AnnouncementsPage() {
   useEffect(() => {
     // If not authenticated, redirect to login
     if (!authState.isAuthenticated) {
-      router.push('/login');
+      router.push('/auth/login');
     }
   }, [authState.isAuthenticated, router]);
 

@@ -26,7 +26,7 @@ export class OfflineDB {
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('IndexedDB initialized successfully');
+        // console.log('IndexedDB initialized successfully'); // Silenced for cleaner console
         resolve();
       };
 

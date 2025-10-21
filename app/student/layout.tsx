@@ -19,7 +19,7 @@ export default function StudentLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [lottieError, setLottieError] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, authState } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -28,27 +28,28 @@ export default function StudentLayout({
     setSidebarOpen(false);
   }, [pathname]);
 
-  const handleSignOut = async () => {
-    try {
-      setIsLoggingOut(true);
-      console.log('Starting logout process from mobile header...');
-
-      await logout();
-
-      console.log('Logout successful, redirecting to home...');
-      toast.success('Successfully signed out');
-
-      // Redirect to home page after successful logout
-      router.push('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
-      toast.error('Failed to sign out. Please try again.');
-    } finally {
-      setIsLoggingOut(false);
+  // Redirect to login if not authenticated after loading completes
+  useEffect(() => {
+    if (!authState.isLoading && !user) {
+      console.log('❌ No user detected after auth loaded, redirecting to login...');
+      toast.error('Please log in to access the student dashboard');
+      router.push('/login/student');
     }
+  }, [authState.isLoading, user, router]);
+
+  const handleSignOut = async () => {
+    setIsLoggingOut(true);
+    
+    // Logout clears state instantly (optimistic)
+    logout();
+    
+    // Show feedback and redirect immediately
+    toast.success('Successfully signed out');
+    router.push('/');
   };
 
-  if (!user) {
+  // Show loading spinner only while auth is loading
+  if (authState.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-teal-50">
         <div className="text-center">

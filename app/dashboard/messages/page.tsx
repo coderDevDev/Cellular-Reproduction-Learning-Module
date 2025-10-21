@@ -14,7 +14,7 @@ export default function MessagesPage() {
   useEffect(() => {
     // If not authenticated, redirect to login
     if (!authState.isAuthenticated) {
-      router.push('/login');
+      router.push('/auth/login');
     }
   }, [authState.isAuthenticated, router]);
 
@@ -52,13 +52,14 @@ export default function MessagesPage() {
               variant="ghost"
               size="sm"
               onClick={() => router.push('/dashboard')}
-              className="text-white hover:bg-white/10 p-2 rounded-xl"
-            >
+              className="text-white hover:bg-white/10 p-2 rounded-xl">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
               <h1 className="text-white font-semibold text-lg">Messages</h1>
-              <p className="text-white/70 text-sm">Communicate with tenants and staff</p>
+              <p className="text-white/70 text-sm">
+                Communicate with tenants and staff
+              </p>
             </div>
           </div>
         </div>
@@ -71,14 +72,18 @@ export default function MessagesPage() {
             <MessageSquare className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Messages</h2>
-          <p className="text-gray-600 text-sm mb-6">Send and receive messages with tenants</p>
-          
+          <p className="text-gray-600 text-sm mb-6">
+            Send and receive messages with tenants
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto">
             <Button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-lg">
               <Send className="w-4 h-4 mr-2" />
               New Message
             </Button>
-            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+            <Button
+              variant="outline"
+              className="border-blue-200 text-blue-700 hover:bg-blue-50">
               <Inbox className="w-4 h-4 mr-2" />
               View Inbox
             </Button>
@@ -87,4 +92,4 @@ export default function MessagesPage() {
       </div>
     </div>
   );
-} 
+}

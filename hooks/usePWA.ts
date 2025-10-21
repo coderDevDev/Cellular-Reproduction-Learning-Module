@@ -36,6 +36,9 @@ export function usePWA(): PWAState & PWAActions {
 
   // Initialize offline database
   useEffect(() => {
+    // ❌ DISABLED: Offline database not needed
+    return; // Exit early - don't initialize IndexedDB
+    
     const initDB = async () => {
       try {
         const offlineDB = await getOfflineDB();
@@ -54,6 +57,9 @@ export function usePWA(): PWAState & PWAActions {
 
   // Register service worker
   useEffect(() => {
+    // ❌ DISABLED: Service Worker & PWA features not needed
+    return; // Exit early - don't register service worker
+    
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       const registerSW = async () => {
         try {

@@ -395,15 +395,32 @@ export class AuthAPI {
         // Continue to the profile fetching logic below
       }
 
-      // Get user profile data
-      const { data: userData, error: userError } = await supabase
+      // Get user profile data with timeout
+      console.log('⏳ Fetching user profile from database...');
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      if (userError) {
-        console.error('User data fetch error:', userError);
+      // Add 3-second timeout for profile fetch
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+      );
+
+      let userData;
+      try {
+        const result = await Promise.race([profilePromise, timeoutPromise]);
+        userData = (result as any).data;
+        const userError = (result as any).error;
+        
+        if (userError) {
+          console.error('❌ User data fetch error:', userError);
+          return { user: null, session: null };
+        }
+        console.log('✅ Profile fetched successfully');
+      } catch (error) {
+        console.error('⚠️ Profile fetch timeout or error:', error);
         return { user: null, session: null };
       }
 
