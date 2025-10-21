@@ -229,13 +229,21 @@ export class VARKModulesAPI {
     console.log('Creating VARK module with data:', moduleData);
 
     // Ensure no id field is passed for new modules
-    const { id, ...cleanModuleData } = moduleData as any;
+    const { id, _export_info, _exported_at, _note, ...cleanModuleData } = moduleData as any;
     if (id !== undefined) {
       console.warn(
         'ID field was included in createModule call, removing it:',
         id
       );
     }
+    
+    // Remove any other underscore-prefixed fields (export metadata)
+    Object.keys(cleanModuleData).forEach(key => {
+      if (key.startsWith('_')) {
+        console.warn(`Removing export metadata field: ${key}`);
+        delete cleanModuleData[key];
+      }
+    });
 
     // Handle category_id - use default if not provided
     if (
@@ -353,8 +361,19 @@ export class VARKModulesAPI {
       id: _,
       created_at,
       created_by,
+      _export_info,
+      _exported_at,
+      _note,
       ...cleanModuleData
     } = moduleData as any;
+    
+    // Remove any other underscore-prefixed fields (export metadata)
+    Object.keys(cleanModuleData).forEach(key => {
+      if (key.startsWith('_')) {
+        console.warn(`Removing export metadata field from update: ${key}`);
+        delete cleanModuleData[key];
+      }
+    });
 
     // Handle category_id - use default if not provided
     if (
