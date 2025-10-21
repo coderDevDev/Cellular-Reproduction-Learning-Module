@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,12 @@ import {
   X
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
+
+// Dynamically import ReadAloudPlayer to avoid SSR issues
+const ReadAloudPlayer = dynamic(
+  () => import('./read-aloud-player'),
+  { ssr: false }
+);
 
 interface VARKModulePreviewProps {
   isOpen: boolean;
@@ -390,6 +397,37 @@ const renderContentPreview = (section: VARKModuleContentSection) => {
               )}
             </div>
           </div>
+        </div>
+      );
+
+    case 'read_aloud':
+      return (
+        <div>
+          {content_data?.read_aloud_data ? (
+            <ReadAloudPlayer 
+              data={content_data.read_aloud_data}
+              onComplete={() => console.log('Read-aloud preview completed')}
+            />
+          ) : (
+            <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Headphones className="w-8 h-8 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900">
+                    Read Aloud (Text-to-Speech)
+                  </h4>
+                  <p className="text-sm text-gray-600">
+                    Text-to-speech with synchronized word highlighting
+                  </p>
+                  <Badge variant="outline" className="text-xs mt-2 border-purple-300 text-purple-700">
+                    Auditory Learning
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
 

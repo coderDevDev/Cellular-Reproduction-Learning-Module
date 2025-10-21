@@ -64,7 +64,8 @@ export interface VARKModuleContentSection {
     | 'quick_check'
     | 'highlight'
     | 'table'
-    | 'diagram';
+    | 'diagram'
+    | 'read_aloud'; // NEW: Text-to-Speech with highlighting
   content_data: VARKContentData;
   position: number;
   is_required: boolean;
@@ -93,6 +94,7 @@ export interface VARKContentData {
   audio_data?: VARKAudioData;
   highlight_data?: VARKHighlightData;
   diagram_data?: VARKDiagramData;
+  read_aloud_data?: VARKReadAloudData; // NEW: Text-to-Speech configuration
 }
 
 export interface VARKTableData {
@@ -209,6 +211,39 @@ export interface VARKDiagramData {
   description: string;
   key_elements?: string[];
   is_interactive?: boolean;
+}
+
+export interface VARKReadAloudData {
+  title: string;
+  content: string; // Text content to be read aloud (can be HTML)
+  voice_settings?: {
+    voice?: string; // Voice name (e.g., 'Google US English', 'Microsoft David')
+    rate?: number; // Speech rate: 0.1 to 10 (default: 1)
+    pitch?: number; // Pitch: 0 to 2 (default: 1)
+    volume?: number; // Volume: 0 to 1 (default: 1)
+    language?: string; // Language code (e.g., 'en-US', 'fil-PH')
+  };
+  highlight_settings?: {
+    enabled?: boolean; // Enable word highlighting during speech
+    color?: string; // Highlight color (default: '#FFD700')
+    style?: 'word' | 'sentence' | 'paragraph'; // Highlighting granularity
+    animation?: 'none' | 'pulse' | 'fade' | 'underline'; // Animation effect
+  };
+  player_controls?: {
+    show_controls?: boolean; // Show play/pause/stop buttons
+    show_progress?: boolean; // Show progress bar
+    show_speed_control?: boolean; // Allow speed adjustment
+    show_voice_selector?: boolean; // Allow voice selection
+    enable_skip?: boolean; // Enable skip forward/backward
+    auto_play?: boolean; // Auto-play on load
+    loop?: boolean; // Loop playback
+  };
+  accessibility?: {
+    enable_captions?: boolean; // Show synchronized captions
+    enable_transcript?: boolean; // Provide full transcript
+    skip_hotkey?: string; // Keyboard shortcut to skip
+    pause_hotkey?: string; // Keyboard shortcut to pause
+  };
 }
 
 export interface VARKMultimediaContent {

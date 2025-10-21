@@ -1,17 +1,10 @@
-import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
-import { config, validateEnvironment } from '@/lib/config';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { validateEnvironment } from '@/lib/config';
 import type { SeniorCitizen, Beneficiary } from '@/types/property';
 import type { Database } from '@/types/database';
 
 // Validate environment on module load
 validateEnvironment();
-
-// Create a service client for admin operations that bypass RLS
-const supabaseAdmin = createClient<Database>(
-  config.supabase.url,
-  config.supabase.serviceRoleKey
-);
 
 export interface CreateSeniorCitizenData {
   // Personal Information

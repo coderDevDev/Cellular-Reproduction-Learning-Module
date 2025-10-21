@@ -90,6 +90,15 @@ const contentTypeOptions = [
     borderColor: 'border-teal-200'
   },
   {
+    value: 'read_aloud',
+    label: 'Read Aloud',
+    icon: Headphones,
+    description: 'Text-to-Speech with word highlighting',
+    color: 'from-purple-500 to-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200'
+  },
+  {
     value: 'interactive',
     label: 'Interactive',
     icon: Play,
@@ -2776,56 +2785,69 @@ export default function ContentStructureStep({
           </div>
         );
 
-      default:
+      case 'read_aloud':
         return (
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600">
-              Content type "{content_type}" configuration will be available
-              soon.
-            </p>
-          </div>
-        );
-    }
-  };
-
-  const renderQuickContentPreview = (section: VARKModuleContentSection) => {
-    const { content_type } = section;
-
-    switch (content_type) {
-      case 'text':
-        return (
-          <div className="prose dark:prose-invert">
-            <p>{section.content_data?.text || 'No text content provided.'}</p>
-          </div>
-        );
-      case 'video':
-        return (
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-md aspect-video bg-gray-200 rounded-lg mb-2">
-              {section.content_data?.video_data?.url ? (
-                <iframe
-                  src={section.content_data.video_data.url}
-                  title={
-                    section.content_data.video_data.title || 'Video Preview'
-                  }
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full rounded-lg"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500">
-                  No video URL provided.
-                </div>
-              )}
+          <div className="space-y-6">
+            {/* Title */}
+            <div>
+              <Label htmlFor={`read-aloud-title-${index}`}>Title *</Label>
+              <Input
+                id={`read-aloud-title-${index}`}
+                value={section.content_data?.read_aloud_data?.title || ''}
+                onChange={(e) =>
+                  updateContentSection(index, {
+                    content_data: {
+                      ...section.content_data,
+                      read_aloud_data: {
+                        ...section.content_data?.read_aloud_data,
+                        title: e.target.value,
+                        content: section.content_data?.read_aloud_data?.content || ''
+                      }
+                    }
+                  })
+                }
+                placeholder="e.g., Introduction to Cell Division"
+              />
             </div>
-            <p className="text-sm text-gray-700">
-              {section.content_data?.video_data?.title || 'Video Preview'}
-            </p>
-            <p className="text-xs text-gray-500">
-              {section.content_data?.video_data?.duration || 0} seconds
-            </p>
+
+            {/* Content Editor */}
+            <div>
+              <Label>Content to Read Aloud *</Label>
+              <div className="mt-2">
+                <CKEditorContentEditor
+                  data={section.content_data?.read_aloud_data?.content || ''}
+                  onChange={(data) =>
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        read_aloud_data: {
+                          ...section.content_data?.read_aloud_data,
+                          title: section.content_data?.read_aloud_data?.title || '',
+                          content: data
+                        }
+                      }
+                    })
+                  }
+                  placeholder="Enter content for text-to-speech..."
+                />
+              </div>
+            </div>
+
+            {/* Info Badge */}
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <Headphones className="w-5 h-5 text-purple-600 mt-0.5" />
+                <div className="flex-1">
+                  <h5 className="font-medium text-purple-900 mb-1">Read-Aloud with Highlighting</h5>
+                  <p className="text-sm text-purple-700">
+                    Content will be read aloud with synchronized word highlighting using Text-to-Speech.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         );
+
       case 'audio':
         return (
           <div className="flex flex-col items-center">

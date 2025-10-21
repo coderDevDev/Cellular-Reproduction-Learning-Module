@@ -1,0 +1,211 @@
+/* 
+ * Custom CKEditor Image Styles
+ * Handles proper alignment and positioning of images pasted from Google Docs/MS Word
+ */
+
+/* Base image container styles */
+.ck-content figure.image {
+  display: table;
+  clear: both;
+  text-align: center;
+  margin: 1em auto;
+  max-width: 100%;
+}
+
+.ck-content figure.image img {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Image caption styles */
+.ck-content figure.image figcaption {
+  display: table-caption;
+  caption-side: bottom;
+  word-break: break-word;
+  color: #333;
+  background-color: #f7f7f7;
+  padding: 0.6em;
+  font-size: 0.875em;
+  outline-offset: -1px;
+  text-align: center;
+  margin-top: 0.5em;
+}
+
+/* Inline images */
+.ck-content .image-style-inline,
+.ck-content .image-inline {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.ck-content .image-style-inline img,
+.ck-content .image-inline img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Align Left */
+.ck-content .image-style-align-left {
+  float: left;
+  margin-right: 1.5em;
+  margin-bottom: 1em;
+}
+
+.ck-content figure.image.image-style-align-left {
+  float: left;
+  margin-right: 1.5em;
+  margin-bottom: 1em;
+  margin-left: 0;
+}
+
+/* Align Right */
+.ck-content .image-style-align-right {
+  float: right;
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.ck-content figure.image.image-style-align-right {
+  float: right;
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+  margin-right: 0;
+}
+
+/* Align Center */
+.ck-content .image-style-align-center,
+.ck-content .image-style-block-align-center {
+  margin-left: auto;
+  margin-right: auto;
+  display: table;
+  clear: both;
+}
+
+.ck-content figure.image.image-style-align-center,
+.ck-content figure.image.image-style-block-align-center {
+  margin-left: auto;
+  margin-right: auto;
+  display: table;
+}
+
+.ck-content figure.image.image-style-align-center img,
+.ck-content figure.image.image-style-block-align-center img {
+  margin: 0 auto;
+}
+
+/* Wrap Text (Float with text wrapping) */
+.ck-content .image-style-wrap-text {
+  float: left;
+  margin: 0.5em 1.5em 1em 0;
+  max-width: 50%;
+}
+
+.ck-content figure.image.image-style-wrap-text {
+  float: left;
+  margin: 0.5em 1.5em 1em 0;
+  max-width: 50%;
+}
+
+/* Break Text (Full width, centered) */
+.ck-content .image-style-break-text {
+  clear: both;
+  display: block;
+  margin: 1.5em auto;
+  max-width: 100%;
+}
+
+.ck-content figure.image.image-style-break-text {
+  clear: both;
+  display: table;
+  margin: 1.5em auto;
+  max-width: 100%;
+}
+
+/* Responsive image sizing */
+.ck-content figure.image img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Clear floats after images */
+.ck-content figure.image::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+/* Fix for images pasted from Google Docs/Word */
+.ck-content img {
+  /* Remove any absolute positioning */
+  position: relative !important;
+  /* Reset any problematic transforms */
+  transform: none !important;
+  /* Ensure proper box-sizing */
+  box-sizing: border-box;
+  /* Remove borders from pasted images */
+  border: none !important;
+  /* Fix vertical alignment issues */
+  vertical-align: baseline;
+}
+
+/* Ensure figure elements behave correctly */
+.ck-content figure {
+  position: relative;
+  display: block;
+}
+
+/* Handle resized images */
+.ck-content figure.image.image_resized {
+  max-width: 100%;
+  display: table;
+  box-sizing: border-box;
+}
+
+.ck-content figure.image.image_resized img {
+  width: 100%;
+  height: auto;
+}
+
+/* Fix for images with captions */
+.ck-content figure.image.image_resized > figcaption {
+  display: table-caption;
+  caption-side: bottom;
+}
+
+/* Side alignment (for wrap text style) */
+.ck-content figure.image.image-style-side {
+  float: right;
+  margin-left: 1.5em;
+  max-width: 50%;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .ck-content .image-style-wrap-text,
+  .ck-content figure.image.image-style-wrap-text {
+    float: none;
+    max-width: 100%;
+    margin: 1em auto;
+  }
+
+  .ck-content .image-style-align-left,
+  .ck-content .image-style-align-right {
+    float: none;
+    margin: 1em auto;
+  }
+
+  .ck-content figure.image.image-style-align-left,
+  .ck-content figure.image.image-style-align-right {
+    float: none;
+    margin: 1em auto;
+  }
+}
+
+/* Print styles */
+@media print {
+  .ck-content figure.image {
+    page-break-inside: avoid;
+  }
+}

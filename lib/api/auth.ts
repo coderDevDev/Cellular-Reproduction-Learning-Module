@@ -1,20 +1,10 @@
-import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import type { RegisterData, LoginCredentials, User } from '@/types/auth';
-import { config, validateEnvironment } from '@/lib/config';
+import { validateEnvironment } from '@/lib/config';
 import { toast } from 'sonner';
-
-// require('dotenv').config({ path: '.env' });
 
 // Validate environment on module load
 validateEnvironment();
-
-console.log({ config });
-// Create a service client for admin operations that bypass RLS
-const supabaseAdmin = createClient(
-  config.supabase.url,
-  config.supabase.serviceRoleKey
-);
 
 export class AuthAPI {
   static async register(data: RegisterData) {

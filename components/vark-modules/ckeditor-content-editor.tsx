@@ -225,7 +225,8 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
           table: {
             contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
           },
-          // Enable HTML support for pasted content, but strip problematic inline styles
+          // Enable HTML support for pasted content from Word/Google Docs
+          // PasteFromOffice plugin will clean up most Word styles automatically
           htmlSupport: {
             allow: [
               {
@@ -233,26 +234,21 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
                 attributes: true,
                 classes: true,
                 styles: {
-                  // Allow these styles
+                  // Allow essential formatting styles
                   'text-align': true,
                   'background-color': true,
                   'color': true,
                   'border': true,
+                  'border-collapse': true,
                   'padding': true,
                   'margin': true,
                   'width': true,
-                  'height': true
-                }
-              }
-            ],
-            disallow: [
-              {
-                name: /.*/,
-                styles: {
-                  // Block these inline styles from Google Docs
-                  'font-family': false,
-                  'font-size': false,
-                  'line-height': false
+                  'height': true,
+                  'vertical-align': true,
+                  // Table specific
+                  'border-spacing': true,
+                  // List specific
+                  'list-style-type': true
                 }
               }
             ]
@@ -304,6 +300,24 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
                     `<iframe src="https://player.vimeo.com/video/${id}" ` +
                     'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
                     'frameborder="0" allow="autoplay; fullscreen; picture-in-picture" ' +
+                    'allowfullscreen></iframe>' +
+                    '</div>'
+                  );
+                }
+              },
+              {
+                name: 'dailymotion',
+                url: [
+                  /^(?:www\.)?dailymotion\.com\/video\/([\w-]+)/,
+                  /^dai\.ly\/([\w-]+)/
+                ],
+                html: (match: string[]) => {
+                  const id = match[1];
+                  return (
+                    '<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">' +
+                    `<iframe src="https://www.dailymotion.com/embed/video/${id}" ` +
+                    'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                    'frameborder="0" allow="autoplay; fullscreen; picture-in-picture; web-share" ' +
                     'allowfullscreen></iframe>' +
                     '</div>'
                   );

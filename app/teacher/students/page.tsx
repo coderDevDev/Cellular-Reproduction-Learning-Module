@@ -1208,11 +1208,20 @@ export default function TeacherStudentsPage() {
           <DialogHeader>
             <DialogTitle>Bulk Import Students</DialogTitle>
             <DialogDescription>
-              Upload a JSON file with student data. Students with existing emails will be skipped.
+              Upload a JSON file with student data. The system will check all existing emails first, then automatically skip duplicates and import only new students.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Info Box - Optimization Explanation */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-900">
+                <p className="font-semibold mb-1">Optimized Import Process</p>
+                <p>The system will first query all existing students, then filter and import only new entries. This prevents duplicate database queries and ensures fast, efficient bulk imports.</p>
+              </div>
+            </div>
+
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <input
                 ref={fileInputRef}

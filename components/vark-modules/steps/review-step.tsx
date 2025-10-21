@@ -112,7 +112,9 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         section.content_data?.video_data ||
         section.content_data?.audio_data ||
         section.content_data?.highlight_data ||
-        section.content_data?.diagram_data;
+        section.content_data?.diagram_data ||
+        section.content_data?.interactive_data ||
+        section.content_data?.read_aloud_data;
 
       if (!hasContent) {
         issues.push(`Section ${index + 1} content is required`);
@@ -125,6 +127,51 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
   const validationIssues = getValidationIssues();
   const isValid = hasRequiredFields() && validationIssues.length === 0;
 
+  // ✅ Sync questions from root level into their respective sections
+  const syncQuestionsToSections = () => {
+    const allQuestions = formData.assessment_questions || [];
+    const updatedSections = (formData.content_structure?.sections || []).map(section => {
+      if (section.content_type === 'assessment') {
+        // Filter questions that belong to this section
+        const sectionQuestions = allQuestions.filter(q => {
+          // ✅ Primary matching: Use section_id field if available
+          if ((q as any).section_id) {
+            return (q as any).section_id === section.id;
+          }
+          
+          // Fallback matching for backward compatibility:
+          // - Match by question ID prefix for pre-test/post-test sections
+          if (section.id === 'pre-test-section' && q.id?.startsWith('pre-test')) {
+            return true;
+          }
+          if (section.id === 'post-test-section' && q.id?.startsWith('post-test')) {
+            return true;
+          }
+          
+          // - Check if question ID contains section ID
+          if (q.id?.includes(section.id)) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        // Add questions to section's content_data
+        return {
+          ...section,
+          content_data: {
+            ...section.content_data,
+            questions: sectionQuestions, // ✅ Questions now also in section!
+            quiz_data: section.content_data?.quiz_data
+          }
+        };
+      }
+      return section;
+    });
+    
+    return updatedSections;
+  };
+
   // Export data as JSON file
   const handleExportJSON = () => {
     try {
@@ -132,12 +179,47 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const filename = `vark-module-${timestamp}.json`;
       
-      // Create a clean copy of the data (what will be sent to Supabase)
+      // ✅ Sync questions into sections before export
+      const syncedSections = syncQuestionsToSections();
+      
+      // ✅ Diagnostic logging to verify what's being exported
+      console.log('🔍 Export Diagnostic:');
+      console.log('  - Total sections:', formData.content_structure?.sections?.length || 0);
+      console.log('  - Assessment questions array (root):', formData.assessment_questions);
+      console.log('  - Total assessment questions:', formData.assessment_questions?.length || 0);
+      
+      // Find all assessment sections
+      const assessmentSections = syncedSections.filter(
+        s => s.content_type === 'assessment'
+      ) || [];
+      console.log('  - Assessment sections found:', assessmentSections.length);
+      assessmentSections.forEach((section, idx) => {
+        const sectionQuestionsCount = (section.content_data as any)?.questions?.length || 0;
+        console.log(`    [${idx}] Section ID: ${section.id}`);
+        console.log(`        Title: ${section.content_data?.quiz_data?.question || '(no title)'}`);
+        console.log(`        Questions in section: ${sectionQuestionsCount}`);
+      });
+      
+      // ✅ Create export data with synced sections
       const exportData = {
         ...formData,
+        content_structure: {
+          ...formData.content_structure,
+          sections: syncedSections // ✅ Use synced sections with questions inside!
+        },
         // Add timestamp for reference
         _exported_at: new Date().toISOString(),
-        _note: 'This is the exact data structure that will be sent to Supabase'
+        _note: 'Questions are stored in BOTH assessment_questions (root) AND content_structure.sections[].content_data.questions (inside sections)',
+        // ✅ Add diagnostic info
+        _export_info: {
+          total_sections: syncedSections.length,
+          assessment_sections: assessmentSections.length,
+          total_questions_root: formData.assessment_questions?.length || 0,
+          questions_in_sections: assessmentSections.reduce((sum, s) => 
+            sum + ((s.content_data as any)?.questions?.length || 0), 0
+          ),
+          section_types: syncedSections.map(s => s.content_type).join(', ') || 'none'
+        }
       };
       
       // Convert to pretty JSON
@@ -154,8 +236,9 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      toast.success(`Data exported to ${filename}`);
+      toast.success(`Data exported to ${filename} - ${formData.assessment_questions?.length || 0} questions included`);
       console.log('📥 Exported module data:', exportData);
+      console.log('✅ Export complete! Check the _export_info field in the JSON for diagnostic details');
     } catch (error) {
       console.error('Error exporting JSON:', error);
       toast.error('Failed to export JSON file');
@@ -381,32 +464,81 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         </Card>
 
         {/* Assessment */}
-        <Card className="border-0 shadow-sm">
+        <Card className={`border-0 shadow-sm ${
+          sections.some(s => s.content_type === 'assessment') && questions.length === 0
+            ? 'border-2 border-yellow-300 bg-yellow-50'
+            : ''
+        }`}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <FileText className="w-5 h-5 text-green-600" />
-              <span>Assessment</span>
+              <span>Assessment Questions</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                Total Questions:{' '}
-                <span className="font-semibold">{questions.length}</span>
-              </p>
-              {questions.length > 0 && (
-                <div className="space-y-1">
+            <div className="space-y-3">
+              {/* Assessment Sections Count */}
+              <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <span className="text-sm text-blue-800">Assessment Sections:</span>
+                <Badge variant="default" className="bg-blue-600">
+                  {sections.filter(s => s.content_type === 'assessment').length}
+                </Badge>
+              </div>
+
+              {/* Questions Count - This is what gets exported! */}
+              <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
+                <span className="text-sm text-green-800 font-medium">
+                  📋 Questions in Export:
+                </span>
+                <Badge variant="default" className="bg-green-600">
+                  {questions.length}
+                </Badge>
+              </div>
+
+              {/* Warning if mismatch */}
+              {sections.some(s => s.content_type === 'assessment') && questions.length === 0 && (
+                <Alert className="bg-yellow-50 border-yellow-300">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <AlertDescription className="text-sm text-yellow-800">
+                    ⚠️ You have assessment sections but no questions added. 
+                    Click "Add Question" in the Content Structure step to add questions.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Questions List */}
+              {questions.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  <Label className="text-xs text-gray-500 uppercase">Questions that will be exported:</Label>
                   {questions.map((question, index) => (
-                    <div key={question.id} className="text-sm text-gray-700">
-                      {index + 1}.{' '}
-                      {question.question || 'Question text not set'}
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {question.points || 0} pts
-                      </Badge>
+                    <div key={question.id} className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                      <div className="flex items-start justify-between">
+                        <span className="text-gray-700 flex-1">
+                          <strong>{index + 1}.</strong> {question.question || '(No question text)'}
+                        </span>
+                        <div className="flex items-center space-x-1 ml-2">
+                          <Badge variant="outline" className="text-xs">
+                            {question.type}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {question.points || 0} pts
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-gray-500 text-sm text-center py-3 italic">
+                  No assessment questions added yet
+                </p>
               )}
+
+              {/* Info Note */}
+              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-200">
+                <strong>ℹ️ Note:</strong> Assessment questions are stored separately from section content 
+                and will appear in the <code className="bg-gray-200 px-1">assessment_questions</code> array in the exported JSON.
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -486,9 +618,28 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
           </Button>
         </div>
 
-        <p className="text-xs text-center text-gray-500 mt-4">
-          💡 Tip: Click "Export as JSON" to see the exact data structure that will be saved to the database
-        </p>
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-xs text-center text-blue-800">
+            💡 <strong>Export Info:</strong> The JSON export includes all module data:
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs bg-white">
+              {sections.length} sections
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-white">
+              {questions.length} assessment questions
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-white">
+              {formData.learning_objectives?.length || 0} objectives
+            </Badge>
+            <Badge variant="outline" className="text-xs bg-white">
+              {selectedInteractiveElements.length} interactive elements
+            </Badge>
+          </div>
+          <p className="text-xs text-center text-blue-700 mt-2">
+            Check the browser console for detailed export diagnostics
+          </p>
+        </div>
 
         {!isValid && (
           <p className="text-sm text-red-600 mt-3">

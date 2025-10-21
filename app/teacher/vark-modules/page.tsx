@@ -44,12 +44,23 @@ import {
   Target,
   Settings,
   RefreshCw,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  Upload,
+  FileDown,
+  CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import VARKModuleBuilder from '@/components/vark-modules/vark-module-builder';
 import DeleteConfirmationModal from '@/components/ui/delete-confirmation-modal';
 import { Toaster } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog';
 
 const learningStyleIcons = {
   visual: Eye,
@@ -108,6 +119,12 @@ export default function TeacherVARKModulesPage() {
     isBulk: false,
     count: 0
   });
+
+  // Import/Export state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const varkAPI = new VARKModulesAPI();
 
@@ -390,6 +407,189 @@ export default function TeacherVARKModulesPage() {
     }
   };
 
+  // Export single module to JSON
+  const handleExportModule = (module: VARKModule) => {
+    try {
+      // Clean sensitive data for export
+      const exportData = {
+        ...module,
+        // Remove IDs and timestamps for clean import
+        id: undefined,
+        created_by: undefined,
+        created_at: undefined,
+        updated_at: undefined,
+        json_backup_url: undefined,
+        // Keep teacher_name as metadata
+        exported_by: module.teacher_name,
+        exported_at: new Date().toISOString()
+      };
+
+      // Create JSON blob
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+
+      // Trigger download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${module.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`📥 Module "${module.title}" exported successfully!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export module');
+    }
+  };
+
+  // Export multiple modules (bulk)
+  const handleBulkExport = () => {
+    if (selectedModules.length === 0) {
+      toast.error('No modules selected for export');
+      return;
+    }
+
+    try {
+      const exportModules = modules
+        .filter(m => selectedModules.includes(m.id))
+        .map(module => ({
+          ...module,
+          id: undefined,
+          created_by: undefined,
+          created_at: undefined,
+          updated_at: undefined,
+          json_backup_url: undefined,
+          exported_by: module.teacher_name,
+          exported_at: new Date().toISOString()
+        }));
+
+      const jsonString = JSON.stringify(exportModules, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `vark-modules-export-${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`📥 ${selectedModules.length} modules exported successfully!`);
+      setSelectedModules([]);
+    } catch (error) {
+      console.error('Bulk export error:', error);
+      toast.error('Failed to export modules');
+    }
+  };
+
+  // Handle file selection for import
+  const handleImportFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast.error('Please select a valid JSON file');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validate structure
+      if (Array.isArray(data)) {
+        // Bulk import - validate first module
+        if (data.length === 0) {
+          toast.error('JSON file is empty');
+          return;
+        }
+        if (!data[0].title || !data[0].content_structure) {
+          toast.error('Invalid module structure in JSON file');
+          return;
+        }
+        setImportPreview({ isBulk: true, count: data.length, modules: data });
+      } else {
+        // Single module import
+        if (!data.title || !data.content_structure) {
+          toast.error('Invalid module structure in JSON file');
+          return;
+        }
+        setImportPreview({ isBulk: false, module: data });
+      }
+
+      setImportFile(file);
+      toast.success('✅ File loaded successfully! Review and confirm import.');
+    } catch (error) {
+      console.error('File parse error:', error);
+      toast.error('Invalid JSON file format');
+      setImportFile(null);
+      setImportPreview(null);
+    }
+  };
+
+  // Confirm and process import
+  const handleImportConfirm = async () => {
+    if (!importPreview || !user) return;
+
+    try {
+      setIsImporting(true);
+
+      if (importPreview.isBulk) {
+        // Bulk import
+        const imported: VARKModule[] = [];
+        const failed: string[] = [];
+
+        for (const moduleData of importPreview.modules) {
+          try {
+            const newModule = await varkAPI.createModule({
+              ...moduleData,
+              created_by: user.id,
+              status: 'draft' // Import as draft by default
+            });
+            imported.push(newModule);
+          } catch (error) {
+            failed.push(moduleData.title);
+            console.error(`Failed to import "${moduleData.title}":`, error);
+          }
+        }
+
+        setModules(prev => [...imported, ...prev]);
+        
+        if (failed.length > 0) {
+          toast.warning(`⚠️ Imported ${imported.length} modules. Failed: ${failed.length}`);
+        } else {
+          toast.success(`✅ Successfully imported ${imported.length} modules!`);
+        }
+      } else {
+        // Single module import
+        const newModule = await varkAPI.createModule({
+          ...importPreview.module,
+          created_by: user.id,
+          status: 'draft'
+        });
+
+        setModules(prev => [newModule, ...prev]);
+        toast.success(`✅ Module "${newModule.title}" imported successfully!`);
+      }
+
+      // Reset import state
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportPreview(null);
+      
+      // Refresh data
+      await loadData(true);
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Failed to import module(s)');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   const filteredModules = modules.filter(module => {
     const matchesSearch =
       module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -512,6 +712,13 @@ export default function TeacherVARKModulesPage() {
                     }`}
                   />
                   {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowImportModal(true)}
+                  className="border-blue-300 text-blue-600 hover:bg-blue-50">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import Module
                 </Button>
                 <Button
                   onClick={handleCreateModule}
@@ -915,6 +1122,14 @@ export default function TeacherVARKModulesPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={handleBulkExport}
+                      className="border-green-300 text-green-700 hover:bg-green-100">
+                      <FileDown className="w-4 h-4 mr-1" />
+                      Export Selected
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleBulkDelete}
                       className="border-red-300 text-red-700 hover:bg-red-100">
                       <Trash2 className="w-4 h-4 mr-1" />
@@ -1188,6 +1403,16 @@ export default function TeacherVARKModulesPage() {
                                 )}
                               </Button>
 
+                              {/* Export Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Export module to JSON"
+                                onClick={() => handleExportModule(module)}
+                                className="text-purple-600 hover:text-purple-800 hover:bg-purple-50">
+                                <Download className="w-4 h-4" />
+                              </Button>
+
                               {/* Delete Button */}
                               <Button
                                 variant="ghost"
@@ -1239,6 +1464,144 @@ export default function TeacherVARKModulesPage() {
         }
         cancelText="Cancel"
       />
+
+      {/* Import Module Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Module from JSON</DialogTitle>
+            <DialogDescription>
+              Upload a JSON file to import a VARK module. The module will be imported as a draft.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* File Upload */}
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <Input
+                type="file"
+                accept=".json"
+                onChange={handleImportFileSelect}
+                className="hidden"
+                id="import-file"
+              />
+              {!importFile ? (
+                <div>
+                  <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <label htmlFor="import-file">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('import-file')?.click()}>
+                      Select JSON File
+                    </Button>
+                  </label>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Upload a module export file (.json)
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-4" />
+                  <p className="font-medium">{importFile.name}</p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    onClick={() => {
+                      setImportFile(null);
+                      setImportPreview(null);
+                    }}
+                    className="text-red-600">
+                    Remove
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Preview */}
+            {importPreview && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {importPreview.isBulk ? 'Bulk Import Preview' : 'Module Preview'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {importPreview.isBulk ? (
+                    <div className="space-y-2">
+                      <p className="text-sm">
+                        <strong>{importPreview.count}</strong> modules ready to import
+                      </p>
+                      <div className="bg-white rounded p-3 max-h-40 overflow-y-auto">
+                        <ul className="text-sm space-y-1">
+                          {importPreview.modules.slice(0, 5).map((mod: any, idx: number) => (
+                            <li key={idx} className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {mod.difficulty_level || 'N/A'}
+                              </Badge>
+                              {mod.title}
+                            </li>
+                          ))}
+                          {importPreview.count > 5 && (
+                            <li className="text-gray-500 italic">
+                              ...and {importPreview.count - 5} more
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-gray-900">
+                        {importPreview.module.title}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {importPreview.module.description}
+                      </p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Badge variant="outline">
+                          {importPreview.module.difficulty_level || 'No difficulty'}
+                        </Badge>
+                        <Badge variant="outline">
+                          {importPreview.module.content_structure?.sections?.length || 0} sections
+                        </Badge>
+                        {importPreview.module.target_learning_styles?.map((style: string) => (
+                          <Badge key={style} className="bg-purple-100 text-purple-800">
+                            {style}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportPreview(null);
+                }}
+                disabled={isImporting}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleImportConfirm}
+                disabled={!importPreview || isImporting}
+                className="bg-[#00af8f] hover:bg-[#00af90]">
+                {isImporting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isImporting ? 'Importing...' : 'Import Module'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Sonner Toaster for notifications */}
       <Toaster position="top-right" richColors closeButton duration={4000} />

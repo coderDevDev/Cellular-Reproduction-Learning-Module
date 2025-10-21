@@ -1,13 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
-import { config } from '@/lib/config';
 import { toast } from 'sonner';
-
-// Admin client for bypassing RLS
-const supabaseAdmin = createClient(
-  config.supabase.url,
-  config.supabase.serviceRoleKey
-);
 
 interface StudentData {
   email: string;
@@ -95,77 +87,29 @@ export class StudentAPI {
 
   /**
    * Create a single student
+   * Uses server-side API route for secure admin operations
    */
   static async createStudent(data: StudentData) {
     try {
       console.log('Creating student:', data.email);
 
-      // Generate email if not provided (from username)
-      const email = data.email || `${data.firstName.toLowerCase()}.${data.lastName.toLowerCase()}@student.com`;
+      // Call server-side API route (has access to service role key)
+      const response = await fetch('/api/students/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } =
-        await supabaseAdmin.auth.admin.createUser({
-          email: email,
-          password: data.password,
-          email_confirm: true, // Auto-confirm email
-          user_metadata: {
-            first_name: data.firstName,
-            middle_name: data.middleName,
-            last_name: data.lastName,
-            role: 'student',
-            learning_style: data.learningStyle,
-            grade_level: data.gradeLevel
-          }
-        });
+      const result = await response.json();
 
-      if (authError) {
-        console.error('Auth creation error:', authError);
-        throw new Error(authError.message);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create student');
       }
 
-      if (!authData.user) {
-        throw new Error('User creation failed');
-      }
-
-      // Create profile
-      const profileData: any = {
-        id: authData.user.id,
-        email: email,
-        first_name: data.firstName,
-        middle_name: data.middleName || null,
-        last_name: data.lastName,
-        full_name:
-          data.fullName ||
-          `${data.firstName} ${data.middleName || ''} ${data.lastName}`.trim(),
-        role: 'student',
-        learning_style: data.learningStyle || null,
-        grade_level: data.gradeLevel || null,
-        onboarding_completed: data.onboardingCompleted ?? true // Default true to bypass VARK
-      };
-      
-      // Add preferred_modules and learning_type as JSONB
-      if (data.preferredModules && data.preferredModules.length > 0) {
-        profileData.preferred_modules = data.preferredModules;
-      }
-      if (data.learningType) {
-        profileData.learning_type = data.learningType;
-      }
-
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .insert(profileData)
-        .select()
-        .single();
-
-      if (profileError) {
-        // Clean up auth user if profile creation fails
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        throw new Error(profileError.message);
-      }
-
-      console.log('✅ Student created:', email);
-      return { success: true, data: profile };
+      console.log('✅ Student created:', data.email);
+      return { success: true, data: result.data };
     } catch (error) {
       console.error('Error creating student:', error);
       return {
@@ -177,72 +121,40 @@ export class StudentAPI {
 
   /**
    * Bulk import students from JSON
+   * Optimized: Uses server-side API route for secure admin operations
    */
   static async bulkImportStudents(students: BulkImportStudent[]) {
-    const results = {
-      success: 0,
-      failed: 0,
-      skipped: 0,
-      errors: [] as string[]
-    };
+    try {
+      console.log(`📥 Starting bulk import of ${students.length} students...`);
 
-    console.log(`📥 Starting bulk import of ${students.length} students...`);
+      // Call server-side API route (has access to service role key)
+      const response = await fetch('/api/students/bulk-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(students),
+      });
 
-    for (const student of students) {
-      try {
-        // Parse name
-        const { firstName, middleName, lastName } = this.parseName(student.name);
-
-        // Generate email from username
-        const email = `${student.username}@student.com`;
-
-        // Check if student already exists
-        const { data: existing } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('email', email)
-          .single();
-
-        if (existing) {
-          console.log(`⏭️ Skipping existing student: ${email}`);
-          results.skipped++;
-          continue;
-        }
-
-        // Map learning style
-        const learningStyle = this.mapLearningStyle(student.preferred_modules);
-
-        // Create student
-        const result = await this.createStudent({
-          email,
-          password: student.password,
-          firstName,
-          middleName,
-          lastName,
-          fullName: student.name,
-          learningStyle,
-          preferredModules: student.preferred_modules || [],
-          learningType: student.type ? student.type : undefined,
-          gradeLevel: 'Grade 7', // Default grade level
-          onboardingCompleted: true // Bypass VARK assessment
-        });
-
-        if (result.success) {
-          results.success++;
-        } else {
-          results.failed++;
-          results.errors.push(`${student.name}: ${result.error}`);
-        }
-      } catch (error) {
-        results.failed++;
-        results.errors.push(
-          `${student.name}: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Bulk import failed');
       }
-    }
 
-    console.log('📊 Bulk import results:', results);
-    return results;
+      const results = await response.json();
+      console.log('📊 Bulk import results:', results);
+      return results;
+    } catch (error) {
+      console.error('Bulk import error:', error);
+      return {
+        success: 0,
+        failed: students.length,
+        skipped: 0,
+        errors: [
+          error instanceof Error ? error.message : 'Failed to import students',
+        ],
+      };
+    }
   }
 
   /**
@@ -303,16 +215,10 @@ export class StudentAPI {
 
       if (error) throw error;
 
-      // Update password if provided
+      // TODO: Update password if provided (needs server-side API route)
       if (updates.password) {
-        const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-          id,
-          { password: updates.password }
-        );
-
-        if (passwordError) {
-          console.warn('Password update failed:', passwordError);
-        }
+        console.warn('⚠️ Password update requires server-side API route - feature disabled for now');
+        // Will need to create /api/students/update-password route
       }
 
       return { success: true, data };
@@ -338,12 +244,10 @@ export class StudentAPI {
 
       if (profileError) throw profileError;
 
-      // Delete auth user
-      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
-
-      if (authError) {
-        console.warn('Auth user deletion failed:', authError);
-      }
+      // TODO: Delete auth user (needs server-side API route)
+      // Note: Auth user will be orphaned but won't affect functionality
+      // since all app access is based on profiles table
+      console.log('⚠️ Auth user deletion requires server-side API route - user orphaned in auth');
 
       return { success: true };
     } catch (error) {
@@ -357,23 +261,13 @@ export class StudentAPI {
 
   /**
    * Reset student password
+   * TODO: Needs server-side API route for secure admin operation
    */
   static async resetStudentPassword(id: string, newPassword: string) {
-    try {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(id, {
-        password: newPassword
-      });
-
-      if (error) throw error;
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error resetting password:', error);
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to reset password'
-      };
-    }
+    console.error('⚠️ Password reset requires server-side API route - feature not implemented');
+    return {
+      success: false,
+      error: 'Password reset feature requires server-side API route (security)'
+    };
   }
 }

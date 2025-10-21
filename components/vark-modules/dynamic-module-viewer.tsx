@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +31,21 @@ import {
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
+
+// Dynamically import ReadAloudPlayer to avoid SSR issues
+const ReadAloudPlayer = dynamic(
+  () => import('./read-aloud-player'),
+  { ssr: false }
+);
+
+// Import mobile enhancement components
+import {
+  MobileBottomNavigation,
+  MobileSectionList,
+  MobileSectionHeader,
+  MobileContentWrapper,
+  SwipeHandler
+} from './mobile-module-enhancements';
 
 interface DynamicModuleViewerProps {
   module: VARKModule;
@@ -449,6 +465,36 @@ export default function DynamicModuleViewer({
             </h4>
             <p className="text-gray-600">
               Audio content will be displayed here
+            </p>
+          </div>
+        );
+
+      case 'read_aloud':
+        if (content_data.read_aloud_data) {
+          return (
+            <div className="space-y-4">
+              <ReadAloudPlayer 
+                data={content_data.read_aloud_data}
+                onComplete={() => {
+                  console.log('Read-aloud section completed');
+                  if (onSectionComplete) {
+                    onSectionComplete(section.id);
+                  }
+                }}
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="bg-purple-100 rounded-lg p-6 text-center">
+            <div className="w-16 h-16 bg-purple-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Headphones className="w-8 h-8 text-purple-600" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+              Read Aloud (Text-to-Speech)
+            </h4>
+            <p className="text-gray-600">
+              Text-to-speech with word highlighting will be displayed here
             </p>
           </div>
         );
@@ -1723,53 +1769,87 @@ export default function DynamicModuleViewer({
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Module Header - Only show in full mode */}
+    <div className="space-y-6 relative pb-24 md:pb-0">
+      {/* ✨ Mobile Section List - Collapsible menu for mobile */}
       {!previewMode && (
-        <Card className="mb-6 border-0 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <CardTitle className="text-2xl font-bold text-gray-900 mb-2">
-                  {module.title}
-                </CardTitle>
-                <p className="text-gray-600 mb-4">{module.description}</p>
+        <MobileSectionList
+          sections={memoizedSections}
+          currentSectionIndex={currentSectionIndex}
+          onSectionChange={(index) => {
+            setCurrentSectionIndex(index);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          sectionProgress={sectionProgress}
+        />
+      )}
 
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>
-                      Progress: {completedSections} of {totalSections} sections
-                    </span>
-                    <span>{Math.round(progressPercentage)}%</span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-2" />
+      {/* Progress Overview - Desktop only */}
+      {!previewMode && (
+        <Card className="hidden md:block bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <BookOpen className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Your Progress
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    {completedSections} of {totalSections} sections completed
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline" className="border-gray-300">
-                  <Clock className="w-4 h-4 mr-1" />
-                  {module.estimated_duration_minutes} min
-                </Badge>
-                <Badge variant="outline" className="border-gray-300">
-                  <Target className="w-4 h-4 mr-1" />
-                  {module.difficulty_level}
-                </Badge>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {Math.round(progressPercentage)}%
+                  </div>
+                  <div className="text-xs text-gray-600">Complete</div>
+                </div>
+                <Progress value={progressPercentage} className="w-32 h-3" />
               </div>
             </div>
-          </CardHeader>
+          </CardContent>
         </Card>
       )}
 
-      {/* Section Navigation - Only show in full mode */}
+      {/* ✨ Swipe Handler for Mobile Gestures */}
+      <SwipeHandler
+      onSwipeLeft={() => {
+        if (!previewMode && currentSectionIndex < totalSections - 1) {
+          setCurrentSectionIndex(prev => prev + 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }}
+      onSwipeRight={() => {
+        if (!previewMode && currentSectionIndex > 0) {
+          setCurrentSectionIndex(prev => prev - 1);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }}
+    >
+      {/* Mobile Section Header */}
       {!previewMode && (
-        <div className="flex items-center justify-between mb-6">
+        <MobileSectionHeader
+          section={currentSection}
+          sectionNumber={currentSectionIndex + 1}
+          totalSections={totalSections}
+          isCompleted={sectionProgress[currentSection.id]}
+        />
+      )}
+
+      {/* Section Navigation - Desktop only */}
+      {!previewMode && (
+        <div className="hidden md:flex items-center justify-between mb-6">
           <Button
             variant="outline"
             onClick={goToPreviousSection}
             disabled={currentSectionIndex === 0}
-            className="flex items-center space-x-2">
+            className="flex items-center space-x-2"
+          >
             <ChevronLeft className="w-4 h-4" />
             Previous
           </Button>
@@ -1782,92 +1862,127 @@ export default function DynamicModuleViewer({
             variant="outline"
             onClick={goToNextSection}
             disabled={currentSectionIndex === totalSections - 1}
-            className="flex items-center space-x-2">
+            className="flex items-center space-x-2"
+          >
             Next
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       )}
 
-      {/* Current Section */}
-      <Card className="mb-6 border-0 shadow-lg">
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-xl font-semibold text-gray-900 mb-2">
-                {currentSection.title}
-              </CardTitle>
+      {/* Current Section - Enhanced for Mobile */}
+      <MobileContentWrapper>
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardHeader>
+            {/* Desktop Section Title */}
+            <div className="hidden md:block">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-xl font-semibold text-gray-900 mb-2">
+                    {currentSection.title}
+                  </CardTitle>
 
-              {/* Learning Style Tags */}
-              {currentSection.learning_style_tags.length > 0 &&
-                renderLearningStyleTags(currentSection.learning_style_tags)}
+                  {/* Learning Style Tags */}
+                  {currentSection.learning_style_tags.length > 0 &&
+                    renderLearningStyleTags(currentSection.learning_style_tags)}
 
-              {/* Section Info */}
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <div className="flex items-center space-x-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{currentSection.time_estimate_minutes} min</span>
+                  {/* Section Info */}
+                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{currentSection.time_estimate_minutes} min</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Target className="w-4 h-4" />
+                      <span>
+                        {currentSection.is_required ? 'Required' : 'Optional'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Target className="w-4 h-4" />
-                  <span>
-                    {currentSection.is_required ? 'Required' : 'Optional'}
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* Section Status - Only show in full mode */}
-            {!previewMode && (
-              <div className="flex items-center space-x-2">
-                {sectionProgress[currentSection.id] ? (
-                  <Badge className="bg-green-100 text-green-800">
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                    Completed
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="border-gray-300">
-                    <Clock className="w-4 h-4 mr-1" />
-                    Pending
-                  </Badge>
+                {/* Section Status - Desktop only */}
+                {!previewMode && (
+                  <div className="flex items-center space-x-2">
+                    {sectionProgress[currentSection.id] ? (
+                      <Badge className="bg-green-100 text-green-800">
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Completed
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-gray-300">
+                        <Clock className="w-4 h-4 mr-1" />
+                        Pending
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-0">
+            {renderContentSection(currentSection)}
+
+            {/* Mark as Complete Button - Mobile friendly */}
+            {!previewMode && !sectionProgress[currentSection.id] && (
+              <div className="mt-6 pt-6 border-t">
+                <Button
+                  onClick={() => handleSectionComplete(currentSection.id)}
+                  className="w-full md:w-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Mark as Complete
+                </Button>
+              </div>
             )}
-          </div>
-        </CardHeader>
+          </CardContent>
+        </Card>
+      </MobileContentWrapper>
+    </SwipeHandler>
 
-        <CardContent className="pt-0">
-          {renderContentSection(currentSection)}
-        </CardContent>
-      </Card>
+    {/* Section Navigation Footer - Desktop only */}
+    {!previewMode && (
+      <div className="hidden md:flex items-center justify-between">
+        <Button
+          variant="outline"
+          onClick={goToPreviousSection}
+          disabled={currentSectionIndex === 0}
+          className="flex items-center space-x-2"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Previous Section
+        </Button>
 
-      {/* Section Navigation Footer - Only show in full mode */}
-      {!previewMode && (
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={goToPreviousSection}
-            disabled={currentSectionIndex === 0}
-            className="flex items-center space-x-2">
-            <ChevronLeft className="w-4 h-4" />
-            Previous Section
-          </Button>
-
-          <div className="text-sm text-gray-500">
-            {currentSectionIndex + 1} of {totalSections} sections
-          </div>
-
-          <Button
-            onClick={goToNextSection}
-            disabled={currentSectionIndex === totalSections - 1}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700">
-            {currentSectionIndex === totalSections - 1
-              ? 'Complete Module'
-              : 'Next Section'}
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+        <div className="text-sm text-gray-500">
+          {currentSectionIndex + 1} of {totalSections} sections
         </div>
-      )}
-    </div>
+
+        <Button
+          onClick={goToNextSection}
+          disabled={currentSectionIndex === totalSections - 1}
+          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+        >
+          {currentSectionIndex === totalSections - 1
+            ? 'Complete Module'
+            : 'Next Section'}
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+    )}
+
+    {/* Mobile Bottom Navigation - Sticky bottom bar */}
+    {!previewMode && (
+      <MobileBottomNavigation
+        sections={memoizedSections}
+        currentSectionIndex={currentSectionIndex}
+        onSectionChange={(index) => {
+          setCurrentSectionIndex(index);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        sectionProgress={sectionProgress}
+      />
+    )}
+  </div>
   );
 }

@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { VARKModulesAPI } from '@/lib/api/vark-modules';
 import DynamicModuleViewer from '@/components/vark-modules/dynamic-module-viewer';
 import { type VARKModule, type VARKModuleProgress } from '@/types/vark-module';
+import { filterSectionsByPreferences } from '@/lib/utils/learning-style-matcher';
 import {
   ArrowLeft,
   BookOpen,
@@ -106,34 +107,37 @@ export default function StudentVARKModulePage() {
         return;
       }
 
-      // Apply content filtering to sections based on student's preferred modules
+      // ✨ NEW: Apply personalized content filtering based on student's learning preferences
+      // Uses AND matching by default - section must have ALL student preferences
       if (moduleData.content_structure?.sections) {
         const studentPreferredModules = user?.preferredModules || [];
+        const originalSectionCount = moduleData.content_structure.sections.length;
         
-        // Mapping from student preferred modules to content learning styles
-        const moduleToStyleMap: Record<string, string> = {
-          'Visual': 'visual',
-          'Aural': 'auditory',
-          'Read/Write': 'reading_writing',
-          'Kinesthetic': 'kinesthetic',
-          'General Module': 'general'
-        };
+        // Filter sections using the learning style matcher utility
+        // Default mode: 'AND' - section must contain ALL of student's preferences
+        const filteredSections = filterSectionsByPreferences(
+          moduleData.content_structure.sections,
+          studentPreferredModules
+          // matchMode: 'AND' (default) - strict matching
+          // To use OR matching, add: 'OR' as third parameter
+        );
 
-        // Filter sections based on learning style tags
-        moduleData.content_structure.sections = moduleData.content_structure.sections.filter(section => {
-          // If section has no learning style tags, show to everyone
-          const sectionTags = section.learning_style_tags || [];
-          if (sectionTags.length === 0) return true;
+        // Update module with personalized sections
+        moduleData.content_structure.sections = filteredSections;
 
-          // If student has no preferred modules, show all sections
-          if (studentPreferredModules.length === 0) return true;
+        // Log personalization stats (helpful for debugging)
+        const filteredCount = filteredSections.length;
+        const percentageShown = Math.round((filteredCount / originalSectionCount) * 100);
+        console.log(`📚 Personalized Module: Showing ${filteredCount} of ${originalSectionCount} sections (${percentageShown}%)`);
+        console.log(`👤 Student preferences:`, studentPreferredModules);
 
-          // Check if any student preferred module matches section tags
-          return studentPreferredModules.some(module => {
-            const mappedStyle = moduleToStyleMap[module];
-            return mappedStyle && sectionTags.includes(mappedStyle);
-          });
-        });
+        // Show toast notification about personalization
+        if (studentPreferredModules.length > 0 && !studentPreferredModules.includes('General Module')) {
+          toast.success(
+            `Personalized for you: ${filteredCount} of ${originalSectionCount} sections match your learning style`,
+            { duration: 3000 }
+          );
+        }
       }
 
       setModule(moduleData);
