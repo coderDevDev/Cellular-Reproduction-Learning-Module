@@ -3231,11 +3231,21 @@ export default function ContentStructureStep({
                       setSelectedSectionIndex(index);
                     }}>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <GripVertical className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {section.title || `Section ${index + 1}`}
-                        </span>
+                      <div className="flex items-center space-x-3">
+                        {/* Section Number Badge */}
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
+                          selectedSectionIndex === index
+                            ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <GripVertical className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900">
+                            {section.title || `Section ${index + 1}`}
+                          </span>
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -3251,7 +3261,7 @@ export default function ContentStructureStep({
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                    <div className="mt-2 flex items-center space-x-2">
+                    <div className="mt-2 flex items-center space-x-2 ml-11">
                       <Badge variant="outline" className="text-xs">
                         {section.content_type}
                       </Badge>
