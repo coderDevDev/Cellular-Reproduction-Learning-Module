@@ -219,51 +219,61 @@ export class AuthAPI {
 
       console.log('Calling supabase.auth.signInWithPassword...');
 
-      // Add timeout to prevent hanging
-      const loginPromise = supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password
-      });
-
+      // Wrap entire login flow with timeout (increased to 15s for slow connections)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Login timeout')), 10000)
+        setTimeout(() => reject(new Error('Login timeout')), 15000)
       );
 
-      const { data: authData, error: authError } = (await Promise.race([
-        loginPromise,
-        timeoutPromise
-      ])) as any;
-
-      console.log('Auth login result:', { authError, user: authData.user?.id });
-      if (authError) {
-        toast.error('Login Failed', {
-          description:
-            authError.message || 'Invalid email or password. Please try again.'
+      const loginFlow = async () => {
+        // Step 1: Authenticate with Supabase
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password
         });
-        return {
-          success: false,
-          message:
-            authError.message || 'Invalid email or password. Please try again.'
-        };
+
+        console.log('Auth login result:', { authError, user: authData.user?.id });
+        if (authError) {
+          toast.error('Login Failed', {
+            description:
+              authError.message || 'Invalid email or password. Please try again.'
+          });
+          return {
+            success: false,
+            message:
+              authError.message || 'Invalid email or password. Please try again.'
+          };
+        }
+
+        if (!authData.user) {
+          toast.error('Login Failed', {
+            description: 'Login failed. Please try again.'
+          });
+          return {
+            success: false,
+            message: 'Login failed. Please try again.'
+          };
+        }
+
+        // Step 2: Get user profile data (optimized: only fetch needed fields)
+        console.log('✅ Auth successful, fetching profile for user:', authData.user.id);
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('id, email, role, first_name, middle_name, last_name, full_name, profile_photo, learning_style, grade_level, onboarding_completed, created_at, updated_at')
+          .eq('id', authData.user.id)
+          .single();
+
+        return { authData, userData, userError };
+      };
+
+      // Race between login flow and timeout
+      const result = (await Promise.race([loginFlow(), timeoutPromise])) as any;
+
+      // If timeout or error in flow
+      if (!result || result.success === false) {
+        return result;
       }
 
-      if (!authData.user) {
-        toast.error('Login Failed', {
-          description: 'Login failed. Please try again.'
-        });
-        return {
-          success: false,
-          message: 'Login failed. Please try again.'
-        };
-      }
-
-      // Get user profile data
-      console.log('Fetching profile for user:', authData.user.id);
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
+      const { authData, userData, userError } = result;
 
       console.log('Profile fetch result:', {
         userError,

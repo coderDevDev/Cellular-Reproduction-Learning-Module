@@ -31,18 +31,20 @@ export default function StudentLayout({
   // Redirect to login if not authenticated after loading completes
   useEffect(() => {
     if (!authState.isLoading && !user) {
-      console.log('❌ No user detected after auth loaded, redirecting to login...');
+      console.log(
+        '❌ No user detected after auth loaded, redirecting to login...'
+      );
       toast.error('Please log in to access the student dashboard');
-      router.push('/login/student');
+      router.push('/auth/login/');
     }
   }, [authState.isLoading, user, router]);
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
-    
+
     // Logout clears state instantly (optimistic)
     logout();
-    
+
     // Show feedback and redirect immediately
     toast.success('Successfully signed out');
     router.push('/');

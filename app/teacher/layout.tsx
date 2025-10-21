@@ -71,18 +71,20 @@ export default function TeacherLayout({
   // Redirect to login if not authenticated after loading completes
   useEffect(() => {
     if (!authState.isLoading && !user) {
-      console.log('❌ No user detected after auth loaded, redirecting to login...');
+      console.log(
+        '❌ No user detected after auth loaded, redirecting to login...'
+      );
       toast.error('Please log in to access the teacher dashboard');
-      router.push('/login/teacher');
+      router.push('/auth/login');
     }
   }, [authState.isLoading, user, router]);
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
-    
+
     // Logout clears state instantly (optimistic)
     logout();
-    
+
     // Show feedback and redirect immediately
     toast.success('Successfully signed out');
     router.push('/');
@@ -208,10 +210,10 @@ export default function TeacherLayout({
             <div className="flex items-center space-x-3 mb-4 p-3 rounded-xl bg-gradient-to-r from-gray-50 to-teal-50/50">
               <div className="relative">
                 <Avatar className="w-12 h-12 ring-2 ring-teal-100 shadow-lg">
-                  <AvatarImage src={user.profilePhoto} />
+                  <AvatarImage src={user?.profilePhoto} />
                   <AvatarFallback className="bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white font-semibold">
-                    {user.firstName?.charAt(0) ||
-                      user.fullName?.charAt(0) ||
+                    {user?.firstName?.charAt(0) ||
+                      user?.fullName?.charAt(0) ||
                       'T'}
                   </AvatarFallback>
                 </Avatar>
@@ -219,9 +221,9 @@ export default function TeacherLayout({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user.firstName || user.fullName}
+                  {user?.firstName || user?.fullName}
                 </p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
             </div>
             <AlertDialog>

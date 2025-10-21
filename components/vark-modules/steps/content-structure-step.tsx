@@ -165,6 +165,13 @@ const contentTypeOptions = [
 
 const learningStyleOptions = [
   {
+    value: 'everyone',
+    label: 'Everyone',
+    icon: Target,
+    color: 'from-teal-500 to-teal-600',
+    description: 'Visible to all students regardless of learning style'
+  },
+  {
     value: 'visual',
     label: 'Visual',
     icon: Eye,

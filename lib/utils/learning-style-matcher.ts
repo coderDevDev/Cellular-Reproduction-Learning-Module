@@ -9,14 +9,19 @@ import { VARKModuleContentSection } from '@/types/vark-module';
  * Mapping between student preferences and module learning style tags
  * 
  * Student JSON uses: "Visual", "Aural", "Read/Write", "Kinesthetic", "General Module"
- * Module sections use: 'visual', 'auditory', 'reading_writing', 'kinesthetic'
+ * Module sections use: 'visual', 'auditory', 'reading_writing', 'kinesthetic', 'everyone'
+ * 
+ * Special tags:
+ * - 'everyone': Section is shown to ALL students regardless of their preferences
+ * - 'General Module': Student preference to see all sections
  */
 export const LEARNING_STYLE_MAP: Record<string, string> = {
   'Visual': 'visual',
   'Aural': 'auditory',
   'Read/Write': 'reading_writing',
   'Kinesthetic': 'kinesthetic',
-  'General Module': 'all' // Special case: show all sections
+  'General Module': 'all', // Special case: show all sections
+  'Everyone': 'everyone' // Special tag for sections visible to all
 };
 
 /**
@@ -59,7 +64,12 @@ export function sectionMatchesPreferences(
   studentPreferences: string[],
   matchMode: MatchMode = 'AND'
 ): boolean {
-  // If student has "General Module", show ALL sections
+  // ✅ PRIORITY 1: If section is tagged as "everyone", ALWAYS show it
+  if (section.learning_style_tags && section.learning_style_tags.includes('everyone')) {
+    return true;
+  }
+
+  // PRIORITY 2: If student has "General Module", show ALL sections
   if (studentPreferences.includes('General Module')) {
     return true;
   }
@@ -67,7 +77,7 @@ export function sectionMatchesPreferences(
   // Normalize student preferences
   const normalizedPrefs = normalizePreferredModules(studentPreferences);
 
-  // If section has no learning style tags, show it (universal content)
+  // PRIORITY 3: If section has no learning style tags, show it (universal content)
   if (!section.learning_style_tags || section.learning_style_tags.length === 0) {
     return true;
   }
@@ -127,6 +137,11 @@ export function getSectionMatchScore(
   section: VARKModuleContentSection,
   studentPreferences: string[]
 ): number {
+  // ✅ If section is tagged "everyone", perfect score (always relevant)
+  if (section.learning_style_tags && section.learning_style_tags.includes('everyone')) {
+    return 1;
+  }
+
   // If "General Module", all sections score 1
   if (studentPreferences.includes('General Module')) {
     return 1;
