@@ -1044,12 +1044,12 @@ export default function VARKModuleBuilder({
                     {isSaving ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Saving Module...</span>
+                        <span>{initialData?.id ? 'Updating Module...' : 'Creating Module...'}</span>
                       </>
                     ) : (
                       <>
                         <Save className="w-5 h-5" />
-                        <span>Save Module</span>
+                        <span>{initialData?.id ? 'Update Module' : 'Create Module'}</span>
                       </>
                     )}
                   </Button>

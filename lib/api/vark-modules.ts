@@ -91,7 +91,7 @@ export class VARKModulesAPI {
   }
 
   // Upload JSON backup to Supabase Storage
-  async uploadModuleBackup(
+  private async uploadModuleBackup(
     moduleData: any,
     moduleId: string
   ): Promise<string | null> {
@@ -101,6 +101,15 @@ export class VARKModulesAPI {
       // Create JSON blob
       const jsonString = JSON.stringify(moduleData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
+      
+      // Check size limit (Supabase free tier: 50MB per file)
+      const sizeInMB = blob.size / (1024 * 1024);
+      console.log(`📊 Backup size: ${sizeInMB.toFixed(2)} MB`);
+      
+      if (sizeInMB > 45) {
+        console.warn('⚠️ Backup too large, skipping upload');
+        return null;
+      }
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -120,6 +129,7 @@ export class VARKModulesAPI {
 
       if (error) {
         console.error('❌ Failed to upload JSON backup:', error);
+        console.error('Error details:', error.message);
         return null;
       }
 
@@ -422,18 +432,29 @@ export class VARKModulesAPI {
         console.log('✅ All images processed, payload size reduced');
       }
 
-      // Upload JSON backup FIRST (before database update)
-      console.log('📦 Uploading JSON backup to storage...');
-      const tempModuleData = {
-        id,
-        ...cleanModuleData
-      };
-      const backupUrl = await this.uploadModuleBackup(tempModuleData, id);
-
-      // Add backup URL to update data if upload was successful
-      if (backupUrl) {
-        console.log('✅ JSON backup uploaded:', backupUrl);
-        cleanModuleData.json_backup_url = backupUrl;
+      // Upload JSON backup (optional, with timeout - don't block update)
+      console.log('📦 Attempting JSON backup to storage...');
+      try {
+        const tempModuleData = {
+          id,
+          ...cleanModuleData
+        };
+        
+        // Add 5-second timeout for backup upload
+        const backupPromise = this.uploadModuleBackup(tempModuleData, id);
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('Backup timeout')), 5000)
+        );
+        
+        const backupUrl = await Promise.race([backupPromise, timeoutPromise]);
+        
+        if (backupUrl) {
+          console.log('✅ JSON backup uploaded:', backupUrl);
+          cleanModuleData.json_backup_url = backupUrl;
+        }
+      } catch (backupError) {
+        console.warn('⚠️ JSON backup failed (non-critical):', backupError);
+        // Continue with update even if backup fails
       }
 
       console.log('Attempting to update vark_modules table...');
