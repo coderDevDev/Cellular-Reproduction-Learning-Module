@@ -27,10 +27,15 @@ import {
   Zap,
   Headphones,
   PenTool,
-  FileText
+  FileText,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
+import { VARKModulesAPI } from '@/lib/api/vark-modules';
+import ModuleCompletionModal from './module-completion-modal';
+import { toast } from 'sonner';
 
 // Dynamically import ReadAloudPlayer to avoid SSR issues
 const ReadAloudPlayer = dynamic(
@@ -54,9 +59,12 @@ interface DynamicModuleViewerProps {
   initialProgress?: Record<string, boolean>;
   previewMode?: boolean;
   activeSectionIndex?: number;
+  userId?: string; // Student ID for completion tracking
+  userName?: string; // Student name for notifications
 }
 
 const learningStyleIcons = {
+  everyone: Target,
   visual: Eye,
   auditory: Headphones,
   reading_writing: PenTool,
@@ -64,6 +72,7 @@ const learningStyleIcons = {
 };
 
 const learningStyleColors = {
+  everyone: 'from-teal-500 to-teal-600',
   visual: 'from-blue-500 to-blue-600',
   auditory: 'from-green-500 to-green-600',
   reading_writing: 'from-purple-500 to-purple-600',
@@ -76,7 +85,9 @@ export default function DynamicModuleViewer({
   onSectionComplete,
   initialProgress = {},
   previewMode = false,
-  activeSectionIndex = 0
+  activeSectionIndex = 0,
+  userId,
+  userName
 }: DynamicModuleViewerProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sectionProgress, setSectionProgress] =
@@ -85,6 +96,14 @@ export default function DynamicModuleViewer({
   const [showQuizResults, setShowQuizResults] = useState<
     Record<string, boolean>
   >({});
+  const [assessmentResults, setAssessmentResults] = useState<Record<string, any>>({});
+  
+  // ✅ MODULE COMPLETION STATE
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionData, setCompletionData] = useState<any>(null);
+  const [earnedBadge, setEarnedBadge] = useState<any>(null);
+  const [startTime] = useState(Date.now());
+  const [hasShownCompletion, setHasShownCompletion] = useState(false);
 
   const mountedRef = useRef(true);
   const previousSectionsRef = useRef<string[]>([]);
@@ -108,6 +127,93 @@ export default function DynamicModuleViewer({
   const memoizedSections = useMemo(() => {
     return module.content_structure.sections || [];
   }, [module.content_structure.sections]);
+
+  // ✅ ASSESSMENT VALIDATION FUNCTIONS
+  const validateAnswer = useCallback((question: any, userAnswer: any) => {
+    if (!question.correct_answer) {
+      // No correct answer defined, give full credit
+      return { isCorrect: true, earnedPoints: question.points || 1 };
+    }
+
+    const { type, correct_answer, points = 1 } = question;
+    
+    switch (type) {
+      case 'single_choice':
+      case 'true_false':
+        return {
+          isCorrect: userAnswer === correct_answer,
+          earnedPoints: userAnswer === correct_answer ? points : 0
+        };
+        
+      case 'multiple_choice':
+        if (!Array.isArray(correct_answer) || !Array.isArray(userAnswer)) {
+          return { isCorrect: false, earnedPoints: 0 };
+        }
+        const correctSet = new Set(correct_answer);
+        const userSet = new Set(userAnswer);
+        const isCorrect = 
+          correctSet.size === userSet.size &&
+          [...correctSet].every(ans => userSet.has(ans));
+        return { isCorrect, earnedPoints: isCorrect ? points : 0 };
+        
+      case 'short_answer':
+        // Case-insensitive comparison, trim whitespace
+        const userAns = String(userAnswer || '').trim().toLowerCase();
+        const correctAns = String(correct_answer || '').trim().toLowerCase();
+        const isMatch = userAns === correctAns;
+        return { isCorrect: isMatch, earnedPoints: isMatch ? points : 0 };
+        
+      default:
+        // For other types (audio, visual, interactive), give full credit if answered
+        return { 
+          isCorrect: !!userAnswer, 
+          earnedPoints: userAnswer ? points : 0 
+        };
+    }
+  }, []);
+
+  const calculateAssessmentScore = useCallback((questions: any[], answers: Record<string, any>) => {
+    const results = questions.map((question, index) => {
+      const answerKey = `question_${index}`;
+      const userAnswerRaw = answers[answerKey];
+      
+      // Extract actual answer value based on question type
+      let userAnswerValue;
+      if (userAnswerRaw && typeof userAnswerRaw === 'object') {
+        // Single choice uses 'selected', short answer uses 'answer', multiple choice uses array
+        userAnswerValue = userAnswerRaw.selected || userAnswerRaw.answer || userAnswerRaw;
+      } else {
+        userAnswerValue = userAnswerRaw;
+      }
+      
+      const validation = validateAnswer(question, userAnswerValue);
+      
+      return {
+        questionId: question.id,
+        questionNumber: index + 1,
+        question: question.question,
+        userAnswer: userAnswerValue,
+        correctAnswer: question.correct_answer,
+        explanation: question.explanation,
+        ...validation
+      };
+    });
+    
+    const totalEarned = results.reduce((sum, r) => sum + r.earnedPoints, 0);
+    const totalPossible = questions.reduce((sum, q) => sum + (q.points || 1), 0);
+    const percentage = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
+    const correctCount = results.filter(r => r.isCorrect).length;
+    
+    return {
+      results,
+      totalEarned,
+      totalPossible,
+      percentage,
+      correctCount,
+      totalQuestions: questions.length,
+      passed: percentage >= 60 // 60% passing score
+    };
+  }, [validateAnswer]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -179,12 +285,28 @@ export default function DynamicModuleViewer({
   );
 
   const handleQuizSubmit = useCallback(
-    (sectionId: string, answers: any) => {
+    (sectionId: string, answers: any, questions?: any[]) => {
+      // Save answers
       setQuizAnswers(prev => ({ ...prev, [sectionId]: answers }));
       setShowQuizResults(prev => ({ ...prev, [sectionId]: true }));
+      
+      // ✅ Calculate scores and validate if questions provided
+      if (questions && questions.length > 0) {
+        const results = calculateAssessmentScore(questions, answers);
+        setAssessmentResults(prev => ({ ...prev, [sectionId]: results }));
+        
+        console.log('📊 Assessment Results:', {
+          sectionId,
+          score: `${results.totalEarned}/${results.totalPossible}`,
+          percentage: `${results.percentage.toFixed(1)}%`,
+          passed: results.passed,
+          correct: `${results.correctCount}/${results.totalQuestions}`
+        });
+      }
+      
       handleSectionComplete(sectionId);
     },
-    [handleSectionComplete]
+    [handleSectionComplete, calculateAssessmentScore]
   );
 
   const handleQuizAnswerChange = useCallback(
@@ -1025,7 +1147,7 @@ export default function DynamicModuleViewer({
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <Button
                       onClick={() =>
-                        handleQuizSubmit(section.id, sectionAnswers)
+                        handleQuizSubmit(section.id, sectionAnswers, assessmentQuestions)
                       }
                       className={`w-full bg-gradient-to-r ${
                         section.id === 'pre-test-section'
@@ -1063,41 +1185,149 @@ export default function DynamicModuleViewer({
                   </div>
                 </div>
               ) : (
-                <div className="p-6 bg-green-50 border border-green-200 rounded-xl">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="p-2 bg-green-500 rounded-lg">
-                      <CheckCircle className="w-6 h-6 text-white" />
+                (() => {
+                  const results = assessmentResults[section.id];
+                  if (!results) return null;
+                  
+                  return (
+                    <div className="space-y-6">
+                      {/* Score Summary */}
+                      <div className={`p-6 rounded-xl border-2 ${
+                        results.passed 
+                          ? 'bg-green-50 border-green-300' 
+                          : 'bg-yellow-50 border-yellow-300'
+                      }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-lg ${
+                              results.passed ? 'bg-green-500' : 'bg-yellow-500'
+                            }`}>
+                              {results.passed ? (
+                                <CheckCircle className="w-6 h-6 text-white" />
+                              ) : (
+                                <AlertCircle className="w-6 h-6 text-white" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className={`text-2xl font-bold ${
+                                results.passed ? 'text-green-800' : 'text-yellow-800'
+                              }`}>
+                                {results.passed ? '✅ Passed!' : '📝 Completed'}
+                              </h3>
+                              <p className={results.passed ? 'text-green-700' : 'text-yellow-700'}>
+                                {results.passed 
+                                  ? 'Great job! You passed the assessment.'
+                                  : 'Keep practicing to improve your score.'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className={`text-4xl font-bold ${
+                              results.passed ? 'text-green-600' : 'text-yellow-600'
+                            }`}>
+                              {results.percentage.toFixed(0)}%
+                            </div>
+                            <div className={`text-sm ${
+                              results.passed ? 'text-green-700' : 'text-yellow-700'
+                            }`}>
+                              {results.totalEarned}/{results.totalPossible} points
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div className="p-3 bg-white rounded-lg border">
+                            <div className="text-sm text-gray-600">Correct Answers</div>
+                            <div className="text-2xl font-bold text-green-600">
+                              {results.correctCount}/{results.totalQuestions}
+                            </div>
+                          </div>
+                          <div className="p-3 bg-white rounded-lg border">
+                            <div className="text-sm text-gray-600">Wrong Answers</div>
+                            <div className="text-2xl font-bold text-red-600">
+                              {results.totalQuestions - results.correctCount}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Per-Question Results */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-lg flex items-center">
+                          <FileText className="w-5 h-5 mr-2" />
+                          Question-by-Question Results:
+                        </h4>
+                        
+                        {results.results.map((result: any, idx: number) => (
+                          <div key={idx} className={`p-4 rounded-lg border-2 ${
+                            result.isCorrect 
+                              ? 'bg-green-50 border-green-300' 
+                              : 'bg-red-50 border-red-300'
+                          }`}>
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                {result.isCorrect ? (
+                                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                ) : (
+                                  <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                                )}
+                                <span className="font-semibold">
+                                  Question {result.questionNumber}
+                                </span>
+                              </div>
+                              <Badge className={`${
+                                result.isCorrect ? 'bg-green-600' : 'bg-red-600'
+                              } text-white`}>
+                                {result.earnedPoints}/{assessmentQuestions[idx]?.points || 1} pts
+                              </Badge>
+                            </div>
+                            
+                            <p className="text-sm font-medium mb-3 text-gray-800">
+                              {result.question}
+                            </p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-700">Your Answer:</span>
+                                <p className={`mt-1 p-2 rounded ${
+                                  result.isCorrect 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {typeof result.userAnswer === 'object' 
+                                    ? result.userAnswer?.answer || JSON.stringify(result.userAnswer)
+                                    : result.userAnswer || 'No answer'}
+                                </p>
+                              </div>
+                              {!result.isCorrect && result.correctAnswer && (
+                                <div>
+                                  <span className="font-medium text-gray-700">Correct Answer:</span>
+                                  <p className="mt-1 p-2 rounded bg-green-100 text-green-800">
+                                    {typeof result.correctAnswer === 'object'
+                                      ? JSON.stringify(result.correctAnswer)
+                                      : result.correctAnswer}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {result.explanation && !result.isCorrect && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                                <p className="text-sm text-blue-800">
+                                  <strong className="flex items-center gap-1">
+                                    <Brain className="w-4 h-4" />
+                                    Explanation:
+                                  </strong>
+                                  <span className="mt-1 block">{result.explanation}</span>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xl font-bold text-green-800">
-                        ✅ Assessment Complete!
-                      </h4>
-                      <p className="text-green-700">
-                        Great job! You've completed this assessment.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-white rounded-lg border border-green-200">
-                      <h5 className="font-semibold text-green-800 mb-2">
-                        Score Summary
-                      </h5>
-                      <p className="text-sm text-green-700">
-                        You answered all {assessmentQuestions.length} questions
-                        successfully!
-                      </p>
-                    </div>
-                    <div className="p-4 bg-white rounded-lg border border-green-200">
-                      <h5 className="font-semibold text-green-800 mb-2">
-                        Next Steps
-                      </h5>
-                      <p className="text-sm text-green-700">
-                        Continue to the next section to keep learning.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()
               )}
             </div>
           );
@@ -1339,7 +1569,7 @@ export default function DynamicModuleViewer({
                   )}
 
                   <Button
-                    onClick={() => handleQuizSubmit(section.id, sectionAnswers)}
+                    onClick={() => handleQuizSubmit(section.id, sectionAnswers, [{ ...quiz, id: section.id }])}
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={
                       quiz.type === 'single_choice'
@@ -1766,17 +1996,248 @@ export default function DynamicModuleViewer({
     );
   };
 
+  // ✅ VALIDATION: Check if section is complete before allowing navigation
+  const isSectionComplete = useCallback((sectionId: string) => {
+    return sectionProgress[sectionId] === true;
+  }, [sectionProgress]);
+
+  const canNavigateToNext = useCallback(() => {
+    const currentSectionId = currentSection.id;
+    const isComplete = isSectionComplete(currentSectionId);
+    
+    // Check if section has assessment that needs completion
+    const hasAssessment = currentSection.content_type === 'assessment';
+    const hasSubmittedAssessment = showQuizResults[currentSectionId];
+    
+    if (hasAssessment && !hasSubmittedAssessment) {
+      return {
+        allowed: false,
+        reason: 'Please complete and submit the assessment before proceeding.'
+      };
+    }
+    
+    // Check if section is marked complete
+    if (!isComplete) {
+      return {
+        allowed: false,
+        reason: 'Please complete this section before moving to the next one.'
+      };
+    }
+    
+    return { allowed: true, reason: '' };
+  }, [currentSection, isSectionComplete, showQuizResults]);
+
   const goToNextSection = () => {
+    const validation = canNavigateToNext();
+    
+    if (!validation.allowed) {
+      // Show warning toast
+      alert(validation.reason);
+      return;
+    }
+    
     if (currentSectionIndex < totalSections - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const goToPreviousSection = () => {
     if (currentSectionIndex > 0) {
       setCurrentSectionIndex(currentSectionIndex - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  // ✅ MODULE COMPLETION HANDLER
+  const handleModuleCompletion = useCallback(async () => {
+    if (!userId || !userName || previewMode || hasShownCompletion) return;
+
+    try {
+      const varkAPI = new VARKModulesAPI();
+      
+      // Calculate time spent (in minutes)
+      const timeSpentMinutes = Math.round((Date.now() - startTime) / 60000);
+      
+      // Get assessment scores
+      const preTestResult = Object.entries(assessmentResults).find(([key]) => 
+        key.includes('pre-test')
+      )?.[1];
+      const postTestResult = Object.entries(assessmentResults).find(([key]) => 
+        key.includes('post-test')
+      )?.[1];
+      
+      const preTestScore = preTestResult?.percentage || 0;
+      const postTestScore = postTestResult?.percentage || 0;
+      
+      // Calculate final score (average of all assessments or post-test)
+      const allScores = Object.values(assessmentResults)
+        .filter((result: any) => result?.percentage)
+        .map((result: any) => result.percentage);
+      const finalScore = allScores.length > 0
+        ? Math.round(allScores.reduce((sum: number, score: number) => sum + score, 0) / allScores.length)
+        : postTestScore || 0;
+      
+      // Count perfect sections (100% score)
+      const perfectSections = Object.values(assessmentResults)
+        .filter((result: any) => result?.percentage === 100).length;
+
+      console.log('🎉 Module Completion Data:', {
+        finalScore,
+        timeSpentMinutes,
+        preTestScore,
+        postTestScore,
+        sectionsCompleted: totalSections,
+        perfectSections
+      });
+
+      // Save completion to database
+      await varkAPI.completeModule({
+        student_id: userId,
+        module_id: module.id,
+        final_score: finalScore,
+        time_spent_minutes: timeSpentMinutes,
+        pre_test_score: preTestScore > 0 ? preTestScore : undefined,
+        post_test_score: postTestScore > 0 ? postTestScore : undefined,
+        sections_completed: totalSections,
+        perfect_sections: perfectSections
+      });
+
+      // Determine badge based on score
+      let badge = null;
+      if (finalScore >= 100) {
+        badge = {
+          name: 'Perfect Mastery',
+          icon: '💎',
+          description: `Achieved perfect score on ${module.title}!`,
+          rarity: 'platinum' as const
+        };
+        await varkAPI.awardBadge({
+          student_id: userId,
+          badge_type: 'perfect_score',
+          badge_name: badge.name,
+          badge_description: badge.description,
+          badge_icon: badge.icon,
+          badge_rarity: badge.rarity,
+          module_id: module.id,
+          criteria_met: { score: finalScore, perfect_sections: perfectSections }
+        });
+      } else if (finalScore >= 90) {
+        badge = {
+          name: `${module.title} Master`,
+          icon: '🏆',
+          description: `Scored ${finalScore}% on ${module.title}!`,
+          rarity: 'gold' as const
+        };
+        await varkAPI.awardBadge({
+          student_id: userId,
+          badge_type: 'high_scorer',
+          badge_name: badge.name,
+          badge_description: badge.description,
+          badge_icon: badge.icon,
+          badge_rarity: badge.rarity,
+          module_id: module.id,
+          criteria_met: { score: finalScore, improvement: postTestScore - preTestScore }
+        });
+      } else if (finalScore >= 80) {
+        badge = {
+          name: 'Excellence Achieved',
+          icon: '🥈',
+          description: `Great work on ${module.title}!`,
+          rarity: 'silver' as const
+        };
+        await varkAPI.awardBadge({
+          student_id: userId,
+          badge_type: 'high_scorer',
+          badge_name: badge.name,
+          badge_description: badge.description,
+          badge_icon: badge.icon,
+          badge_rarity: badge.rarity,
+          module_id: module.id,
+          criteria_met: { score: finalScore }
+        });
+      } else {
+        badge = {
+          name: 'Module Completed',
+          icon: '✅',
+          description: `Finished ${module.title}`,
+          rarity: 'bronze' as const
+        };
+        await varkAPI.awardBadge({
+          student_id: userId,
+          badge_type: 'completion',
+          badge_name: badge.name,
+          badge_description: badge.description,
+          badge_icon: badge.icon,
+          badge_rarity: badge.rarity,
+          module_id: module.id,
+          criteria_met: { completed: true }
+        });
+      }
+
+      setEarnedBadge(badge);
+
+      // Notify teacher
+      if (module.created_by) {
+        await varkAPI.notifyTeacher({
+          teacher_id: module.created_by,
+          type: 'module_completion',
+          title: 'Student Completed Module',
+          message: `${userName} completed "${module.title}" with a score of ${finalScore}%`,
+          student_id: userId,
+          module_id: module.id,
+          priority: finalScore < 60 ? 'high' : 'normal'
+        });
+      }
+
+      // Set completion data for modal
+      setCompletionData({
+        finalScore,
+        timeSpent: timeSpentMinutes,
+        preTestScore: preTestScore > 0 ? preTestScore : undefined,
+        postTestScore: postTestScore > 0 ? postTestScore : undefined,
+        sectionsCompleted: totalSections,
+        totalSections,
+        perfectSections
+      });
+
+      // Show completion modal
+      setShowCompletionModal(true);
+      setHasShownCompletion(true);
+
+      toast.success('Module completed! 🎉');
+    } catch (error) {
+      console.error('Error handling module completion:', error);
+      toast.error('Failed to save completion. Please try again.');
+    }
+  }, [
+    userId,
+    userName,
+    module,
+    totalSections,
+    assessmentResults,
+    startTime,
+    previewMode,
+    hasShownCompletion
+  ]);
+
+  // ✅ CHECK FOR MODULE COMPLETION
+  useEffect(() => {
+    if (
+      !previewMode &&
+      !hasShownCompletion &&
+      completedSections === totalSections &&
+      totalSections > 0 &&
+      userId
+    ) {
+      // Small delay to ensure all state is updated
+      const timer = setTimeout(() => {
+        handleModuleCompletion();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [completedSections, totalSections, previewMode, hasShownCompletion, userId, handleModuleCompletion]);
 
   return (
     <div className="space-y-6 relative pb-24 md:pb-0">
@@ -1970,8 +2431,13 @@ export default function DynamicModuleViewer({
 
         <Button
           onClick={goToNextSection}
-          disabled={currentSectionIndex === totalSections - 1}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700"
+          disabled={currentSectionIndex === totalSections - 1 || !canNavigateToNext().allowed}
+          className={`flex items-center space-x-2 ${
+            !canNavigateToNext().allowed 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+          title={!canNavigateToNext().allowed ? canNavigateToNext().reason : ''}
         >
           {currentSectionIndex === totalSections - 1
             ? 'Complete Module'
@@ -1991,6 +2457,31 @@ export default function DynamicModuleViewer({
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         sectionProgress={sectionProgress}
+      />
+    )}
+
+    {/* ✅ MODULE COMPLETION MODAL */}
+    {completionData && (
+      <ModuleCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => {
+          setShowCompletionModal(false);
+          // Optionally redirect to dashboard or modules page
+          if (typeof window !== 'undefined') {
+            window.location.href = '/student/vark-modules';
+          }
+        }}
+        moduleTitle={module.title}
+        completionData={completionData}
+        badge={earnedBadge}
+        onDownloadCertificate={() => {
+          // TODO: Implement certificate generation
+          toast.info('Certificate generation coming soon!');
+        }}
+        onViewSummary={() => {
+          // TODO: Navigate to detailed summary page
+          toast.info('Detailed summary coming soon!');
+        }}
       />
     )}
   </div>

@@ -101,11 +101,11 @@ export class VARKModulesAPI {
       // Create JSON blob
       const jsonString = JSON.stringify(moduleData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json' });
-      
+
       // Check size limit (Supabase free tier: 50MB per file)
       const sizeInMB = blob.size / (1024 * 1024);
       console.log(`📊 Backup size: ${sizeInMB.toFixed(2)} MB`);
-      
+
       if (sizeInMB > 45) {
         console.warn('⚠️ Backup too large, skipping upload');
         return null;
@@ -239,14 +239,15 @@ export class VARKModulesAPI {
     console.log('Creating VARK module with data:', moduleData);
 
     // Ensure no id field is passed for new modules
-    const { id, _export_info, _exported_at, _note, ...cleanModuleData } = moduleData as any;
+    const { id, _export_info, _exported_at, _note, ...cleanModuleData } =
+      moduleData as any;
     if (id !== undefined) {
       console.warn(
         'ID field was included in createModule call, removing it:',
         id
       );
     }
-    
+
     // Remove any other underscore-prefixed fields (export metadata)
     Object.keys(cleanModuleData).forEach(key => {
       if (key.startsWith('_')) {
@@ -376,7 +377,7 @@ export class VARKModulesAPI {
       _note,
       ...cleanModuleData
     } = moduleData as any;
-    
+
     // Remove any other underscore-prefixed fields (export metadata)
     Object.keys(cleanModuleData).forEach(key => {
       if (key.startsWith('_')) {
@@ -439,15 +440,15 @@ export class VARKModulesAPI {
           id,
           ...cleanModuleData
         };
-        
+
         // Add 5-second timeout for backup upload
         const backupPromise = this.uploadModuleBackup(tempModuleData, id);
         const timeoutPromise = new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error('Backup timeout')), 5000)
         );
-        
+
         const backupUrl = await Promise.race([backupPromise, timeoutPromise]);
-        
+
         if (backupUrl) {
           console.log('✅ JSON backup uploaded:', backupUrl);
           cleanModuleData.json_backup_url = backupUrl;
@@ -921,5 +922,161 @@ export class VARKModulesAPI {
         ? `${module.profiles.first_name} ${module.profiles.last_name}`
         : 'Unknown Teacher'
     }));
+  }
+
+  async completeModule(completionData: {
+    student_id: string;
+    module_id: string;
+    final_score: number;
+    time_spent_minutes: number;
+    pre_test_score?: number;
+    post_test_score?: number;
+    sections_completed: number;
+    perfect_sections: number;
+  }) {
+    const { data, error } = await this.supabase
+      .from('module_completions')
+      .insert({
+        ...completionData,
+        completion_date: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving module completion:', error);
+      throw new Error('Failed to save module completion');
+    }
+
+    return data;
+  }
+
+  async awardBadge(badgeData: {
+    student_id: string;
+    badge_type: string;
+    badge_name: string;
+    badge_description: string;
+    badge_icon: string;
+    badge_rarity: 'bronze' | 'silver' | 'gold' | 'platinum';
+    module_id?: string;
+    criteria_met: any;
+  }) {
+    const { data, error } = await this.supabase
+      .from('student_badges')
+      .insert(badgeData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error awarding badge:', error);
+      throw new Error('Failed to award badge');
+    }
+
+    return data;
+  }
+
+  async notifyTeacher(notificationData: {
+    teacher_id: string;
+    type: string;
+    title: string;
+    message: string;
+    student_id?: string;
+    module_id?: string;
+    priority?: 'low' | 'normal' | 'high' | 'urgent';
+  }) {
+    const { data, error } = await this.supabase
+      .from('teacher_notifications')
+      .insert({
+        ...notificationData,
+        priority: notificationData.priority || 'normal'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating notification:', error);
+      throw new Error('Failed to create notification');
+    }
+
+    return data;
+  }
+
+  // =====================================================
+  // COMPLETION DATA RETRIEVAL
+  // =====================================================
+
+  async getStudentCompletions(studentId: string) {
+    const { data, error } = await this.supabase
+      .from('module_completions')
+      .select(`
+        *,
+        vark_modules (
+          id,
+          title,
+          category_id,
+          difficulty_level
+        )
+      `)
+      .eq('student_id', studentId)
+      .order('completion_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching completions:', error);
+      throw new Error('Failed to fetch completions');
+    }
+
+    return data || [];
+  }
+
+  async getStudentBadges(studentId: string) {
+    const { data, error } = await this.supabase
+      .from('student_badges')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('earned_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching badges:', error);
+      throw new Error('Failed to fetch badges');
+    }
+
+    return data || [];
+  }
+
+  async getStudentStats(studentId: string) {
+    const completions = await this.getStudentCompletions(studentId);
+    const badges = await this.getStudentBadges(studentId);
+
+    const totalModulesCompleted = completions.length;
+    const averageScore = completions.length > 0
+      ? completions.reduce((sum, c) => sum + (c.final_score || 0), 0) / completions.length
+      : 0;
+    const totalTimeSpent = completions.reduce((sum, c) => sum + (c.time_spent_minutes || 0), 0);
+    const totalBadges = badges.length;
+
+    return {
+      totalModulesCompleted,
+      averageScore: Math.round(averageScore),
+      totalTimeSpent,
+      totalBadges,
+      recentCompletions: completions.slice(0, 5),
+      recentBadges: badges.slice(0, 5)
+    };
+  }
+
+  async getStudentModuleCompletion(studentId: string, moduleId: string) {
+    const { data, error } = await this.supabase
+      .from('module_completions')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('module_id', moduleId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching student module completion:', error);
+      throw new Error('Failed to fetch student module completion');
+    }
+
+    return data || null;
   }
 }

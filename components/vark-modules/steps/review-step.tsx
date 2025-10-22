@@ -32,6 +32,7 @@ interface ReviewStepProps {
 }
 
 const learningStyleIcons = {
+  everyone: Target,
   visual: Eye,
   auditory: Headphones,
   reading_writing: PenTool,
@@ -39,6 +40,7 @@ const learningStyleIcons = {
 };
 
 const learningStyleColors = {
+  everyone: 'from-teal-500 to-teal-600',
   visual: 'from-blue-500 to-blue-600',
   auditory: 'from-green-500 to-green-600',
   reading_writing: 'from-purple-500 to-purple-600',
@@ -102,10 +104,11 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
     sections.forEach((section, index) => {
       // ✅ Section title is optional - defaults to "Section X"
       // if (!section.title) issues.push(`Section ${index + 1} title is required`);
-      
+
       // ✅ Check for any type of content (CKEditor uses simple text field)
-      const hasContent = 
-        (section.content_data?.text && section.content_data.text.trim().length > 0) ||
+      const hasContent =
+        (section.content_data?.text &&
+          section.content_data.text.trim().length > 0) ||
         section.content_data?.table_data ||
         section.content_data?.quiz_data ||
         section.content_data?.activity_data ||
@@ -130,45 +133,53 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
   // ✅ Sync questions from root level into their respective sections
   const syncQuestionsToSections = () => {
     const allQuestions = formData.assessment_questions || [];
-    const updatedSections = (formData.content_structure?.sections || []).map(section => {
-      if (section.content_type === 'assessment') {
-        // Filter questions that belong to this section
-        const sectionQuestions = allQuestions.filter(q => {
-          // ✅ Primary matching: Use section_id field if available
-          if ((q as any).section_id) {
-            return (q as any).section_id === section.id;
-          }
-          
-          // Fallback matching for backward compatibility:
-          // - Match by question ID prefix for pre-test/post-test sections
-          if (section.id === 'pre-test-section' && q.id?.startsWith('pre-test')) {
-            return true;
-          }
-          if (section.id === 'post-test-section' && q.id?.startsWith('post-test')) {
-            return true;
-          }
-          
-          // - Check if question ID contains section ID
-          if (q.id?.includes(section.id)) {
-            return true;
-          }
-          
-          return false;
-        });
-        
-        // Add questions to section's content_data
-        return {
-          ...section,
-          content_data: {
-            ...section.content_data,
-            questions: sectionQuestions, // ✅ Questions now also in section!
-            quiz_data: section.content_data?.quiz_data
-          }
-        };
+    const updatedSections = (formData.content_structure?.sections || []).map(
+      section => {
+        if (section.content_type === 'assessment') {
+          // Filter questions that belong to this section
+          const sectionQuestions = allQuestions.filter(q => {
+            // ✅ Primary matching: Use section_id field if available
+            if ((q as any).section_id) {
+              return (q as any).section_id === section.id;
+            }
+
+            // Fallback matching for backward compatibility:
+            // - Match by question ID prefix for pre-test/post-test sections
+            if (
+              section.id === 'pre-test-section' &&
+              q.id?.startsWith('pre-test')
+            ) {
+              return true;
+            }
+            if (
+              section.id === 'post-test-section' &&
+              q.id?.startsWith('post-test')
+            ) {
+              return true;
+            }
+
+            // - Check if question ID contains section ID
+            if (q.id?.includes(section.id)) {
+              return true;
+            }
+
+            return false;
+          });
+
+          // Add questions to section's content_data
+          return {
+            ...section,
+            content_data: {
+              ...section.content_data,
+              questions: sectionQuestions, // ✅ Questions now also in section!
+              quiz_data: section.content_data?.quiz_data
+            }
+          };
+        }
+        return section;
       }
-      return section;
-    });
-    
+    );
+
     return updatedSections;
   };
 
@@ -176,30 +187,46 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
   const handleExportJSON = () => {
     try {
       // Get current timestamp for filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')
+        .slice(0, -5);
       const filename = `vark-module-${timestamp}.json`;
-      
+
       // ✅ Sync questions into sections before export
       const syncedSections = syncQuestionsToSections();
-      
+
       // ✅ Diagnostic logging to verify what's being exported
       console.log('🔍 Export Diagnostic:');
-      console.log('  - Total sections:', formData.content_structure?.sections?.length || 0);
-      console.log('  - Assessment questions array (root):', formData.assessment_questions);
-      console.log('  - Total assessment questions:', formData.assessment_questions?.length || 0);
-      
+      console.log(
+        '  - Total sections:',
+        formData.content_structure?.sections?.length || 0
+      );
+      console.log(
+        '  - Assessment questions array (root):',
+        formData.assessment_questions
+      );
+      console.log(
+        '  - Total assessment questions:',
+        formData.assessment_questions?.length || 0
+      );
+
       // Find all assessment sections
-      const assessmentSections = syncedSections.filter(
-        s => s.content_type === 'assessment'
-      ) || [];
+      const assessmentSections =
+        syncedSections.filter(s => s.content_type === 'assessment') || [];
       console.log('  - Assessment sections found:', assessmentSections.length);
       assessmentSections.forEach((section, idx) => {
-        const sectionQuestionsCount = (section.content_data as any)?.questions?.length || 0;
+        const sectionQuestionsCount =
+          (section.content_data as any)?.questions?.length || 0;
         console.log(`    [${idx}] Section ID: ${section.id}`);
-        console.log(`        Title: ${section.content_data?.quiz_data?.question || '(no title)'}`);
+        console.log(
+          `        Title: ${
+            section.content_data?.quiz_data?.question || '(no title)'
+          }`
+        );
         console.log(`        Questions in section: ${sectionQuestionsCount}`);
       });
-      
+
       // ✅ Create export data with synced sections
       const exportData = {
         ...formData,
@@ -209,22 +236,25 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         },
         // Add timestamp for reference
         _exported_at: new Date().toISOString(),
-        _note: 'Questions are stored in BOTH assessment_questions (root) AND content_structure.sections[].content_data.questions (inside sections)',
+        _note:
+          'Questions are stored in BOTH assessment_questions (root) AND content_structure.sections[].content_data.questions (inside sections)',
         // ✅ Add diagnostic info
         _export_info: {
           total_sections: syncedSections.length,
           assessment_sections: assessmentSections.length,
           total_questions_root: formData.assessment_questions?.length || 0,
-          questions_in_sections: assessmentSections.reduce((sum, s) => 
-            sum + ((s.content_data as any)?.questions?.length || 0), 0
+          questions_in_sections: assessmentSections.reduce(
+            (sum, s) => sum + ((s.content_data as any)?.questions?.length || 0),
+            0
           ),
-          section_types: syncedSections.map(s => s.content_type).join(', ') || 'none'
+          section_types:
+            syncedSections.map(s => s.content_type).join(', ') || 'none'
         }
       };
-      
+
       // Convert to pretty JSON
       const jsonString = JSON.stringify(exportData, null, 2);
-      
+
       // Create blob and download
       const blob = new Blob([jsonString], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -235,10 +265,16 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
-      toast.success(`Data exported to ${filename} - ${formData.assessment_questions?.length || 0} questions included`);
+
+      toast.success(
+        `Data exported to ${filename} - ${
+          formData.assessment_questions?.length || 0
+        } questions included`
+      );
       console.log('📥 Exported module data:', exportData);
-      console.log('✅ Export complete! Check the _export_info field in the JSON for diagnostic details');
+      console.log(
+        '✅ Export complete! Check the _export_info field in the JSON for diagnostic details'
+      );
     } catch (error) {
       console.error('Error exporting JSON:', error);
       toast.error('Failed to export JSON file');
@@ -464,11 +500,13 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         </Card>
 
         {/* Assessment */}
-        <Card className={`border-0 shadow-sm ${
-          sections.some(s => s.content_type === 'assessment') && questions.length === 0
-            ? 'border-2 border-yellow-300 bg-yellow-50'
-            : ''
-        }`}>
+        <Card
+          className={`border-0 shadow-sm ${
+            sections.some(s => s.content_type === 'assessment') &&
+            questions.length === 0
+              ? 'border-2 border-yellow-300 bg-yellow-50'
+              : ''
+          }`}>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <FileText className="w-5 h-5 text-green-600" />
@@ -479,7 +517,9 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
             <div className="space-y-3">
               {/* Assessment Sections Count */}
               <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                <span className="text-sm text-blue-800">Assessment Sections:</span>
+                <span className="text-sm text-blue-800">
+                  Assessment Sections:
+                </span>
                 <Badge variant="default" className="bg-blue-600">
                   {sections.filter(s => s.content_type === 'assessment').length}
                 </Badge>
@@ -496,25 +536,32 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
               </div>
 
               {/* Warning if mismatch */}
-              {sections.some(s => s.content_type === 'assessment') && questions.length === 0 && (
-                <Alert className="bg-yellow-50 border-yellow-300">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-sm text-yellow-800">
-                    ⚠️ You have assessment sections but no questions added. 
-                    Click "Add Question" in the Content Structure step to add questions.
-                  </AlertDescription>
-                </Alert>
-              )}
+              {sections.some(s => s.content_type === 'assessment') &&
+                questions.length === 0 && (
+                  <Alert className="bg-yellow-50 border-yellow-300">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-sm text-yellow-800">
+                      ⚠️ You have assessment sections but no questions added.
+                      Click "Add Question" in the Content Structure step to add
+                      questions.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
               {/* Questions List */}
               {questions.length > 0 ? (
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  <Label className="text-xs text-gray-500 uppercase">Questions that will be exported:</Label>
+                  <Label className="text-xs text-gray-500 uppercase">
+                    Questions that will be exported:
+                  </Label>
                   {questions.map((question, index) => (
-                    <div key={question.id} className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
+                    <div
+                      key={question.id}
+                      className="text-sm p-2 bg-gray-50 rounded border border-gray-200">
                       <div className="flex items-start justify-between">
                         <span className="text-gray-700 flex-1">
-                          <strong>{index + 1}.</strong> {question.question || '(No question text)'}
+                          <strong>{index + 1}.</strong>{' '}
+                          {question.question || '(No question text)'}
                         </span>
                         <div className="flex items-center space-x-1 ml-2">
                           <Badge variant="outline" className="text-xs">
@@ -536,8 +583,10 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
 
               {/* Info Note */}
               <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-200">
-                <strong>ℹ️ Note:</strong> Assessment questions are stored separately from section content 
-                and will appear in the <code className="bg-gray-200 px-1">assessment_questions</code> array in the exported JSON.
+                <strong>ℹ️ Note:</strong> Assessment questions are stored
+                separately from section content and will appear in the{' '}
+                <code className="bg-gray-200 px-1">assessment_questions</code>{' '}
+                array in the exported JSON.
               </div>
             </div>
           </CardContent>
@@ -604,7 +653,7 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
           </Button>
 
           {/* Save Button */}
-          <Button
+          {/* <Button
             onClick={onSave}
             disabled={!isValid}
             size="lg"
@@ -615,12 +664,13 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
             }`}>
             <CheckCircle className="w-6 h-6 mr-2" />
             {isValid ? 'Save to Supabase' : 'Fix Issues to Save'}
-          </Button>
+          </Button> */}
         </div>
 
         <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <p className="text-xs text-center text-blue-800">
-            💡 <strong>Export Info:</strong> The JSON export includes all module data:
+            💡 <strong>Export Info:</strong> The JSON export includes all module
+            data:
           </p>
           <div className="flex flex-wrap justify-center gap-2 mt-2">
             <Badge variant="outline" className="text-xs bg-white">

@@ -54,6 +54,7 @@ interface VARKModulePreviewProps {
 }
 
 const learningStyleIcons = {
+  everyone: Target,
   visual: Eye,
   auditory: Headphones,
   reading_writing: PenTool,
@@ -61,6 +62,7 @@ const learningStyleIcons = {
 };
 
 const learningStyleColors = {
+  everyone: 'from-teal-500 to-teal-600',
   visual: 'from-blue-500 to-blue-600',
   auditory: 'from-green-500 to-green-600',
   reading_writing: 'from-purple-500 to-purple-600',

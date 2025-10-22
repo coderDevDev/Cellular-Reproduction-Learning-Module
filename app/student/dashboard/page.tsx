@@ -49,6 +49,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import CompletionDashboard from '@/components/student/completion-dashboard';
 
 const learningStyleIcons = {
   visual: Eye,
@@ -272,6 +273,13 @@ export default function StudentDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Completion Dashboard */}
+        {user?.id && (
+          <div className="mb-8">
+            <CompletionDashboard studentId={user.id} />
+          </div>
+        )}
+
         {/* Learning Style Profile */}
         <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5">
           <CardContent className="p-6">

@@ -333,6 +333,8 @@ export default function StudentVARKModulePage() {
                 module.content_structure.sections.length > 0 ? (
                   <DynamicModuleViewer
                     module={module}
+                    userId={user?.id}
+                    userName={`${user?.first_name} ${user?.last_name}`}
                     onSectionComplete={(sectionId: string) => {
                       const sectionIndex =
                         module.content_structure?.sections?.findIndex(

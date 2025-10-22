@@ -22,11 +22,13 @@ import {
   Headphones,
   PenTool,
   Zap,
-  Clock
+  Clock,
+  Target
 } from 'lucide-react';
 import { VARKModuleContentSection } from '@/types/vark-module';
 
 const learningStyleIcons = {
+  everyone: Target,
   visual: Eye,
   auditory: Headphones,
   reading_writing: PenTool,

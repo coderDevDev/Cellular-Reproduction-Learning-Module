@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Checkbox } from '@/components/ui/checkbox';
 import { StudentAPI } from '@/lib/api/students';
 import { toast } from 'sonner';
+import StudentDetailsModal from '@/components/teacher/student-details-modal';
 import {
   Plus,
   Search,
@@ -77,6 +78,7 @@ export default function TeacherStudentsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -231,10 +233,10 @@ export default function TeacherStudentsPage() {
     }
   };
 
-  //View student
+  //View student - Now opens detailed completion stats
   const handleViewStudent = (student: Student) => {
     setSelectedStudent(student);
-    setShowViewModal(true);
+    setShowDetailsModal(true); // Use new details modal with completion stats
   };
 
   // Edit student
@@ -1576,7 +1578,19 @@ export default function TeacherStudentsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Student Details Modal */}
+      {selectedStudent && (
+        <StudentDetailsModal
+          isOpen={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedStudent(null);
+          }}
+          studentId={selectedStudent.id}
+          studentName={`${selectedStudent.first_name} ${selectedStudent.last_name}`}
+        />
+      )}
     </div>
   );
 }
-

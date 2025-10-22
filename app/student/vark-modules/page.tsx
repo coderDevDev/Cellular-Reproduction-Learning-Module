@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { VARKModulesAPI } from '@/lib/api/vark-modules';
 import { ClassesAPI } from '@/lib/api/classes';
+import ModuleCompletionBadge from '@/components/student/module-completion-badge';
 import {
   type VARKModule,
   type VARKModuleCategory,
@@ -668,6 +669,15 @@ export default function StudentVARKModulesPage() {
                       <p className="text-gray-600 text-sm line-clamp-2">
                         {module.description}
                       </p>
+                      {/* Completion Badge */}
+                      {user?.id && (
+                        <div className="mt-3">
+                          <ModuleCompletionBadge
+                            moduleId={module.id}
+                            studentId={user.id}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Module Meta */}
