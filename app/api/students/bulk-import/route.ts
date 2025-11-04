@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { config } from '@/lib/config';
 
+console.log({config})
+
 // Server-side admin client with service role key
 const supabaseAdmin = createClient(
   config.supabase.url,
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
       errors: [] as string[],
     };
 
-    console.log(`📥 Starting bulk import of ${students.length} students...`);
+    console.log(`📥 Starting bulk importssss of ${students.length} students...`);
 
     // OPTIMIZATION: Query all existing student emails in one go
     console.log('🔍 Checking for existing students...');
@@ -105,6 +107,8 @@ export async function POST(request: NextRequest) {
       .select('email')
       .eq('role', 'student');
 
+
+      console.log({existingProfiles})
     if (queryError) {
       console.error('Error querying existing students:', queryError);
       return NextResponse.json(
@@ -204,12 +208,16 @@ export async function POST(request: NextRequest) {
           profileData.learning_type = studentData.learningType;
         }
 
+
+        // console.log({profileData})
         const { data: profile, error: profileError } = await supabaseAdmin
           .from('profiles')
-          .insert(profileData)
+          .upsert(profileData)
           .select()
           .single();
 
+
+          // console.log({profileError})
         if (profileError) {
           // Clean up auth user if profile creation fails
           await supabaseAdmin.auth.admin.deleteUser(authData.user.id);

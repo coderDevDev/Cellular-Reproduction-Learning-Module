@@ -292,14 +292,14 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
 
-              {/* <div className="flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2">
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2">
                 <p className="text-gray-600 text-xs sm:text-sm">No account?</p>
                 <Link
                   href="/auth/register"
                   className="text-[#00af8f] hover:text-[#00af90] font-bold text-xs sm:text-sm transition-colors duration-200 hover:underline">
                   Sign up
                 </Link>
-              </div> */}
+              </div>
             </div>
           </CardContent>
         </Card>

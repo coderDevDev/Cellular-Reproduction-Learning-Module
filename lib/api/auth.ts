@@ -15,6 +15,7 @@ export class AuthAPI {
         'with role:',
         data.role
       );
+      console.log({data})
 
       // Create user in Supabase Auth with role-specific metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({

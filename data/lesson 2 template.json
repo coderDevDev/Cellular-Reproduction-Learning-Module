@@ -1,0 +1,293 @@
+{
+  "id": "71667afd-78d1-47c4-82ee-919716a4fff2",
+  "category_id": "general-education",
+  "title": "Lesson 2 Module Set",
+  "description": "Introduction\n\nHave you ever wondered how babies inherit traits from both their parents? The answer lies in a special kind of cell division called meiosis. In this lesson, you’ll learn how sperm cells in boys and egg cells in girls are made through meiosis. These cells are called gametes, and they carry half the genetic information needed to create a new person. When a sperm and egg join during fertilization, they form a complete set of chromosomes, starting the development of a new human being.\n\nMeiosis doesn’t just help with reproduction, it also makes sure that each child is unique. Through processes like chromosome reduction and genetic recombination, meiosis mixes genes in different ways. This is why siblings can look different from each other even though they have the same parents. By the end of this lesson, you’ll understand how meiosis works, why it’s important, and how it helps create the amazing variety we see in people today.\n\nContent:\nMeiosis and Gamete Formation\nMeiosis is Essential in Sexual Reproduction\n\nContent Standards: \nCells are the basic unit of life and mitosis, and meiosis are the basic forms of cell division.\n\nLearning Competency: \nexplain that genetic information is passed on to offspring from both parents by the process of meiosis and fertilization;\n",
+  "learning_objectives": [
+    "Understand the key concepts",
+    "Apply knowledge to real-world scenarios"
+  ],
+  "content_structure": {
+    "sections": [
+      {
+        "id": "3e7d28f1-41b5-4fb7-9e1e-19774dfd04c7",
+        "title": "Objectives",
+        "content_type": "text",
+        "content_data": {
+          "text": "<p><meta charset=\"utf-8\"></p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Objectives:</strong></span></span></p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><i><span style=\"vertical-align:baseline;\">At the end of the lessons, the students will be able to:</span></i></span></p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\">&nbsp;</p><ol><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;\" data-list-item-id=\"ec5e0895ce3325c652a2250455a335d6d\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Describe how sperm and egg cells are made through meiosis.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;\" data-list-item-id=\"e96b29b6f6e8237fc4630f74d20b05e9a\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Explain why meiosis is important in sexual reproduction.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;\" data-list-item-id=\"e0a1e37f2d33ad8a76f6f9848c0b37a01\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Describe how meiosis creates differences between offspring.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"efa549abdbc3e653096c90fc8f09005c0\" dir=\"ltr\" aria-level=\"1\">&nbsp;</li></ol>"
+        },
+        "position": 1,
+        "is_required": true,
+        "time_estimate_minutes": 5,
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        }
+      },
+      {
+        "id": "0a395107-0888-40b5-8929-16ae8f6ea95e",
+        "title": "Pre-Test",
+        "content_type": "assessment",
+        "content_data": {
+          "quiz_data": {
+            "question": "Pre-Test (Let us first check what you already know!)"
+          },
+          "questions": [
+            {
+              "id": "0a395107-0888-40b5-8929-16ae8f6ea95e-q-1762240394983",
+              "type": "single_choice",
+              "question": "What is the main function of meiosis in sexual reproduction?",
+              "options": [
+                "A. To reduce chromosome number by half",
+                "B. To produce identical cells",
+                "C. To repair damaged DNA",
+                "D. To increase cell size"
+              ],
+              "correct_answer": "A. To reduce chromosome number by half",
+              "points": 2
+            },
+            {
+              "id": "0a395107-0888-40b5-8929-16ae8f6ea95e-q-1762240478156",
+              "type": "single_choice",
+              "question": "Where does spermatogenesis occur in male animals?",
+              "options": [
+                "A. Prostate gland",
+                "B. Ovaries",
+                "C. Seminal vesicles",
+                "D. Testes"
+              ],
+              "correct_answer": "",
+              "points": 10
+            }
+          ]
+        },
+        "position": 2,
+        "is_required": true,
+        "time_estimate_minutes": 5,
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        }
+      },
+      {
+        "id": "64570563-97a4-4ac5-8553-74b2c19c5104",
+        "title": "Activities",
+        "content_type": "text",
+        "content_data": {
+          "text": ""
+        },
+        "position": 3,
+        "is_required": true,
+        "time_estimate_minutes": 5,
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        }
+      },
+      {
+        "id": "e60bbf24-4c02-4629-9495-64d33f96536f",
+        "title": "Post-Test",
+        "content_type": "assessment",
+        "content_data": {
+          "quiz_data": {
+            "question": "Post-Test"
+          },
+          "questions": [
+            {
+              "id": "e60bbf24-4c02-4629-9495-64d33f96536f-q-1762240578289",
+              "type": "single_choice",
+              "question": "What is the term for the formation of egg cells in females?",
+              "options": [
+                "A. Fertilization",
+                "B. Spermatogenesis",
+                "C. Ovulation",
+                "D. Oogenesis"
+              ],
+              "correct_answer": "D. Oogenesis",
+              "points": 1
+            }
+          ]
+        },
+        "position": 4,
+        "is_required": true,
+        "time_estimate_minutes": 5,
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        }
+      }
+    ],
+    "learning_path": [],
+    "prerequisites_checklist": [
+      ""
+    ],
+    "completion_criteria": [
+      ""
+    ]
+  },
+  "difficulty_level": "beginner",
+  "estimated_duration_minutes": 30,
+  "prerequisites": [
+    ""
+  ],
+  "multimedia_content": {
+    "videos": [
+      ""
+    ],
+    "images": [
+      ""
+    ],
+    "diagrams": [
+      ""
+    ],
+    "podcasts": [
+      ""
+    ],
+    "audio_lessons": [
+      ""
+    ],
+    "discussion_guides": [
+      ""
+    ],
+    "interactive_simulations": [
+      ""
+    ],
+    "hands_on_activities": [
+      ""
+    ],
+    "animations": [
+      ""
+    ],
+    "virtual_labs": [
+      ""
+    ],
+    "interactive_diagrams": [
+      ""
+    ]
+  },
+  "interactive_elements": {
+    "drag_and_drop": false,
+    "visual_builder": false,
+    "simulation": false,
+    "audio_playback": false,
+    "discussion_forum": false,
+    "voice_recording": false,
+    "text_editor": false,
+    "note_taking": false,
+    "physical_activities": false,
+    "experiments": false,
+    "interactive_quizzes": false,
+    "progress_tracking": false,
+    "virtual_laboratory": false,
+    "gamification": false
+  },
+  "assessment_questions": [
+    {
+      "id": "0a395107-0888-40b5-8929-16ae8f6ea95e-q-1762240394983",
+      "type": "single_choice",
+      "question": "What is the main function of meiosis in sexual reproduction?",
+      "options": [
+        "A. To reduce chromosome number by half",
+        "B. To produce identical cells",
+        "C. To repair damaged DNA",
+        "D. To increase cell size"
+      ],
+      "correct_answer": "A. To reduce chromosome number by half",
+      "points": 2
+    },
+    {
+      "id": "0a395107-0888-40b5-8929-16ae8f6ea95e-q-1762240478156",
+      "type": "single_choice",
+      "question": "Where does spermatogenesis occur in male animals?",
+      "options": [
+        "A. Prostate gland",
+        "B. Ovaries",
+        "C. Seminal vesicles",
+        "D. Testes"
+      ],
+      "correct_answer": "",
+      "points": 10
+    },
+    {
+      "id": "e60bbf24-4c02-4629-9495-64d33f96536f-q-1762240578289",
+      "type": "single_choice",
+      "question": "What is the term for the formation of egg cells in females?",
+      "options": [
+        "A. Fertilization",
+        "B. Spermatogenesis",
+        "C. Ovulation",
+        "D. Oogenesis"
+      ],
+      "correct_answer": "D. Oogenesis",
+      "points": 1
+    }
+  ],
+  "module_metadata": {
+    "content_standards": [
+      ""
+    ],
+    "learning_competencies": [
+      ""
+    ],
+    "key_concepts": [
+      ""
+    ],
+    "vocabulary": [
+      ""
+    ],
+    "real_world_applications": [
+      ""
+    ],
+    "extension_activities": [
+      ""
+    ],
+    "assessment_rubrics": {},
+    "accessibility_features": [
+      ""
+    ],
+    "estimated_completion_time": 30,
+    "difficulty_indicators": [
+      ""
+    ]
+  },
+  "is_published": false,
+  "created_by": "teacher-001",
+  "created_at": "2025-11-04T07:07:54.959Z",
+  "updated_at": "2025-11-04T07:07:54.959Z",
+  "target_class_id": "",
+  "target_learning_styles": [
+    "visual",
+    "reading_writing",
+    "auditory",
+    "kinesthetic"
+  ],
+  "_export_info": {
+    "total_sections": 4,
+    "assessment_sections": 2,
+    "total_questions_collected": 3,
+    "questions_in_sections": 3,
+    "section_types": "text, assessment, text, assessment"
+  },
+  "_exported_at": "2025-11-04T07:21:38.407Z",
+  "_note": "Questions are stored in content_structure.sections[].content_data.questions (primary) AND assessment_questions (backward compatibility)"
+}

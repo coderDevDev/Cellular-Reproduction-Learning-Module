@@ -39,8 +39,8 @@ import { toast } from 'sonner';
 
 const navigationItems = [
   { icon: Home, label: 'Dashboard', href: '/teacher/dashboard' },
-  { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
-  { icon: GraduationCap, label: 'Classes', href: '/teacher/classes' },
+  // { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
+  // { icon: GraduationCap, label: 'Classes', href: '/teacher/classes' },
   { icon: Target, label: 'VARK Modules', href: '/teacher/vark-modules' },
 
   { icon: Users, label: 'Students', href: '/teacher/students' },

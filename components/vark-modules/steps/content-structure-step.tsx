@@ -133,6 +133,15 @@ const contentTypeOptions = [
     bgColor: 'bg-emerald-50',
     borderColor: 'border-emerald-200'
   },
+  {
+    value: 'quick_write',
+    label: 'Quick Write',
+    icon: PenTool,
+    description: 'Short answer writing prompts',
+    color: 'from-indigo-500 to-indigo-600',
+    bgColor: 'bg-indigo-50',
+    borderColor: 'border-indigo-200'
+  },
   // {
   //   value: 'quick_check',
   //   label: 'Quick Check',
@@ -660,6 +669,159 @@ export default function ContentStructureStep({
                   Assessment title is required
                 </p>
               )}
+            </div>
+
+            {/* Quick Populate Button */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Populate with sample assessment questions
+                  const sampleQuestions = [
+                    {
+                      id: `${section.id}-q-${Date.now()}-1`,
+                      type: 'single_choice' as const,
+                      question: 'What is the term for the formation of egg cells in females?',
+                      options: [
+                        'A. Fertilization',
+                        'B. Spermatogenesis',
+                        'C. Ovulation',
+                        'D. Oogenesis'
+                      ],
+                      correct_answer: 'D. Oogenesis',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-2`,
+                      type: 'single_choice' as const,
+                      question: 'Why does the egg cell retain most of the cytoplasm during oogenesis?',
+                      options: [
+                        'A. To divide into more cells',
+                        'B. To prevent fertilization',
+                        'C. To ensure it has enough nutrients and cellular components',
+                        'D. To become a sperm cell'
+                      ],
+                      correct_answer: 'C. To ensure it has enough nutrients and cellular components',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-3`,
+                      type: 'single_choice' as const,
+                      question: 'What is the role of polar bodies in oogenesis?',
+                      options: [
+                        'A. They fertilize the egg',
+                        'B. They degenerate and do not participate in fertilization',
+                        'C. They carry nutrients to the egg',
+                        'D. They become sperm cells'
+                      ],
+                      correct_answer: 'B. They degenerate and do not participate in fertilization',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-4`,
+                      type: 'single_choice' as const,
+                      question: 'Which phase of meiosis involves crossing over?',
+                      options: [
+                        'A. Prophase I',
+                        'B. Anaphase I',
+                        'C. Telophase II',
+                        'D. Metaphase II'
+                      ],
+                      correct_answer: 'A. Prophase I',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-5`,
+                      type: 'single_choice' as const,
+                      question: 'What type of cells are produced at the end of meiosis?',
+                      options: [
+                        'A. Genetically distinct haploid gametes',
+                        'B. Identical daughter cells',
+                        'C. Stem cells',
+                        'D. Diploid somatic cells'
+                      ],
+                      correct_answer: 'A. Genetically distinct haploid gametes',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-6`,
+                      type: 'single_choice' as const,
+                      question: 'Why is genetic diversity important in a population?',
+                      options: [
+                        'A. It causes mutations',
+                        'B. It prevents reproduction',
+                        'C. It reduces survival rates',
+                        'D. It helps populations adapt to changing environments'
+                      ],
+                      correct_answer: 'D. It helps populations adapt to changing environments',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-7`,
+                      type: 'single_choice' as const,
+                      question: 'What would happen if meiosis did not reduce the chromosome number?',
+                      options: [
+                        'A. Gametes would be diploid',
+                        'B. Fertilization would not occur',
+                        'C. Chromosome number would double each generation',
+                        'D. Offspring would be genetically identical'
+                      ],
+                      correct_answer: 'C. Chromosome number would double each generation',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-8`,
+                      type: 'single_choice' as const,
+                      question: 'Which of the following best describes a human egg cell?',
+                      options: [
+                        'A. Haploid and identical to sperm',
+                        'B. Haploid and nutrient-rich',
+                        'C. Diploid and stationary',
+                        'D. Small and motile'
+                      ],
+                      correct_answer: 'B. Haploid and nutrient-rich',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-9`,
+                      type: 'single_choice' as const,
+                      question: 'How many rounds of cell division occur during meiosis?',
+                      options: [
+                        'A. Three',
+                        'B. Four',
+                        'C. Two',
+                        'D. One'
+                      ],
+                      correct_answer: 'C. Two',
+                      points: 1
+                    },
+                    {
+                      id: `${section.id}-q-${Date.now()}-10`,
+                      type: 'single_choice' as const,
+                      question: 'What is the chromosome number of a zygote formed after fertilization?',
+                      options: [
+                        'A. 92',
+                        'B. 12',
+                        'C. 23',
+                        'D. 46'
+                      ],
+                      correct_answer: 'D. 46',
+                      points: 1
+                    }
+                  ];
+
+                  updateSectionQuestions(index, sampleQuestions);
+                  toast.success('10 sample assessment questions populated!');
+                }}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick Populate Sample Questions
+              </Button>
+              <p className="text-xs text-blue-600 mt-2">
+                Click to populate with 10 sample meiosis questions
+              </p>
             </div>
 
             {/* Multiple Questions Support */}
@@ -1643,6 +1805,8 @@ export default function ContentStructureStep({
                 <SelectContent>
                   <SelectItem value="discussion">Fill-in-the-Blanks</SelectItem>
                   <SelectItem value="matching">Matching</SelectItem>
+                  <SelectItem value="true_false_correction">True or False with Correction</SelectItem>
+                  <SelectItem value="think_write_understand">Think, Write, Understand</SelectItem>
                   {/* <SelectItem value="labeling">Labeling</SelectItem>
                   <SelectItem value="drag_drop">Drag & Drop</SelectItem>
                   <SelectItem value="simulation">Simulation</SelectItem> */}
@@ -2043,6 +2207,907 @@ export default function ContentStructureStep({
                       className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Matching Pair
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* True/False with Correction Activity */}
+            {section.content_data?.activity_data?.type === 'true_false_correction' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <h4 className="font-semibold text-amber-800 mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    True or False with Correction Activity
+                  </h4>
+                  <p className="text-sm text-amber-700">
+                    Create True/False statements where students must correct false statements
+                  </p>
+                </div>
+
+                {/* Quick Populate Button */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Populate with sample data from the image
+                      const sampleStatements = [
+                        { statement: 'Meiosis makes body cells for growth.', is_true: false, correction: 'Meiosis makes gametes, not body cells.' },
+                        { statement: 'Sperm cells are made in the testes.', is_true: true, correction: '' },
+                        { statement: 'Egg cells are made in the ovaries.', is_true: true, correction: '' },
+                        { statement: 'A human egg cell has 46 chromosomes.', is_true: false, correction: 'A human egg cell has 23 chromosomes (haploid).' },
+                        { statement: 'Fertilization makes a zygote.', is_true: true, correction: '' },
+                        { statement: 'Crossing-over happens in meiosis and makes children unique.', is_true: true, correction: '' },
+                        { statement: 'Meiosis produces four haploid gametes.', is_true: true, correction: '' },
+                        { statement: 'Polar bodies become sperm cells.', is_true: false, correction: 'Polar bodies break down; they do not become sperm cells.' },
+                        { statement: 'Without meiosis, chromosome numbers would double every generation.', is_true: true, correction: '' },
+                        { statement: 'Sexual reproduction depends on meiosis.', is_true: true, correction: '' }
+                      ];
+
+                      updateContentSection(index, {
+                        content_data: {
+                          ...section.content_data,
+                          activity_data: {
+                            ...section.content_data?.activity_data,
+                            title: 'True or False',
+                            description: 'Read each statement carefully. Write "True" if the statement is correct, or "False" if it is incorrect. For each False answer, correct the statement by rewriting it accurately.',
+                            instructions: [
+                              'Read each statement carefully.',
+                              'Write "True" if the statement is correct, or "False" if it is incorrect.',
+                              'For each False answer, correct the statement by rewriting it accurately.'
+                            ],
+                            statements: sampleStatements
+                          }
+                        }
+                      });
+                      toast.success('Sample True/False activity populated!');
+                    }}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Quick Populate Sample Data
+                  </Button>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Click to populate with sample meiosis True/False statements
+                  </p>
+                </div>
+
+                {/* Instructions */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Instructions
+                  </Label>
+                  <div className="space-y-2">
+                    {(
+                      section.content_data?.activity_data?.instructions || ['']
+                    ).map((instruction, instIndex) => (
+                      <div
+                        key={instIndex}
+                        className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-600 w-6">
+                          {instIndex + 1}.
+                        </span>
+                        <Input
+                          placeholder={`Instruction ${instIndex + 1}`}
+                          value={instruction}
+                          onChange={e => {
+                            const currentInstructions = section.content_data
+                              ?.activity_data?.instructions || [''];
+                            const newInstructions = [...currentInstructions];
+                            newInstructions[instIndex] = e.target.value;
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  instructions: newInstructions
+                                }
+                              }
+                            });
+                          }}
+                          className="flex-1"
+                        />
+                        {(section.content_data?.activity_data?.instructions || [])
+                          .length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentInstructions = section.content_data
+                                ?.activity_data?.instructions || [''];
+                              const newInstructions = currentInstructions.filter(
+                                (_, i) => i !== instIndex
+                              );
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    instructions: newInstructions
+                                  }
+                                }
+                              });
+                            }}
+                            className="text-red-600 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentInstructions = section.content_data
+                          ?.activity_data?.instructions || [''];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              instructions: [...currentInstructions, '']
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Instruction
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Statements */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700">
+                    True/False Statements
+                  </Label>
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.statements || [
+                        { statement: '', is_true: true, correction: '' }
+                      ]
+                    ).map((item, stmtIndex) => (
+                      <Card key={stmtIndex} className="border border-gray-200">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              Statement {stmtIndex + 1}
+                            </Label>
+                            {(section.content_data?.activity_data?.statements || [])
+                              .length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const currentStatements = section.content_data
+                                    ?.activity_data?.statements || [];
+                                  const newStatements = currentStatements.filter(
+                                    (_, i) => i !== stmtIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        statements: newStatements
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Statement Text */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Statement</Label>
+                            <Textarea
+                              placeholder="Enter the statement..."
+                              value={item.statement}
+                              onChange={e => {
+                                const currentStatements = section.content_data
+                                  ?.activity_data?.statements || [];
+                                const newStatements = [...currentStatements];
+                                newStatements[stmtIndex] = {
+                                  ...newStatements[stmtIndex],
+                                  statement: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      statements: newStatements
+                                    }
+                                  }
+                                });
+                              }}
+                              className="min-h-[60px] resize-none"
+                            />
+                          </div>
+
+                          {/* Is True/False */}
+                          <div className="flex items-center space-x-4">
+                            <Label className="text-xs text-gray-600">Correct Answer:</Label>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={item.is_true === true}
+                                onCheckedChange={(checked) => {
+                                  const currentStatements = section.content_data
+                                    ?.activity_data?.statements || [];
+                                  const newStatements = [...currentStatements];
+                                  newStatements[stmtIndex] = {
+                                    ...newStatements[stmtIndex],
+                                    is_true: checked === true
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        statements: newStatements
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                              <Label className="text-sm font-medium text-green-700">True</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={item.is_true === false}
+                                onCheckedChange={(checked) => {
+                                  const currentStatements = section.content_data
+                                    ?.activity_data?.statements || [];
+                                  const newStatements = [...currentStatements];
+                                  newStatements[stmtIndex] = {
+                                    ...newStatements[stmtIndex],
+                                    is_true: checked === true ? false : true
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        statements: newStatements
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                              <Label className="text-sm font-medium text-red-700">False</Label>
+                            </div>
+                          </div>
+
+                          {/* Correction (only for false statements) */}
+                          {item.is_true === false && (
+                            <div>
+                              <Label className="text-xs text-gray-600">Correct Statement (for false answers)</Label>
+                              <Textarea
+                                placeholder="Enter the corrected statement..."
+                                value={item.correction || ''}
+                                onChange={e => {
+                                  const currentStatements = section.content_data
+                                    ?.activity_data?.statements || [];
+                                  const newStatements = [...currentStatements];
+                                  newStatements[stmtIndex] = {
+                                    ...newStatements[stmtIndex],
+                                    correction: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        statements: newStatements
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[60px] resize-none bg-amber-50"
+                              />
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentStatements = section.content_data
+                          ?.activity_data?.statements || [];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              statements: [
+                                ...currentStatements,
+                                { statement: '', is_true: true, correction: '' }
+                              ]
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Statement
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Think, Write, Understand Activity */}
+            {section.content_data?.activity_data?.type === 'think_write_understand' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-cyan-50 rounded-lg border border-cyan-200">
+                  <h4 className="font-semibold text-cyan-800 mb-2 flex items-center">
+                    <Brain className="w-4 h-4 mr-2" />
+                    Think, Write, Understand Activity
+                  </h4>
+                  <p className="text-sm text-cyan-700">
+                    Create sentence completion prompts and creative writing tasks
+                  </p>
+                </div>
+
+                {/* Quick Populate Button */}
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Populate with sample data from the image
+                      const sampleSentences = [
+                        { prompt: 'Without meiosis,', answer: '' },
+                        { prompt: 'Because of chromosome reduction,', answer: '' },
+                        { prompt: 'Because of genetic recombination,', answer: '' }
+                      ];
+
+                      const sampleWritingPrompt = {
+                        title: 'Poem Creation',
+                        instructions: [
+                          'Write a short poem that explains:',
+                          '  - The importance of meiosis in sexual reproduction.',
+                          '  - How meiosis leads to genetic variation among offspring.',
+                          'You may use any poetic style (rhymed, free verse, acrostic, etc.), but your poem must:',
+                          '  - Be original and written in your own words.',
+                          'Use descriptive language to show your understanding of how meiosis contributes to life and diversity.'
+                        ]
+                      };
+
+                      updateContentSection(index, {
+                        content_data: {
+                          ...section.content_data,
+                          activity_data: {
+                            ...section.content_data?.activity_data,
+                            title: 'Think, Write, Understand',
+                            description: 'Complete the sentences and create a poem about meiosis',
+                            part1_title: 'Part I: Finish the Thought',
+                            part1_instruction: 'Complete the sentence below.',
+                            sentences: sampleSentences,
+                            part2_title: 'Part II: Poem Creation',
+                            writing_prompt: sampleWritingPrompt
+                          }
+                        }
+                      });
+                      toast.success('Sample Think, Write, Understand activity populated!');
+                    }}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Quick Populate Sample Data
+                  </Button>
+                  <p className="text-xs text-blue-600 mt-2">
+                    Click to populate with sample meiosis activity
+                  </p>
+                </div>
+
+                {/* Part 1 Configuration */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h5 className="font-semibold text-gray-800 mb-3">Part I: Sentence Completion</h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part Title</Label>
+                      <Input
+                        placeholder="e.g., Part I: Finish the Thought"
+                        value={section.content_data?.activity_data?.part1_title || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part1_title: e.target.value
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Instruction</Label>
+                      <Input
+                        placeholder="e.g., Complete the sentence below."
+                        value={section.content_data?.activity_data?.part1_instruction || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part1_instruction: e.target.value
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    {/* Sentences */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Sentence Prompts</Label>
+                      <div className="space-y-2">
+                        {(
+                          section.content_data?.activity_data?.sentences || [
+                            { prompt: '', answer: '' }
+                          ]
+                        ).map((sentence, sentIndex) => (
+                          <Card key={sentIndex} className="border border-gray-200">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs font-semibold text-gray-700">
+                                  Sentence {sentIndex + 1}
+                                </Label>
+                                {(section.content_data?.activity_data?.sentences || []).length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const currentSentences = section.content_data
+                                        ?.activity_data?.sentences || [];
+                                      const newSentences = currentSentences.filter(
+                                        (_, i) => i !== sentIndex
+                                      );
+                                      updateContentSection(index, {
+                                        content_data: {
+                                          ...section.content_data,
+                                          activity_data: {
+                                            ...section.content_data?.activity_data,
+                                            sentences: newSentences
+                                          }
+                                        }
+                                      });
+                                    }}
+                                    className="text-red-600 hover:text-red-700">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Input
+                                placeholder="Sentence prompt (e.g., Without meiosis,)"
+                                value={sentence.prompt}
+                                onChange={e => {
+                                  const currentSentences = section.content_data
+                                    ?.activity_data?.sentences || [];
+                                  const newSentences = [...currentSentences];
+                                  newSentences[sentIndex] = {
+                                    ...newSentences[sentIndex],
+                                    prompt: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        sentences: newSentences
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const currentSentences = section.content_data
+                              ?.activity_data?.sentences || [];
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  sentences: [
+                                    ...currentSentences,
+                                    { prompt: '', answer: '' }
+                                  ]
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Sentence
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Part 2 Configuration */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h5 className="font-semibold text-gray-800 mb-3">Part II: Creative Writing</h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part Title</Label>
+                      <Input
+                        placeholder="e.g., Part II: Poem Creation"
+                        value={section.content_data?.activity_data?.part2_title || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part2_title: e.target.value
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Writing Prompt Title</Label>
+                      <Input
+                        placeholder="e.g., Poem Creation"
+                        value={section.content_data?.activity_data?.writing_prompt?.title || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                writing_prompt: {
+                                  ...section.content_data?.activity_data?.writing_prompt,
+                                  title: e.target.value
+                                }
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    {/* Instructions */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Instructions</Label>
+                      <div className="space-y-2">
+                        {(
+                          section.content_data?.activity_data?.writing_prompt?.instructions || ['']
+                        ).map((instruction, instIndex) => (
+                          <div key={instIndex} className="flex items-center space-x-2">
+                            <Textarea
+                              placeholder={`Instruction ${instIndex + 1}`}
+                              value={instruction}
+                              onChange={e => {
+                                const currentInstructions = section.content_data
+                                  ?.activity_data?.writing_prompt?.instructions || [''];
+                                const newInstructions = [...currentInstructions];
+                                newInstructions[instIndex] = e.target.value;
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      writing_prompt: {
+                                        ...section.content_data?.activity_data?.writing_prompt,
+                                        instructions: newInstructions
+                                      }
+                                    }
+                                  }
+                                });
+                              }}
+                              className="flex-1 min-h-[60px] resize-none"
+                            />
+                            {(section.content_data?.activity_data?.writing_prompt?.instructions || []).length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const currentInstructions = section.content_data
+                                    ?.activity_data?.writing_prompt?.instructions || [''];
+                                  const newInstructions = currentInstructions.filter(
+                                    (_, i) => i !== instIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        writing_prompt: {
+                                          ...section.content_data?.activity_data?.writing_prompt,
+                                          instructions: newInstructions
+                                        }
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const currentInstructions = section.content_data
+                              ?.activity_data?.writing_prompt?.instructions || [''];
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  writing_prompt: {
+                                    ...section.content_data?.activity_data?.writing_prompt,
+                                    instructions: [...currentInstructions, '']
+                                  }
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Instruction
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assessment Rubric */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h5 className="font-semibold text-gray-800 flex items-center">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Assessment Rubric
+                    </h5>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Populate with default rubric values
+                        const defaultRubric = [
+                          {
+                            criteria: 'Creativeness & Originality',
+                            excellent: 'Poem is highly original, imaginative, and insightful; shows deep understanding of meiosis.',
+                            good: 'Poem shows some originality and effort; understanding of meiosis is clear.',
+                            needs_improvement: 'Poem lacks originality or shows limited understanding of the topic.'
+                          },
+                          {
+                            criteria: 'Language Use',
+                            excellent: 'Uses vivid, precise, and expressive language; scientific terms are used meaningfully.',
+                            good: 'Language is clear and appropriate; scientific terms are present but may be basic.',
+                            needs_improvement: 'Language is vague or unclear; scientific terms are missing or misused.'
+                          },
+                          {
+                            criteria: 'Structure & Organization',
+                            excellent: 'Poem flows smoothly with a clear beginning, middle, and end; enhances meaning.',
+                            good: 'Poem has a logical structure; some sections may be weak.',
+                            needs_improvement: 'Poem lacks clear structure or is difficult to follow.'
+                          }
+                        ];
+
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              rubric: defaultRubric
+                            }
+                          }
+                        });
+                        toast.success('Default rubric populated!');
+                      }}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Load Default Rubric
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.rubric || [
+                        { criteria: '', excellent: '', good: '', needs_improvement: '' }
+                      ]
+                    ).map((row, rowIndex) => (
+                      <Card key={rowIndex} className="border border-gray-200">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              Criteria {rowIndex + 1}
+                            </Label>
+                            {(section.content_data?.activity_data?.rubric || []).length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = currentRubric.filter(
+                                    (_, i) => i !== rowIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Criteria Name */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Criteria</Label>
+                            <Input
+                              placeholder="e.g., Creativeness & Originality"
+                              value={row.criteria}
+                              onChange={e => {
+                                const currentRubric = section.content_data
+                                  ?.activity_data?.rubric || [];
+                                const newRubric = [...currentRubric];
+                                newRubric[rowIndex] = {
+                                  ...newRubric[rowIndex],
+                                  criteria: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      rubric: newRubric
+                                    }
+                                  }
+                                });
+                              }}
+                            />
+                          </div>
+
+                          {/* Excellent (10) */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Excellent (10)</Label>
+                            <Textarea
+                              placeholder="Describe excellent performance..."
+                              value={row.excellent}
+                              onChange={e => {
+                                const currentRubric = section.content_data
+                                  ?.activity_data?.rubric || [];
+                                const newRubric = [...currentRubric];
+                                newRubric[rowIndex] = {
+                                  ...newRubric[rowIndex],
+                                  excellent: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      rubric: newRubric
+                                    }
+                                  }
+                                });
+                              }}
+                              className="min-h-[60px] resize-none"
+                            />
+                          </div>
+
+                          {/* Good (7-9) */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Good (7-9)</Label>
+                            <Textarea
+                              placeholder="Describe good performance..."
+                              value={row.good}
+                              onChange={e => {
+                                const currentRubric = section.content_data
+                                  ?.activity_data?.rubric || [];
+                                const newRubric = [...currentRubric];
+                                newRubric[rowIndex] = {
+                                  ...newRubric[rowIndex],
+                                  good: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      rubric: newRubric
+                                    }
+                                  }
+                                });
+                              }}
+                              className="min-h-[60px] resize-none"
+                            />
+                          </div>
+
+                          {/* Needs Improvement (1-6) */}
+                          <div>
+                            <Label className="text-xs text-gray-600">Needs Improvement (1-6)</Label>
+                            <Textarea
+                              placeholder="Describe needs improvement..."
+                              value={row.needs_improvement}
+                              onChange={e => {
+                                const currentRubric = section.content_data
+                                  ?.activity_data?.rubric || [];
+                                const newRubric = [...currentRubric];
+                                newRubric[rowIndex] = {
+                                  ...newRubric[rowIndex],
+                                  needs_improvement: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      rubric: newRubric
+                                    }
+                                  }
+                                });
+                              }}
+                              className="min-h-[60px] resize-none"
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentRubric = section.content_data
+                          ?.activity_data?.rubric || [];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              rubric: [
+                                ...currentRubric,
+                                { criteria: '', excellent: '', good: '', needs_improvement: '' }
+                              ]
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Rubric Criteria
                     </Button>
                   </div>
                 </div>
@@ -3630,6 +4695,115 @@ export default function ContentStructureStep({
             </p>
           </div>
         );
+
+      case 'quick_write':
+        return (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Writing Prompt *
+              </Label>
+              <Textarea
+                placeholder="Enter the writing prompt (e.g., List three ways meiosis contributes to genetic variation. Use bullet points or short sentences.)..."
+                value={section.content_data?.prompt || ''}
+                onChange={e =>
+                  updateContentSection(index, {
+                    content_data: {
+                      ...section.content_data,
+                      prompt: e.target.value
+                    }
+                  })
+                }
+                className="min-h-[100px] resize-none"
+              />
+              {!section.content_data?.prompt && (
+                <p className="text-sm text-red-500 mt-1">
+                  Writing prompt is required
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700">
+                Instructions (Optional)
+              </Label>
+              <Input
+                placeholder="e.g., Use bullet points or short sentences"
+                value={section.content_data?.instructions || ''}
+                onChange={e =>
+                  updateContentSection(index, {
+                    content_data: {
+                      ...section.content_data,
+                      instructions: e.target.value
+                    }
+                  })
+                }
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-medium text-gray-700">
+                  Minimum Words (Optional)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0 (no minimum)"
+                  value={section.content_data?.min_words || 0}
+                  onChange={e =>
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        min_words: parseInt(e.target.value) || 0
+                      }
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-700">
+                  Maximum Words (Optional)
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0 (no maximum)"
+                  value={section.content_data?.max_words || 0}
+                  onChange={e =>
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        max_words: parseInt(e.target.value) || 0
+                      }
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+              <h4 className="text-sm font-medium text-indigo-800 mb-2">
+                Preview
+              </h4>
+              <div className="space-y-2">
+                <p className="text-sm text-indigo-700 font-medium">
+                  {section.content_data?.prompt || 'Your writing prompt will appear here...'}
+                </p>
+                {section.content_data?.instructions && (
+                  <p className="text-xs text-indigo-600 italic">
+                    {section.content_data.instructions}
+                  </p>
+                )}
+                <div className="mt-3 p-3 bg-white border border-indigo-200 rounded">
+                  <p className="text-xs text-gray-500 mb-2">Student text box (preview)</p>
+                  <div className="h-24 bg-gray-50 border border-gray-300 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="prose dark:prose-invert">
