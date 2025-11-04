@@ -29,13 +29,14 @@ import {
   PenTool,
   FileText,
   XCircle,
-  AlertCircle
+  AlertCircle,BarChart3
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
 import { VARKModulesAPI } from '@/lib/api/vark-modules';
 import ModuleCompletionModal from './module-completion-modal';
 import { toast } from 'sonner';
+import FillInBlanksActivity from './fill-in-blanks-activity';
 
 // Dynamically import ReadAloudPlayer to avoid SSR issues
 const ReadAloudPlayer = dynamic(
@@ -1651,139 +1652,10 @@ export default function DynamicModuleViewer({
           // Fill-in-the-Blanks Activity
           if (activity.type === 'discussion') {
             return (
-              <div className="space-y-6">
-                {/* Activity Header */}
-                <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="p-2 bg-blue-500 rounded-lg">
-                      <Activity className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="text-xl font-bold text-blue-800">
-                        📝 Fill-in-the-Blanks Activity
-                      </h4>
-                      <h5 className="text-lg font-semibold text-blue-700">
-                        {activity.title}
-                      </h5>
-                    </div>
-                  </div>
-                  <p className="text-blue-700 mb-4">{activity.description}</p>
-
-                  {/* Instructions */}
-                  <div className="space-y-3">
-                    <h6 className="font-semibold text-blue-800 flex items-center">
-                      <Target className="w-4 h-4 mr-2" />
-                      Instructions:
-                    </h6>
-                    <ul className="list-decimal list-inside space-y-2 text-blue-700">
-                      {activity.instructions.map((instruction, index) => (
-                        <li key={index} className="font-medium">
-                          {instruction}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Word Bank */}
-                {activity.word_bank && activity.word_bank.length > 0 && (
-                  <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                    <h6 className="font-bold text-blue-800 mb-4 flex items-center">
-                      <BookOpen className="w-5 h-5 mr-2" />
-                      WORD BANK
-                    </h6>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                      {activity.word_bank.map((word, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-white border border-blue-300 rounded-lg text-center font-semibold text-blue-800 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                          data-word-bank-item>
-                          {word}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Questions */}
-                {activity.questions && activity.questions.length > 0 && (
-                  <div className="space-y-4">
-                    <h6 className="font-bold text-gray-800 text-lg flex items-center">
-                      <PenTool className="w-5 h-5 mr-2" />
-                      Questions:
-                    </h6>
-                    {activity.questions.map((question, index) => (
-                      <div
-                        key={index}
-                        className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                        <div className="flex items-start space-x-3">
-                          <span className="text-lg font-bold text-blue-600 bg-blue-100 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
-                            {index + 1}
-                          </span>
-                          <div className="flex-1">
-                            <p className="text-gray-800 font-medium mb-3">
-                              {question.replace(/_____/g, '__________')}
-                            </p>
-                            <div className="mt-2">
-                              <input
-                                type="text"
-                                className="w-full px-3 py-2 border-2 border-blue-400 bg-blue-50 rounded-lg text-blue-800 font-semibold focus:outline-none focus:border-blue-600 focus:bg-white transition-colors"
-                                placeholder="Type your answer here..."
-                                data-question-index={index}
-                                onChange={e => {
-                                  const inputValue = e.target.value
-                                    .toLowerCase()
-                                    .trim();
-                                  // Disable/enable word bank items based on input
-                                  const wordBankItems =
-                                    document.querySelectorAll(
-                                      `[data-word-bank-item]`
-                                    );
-                                  wordBankItems.forEach((item: any) => {
-                                    const word = item.textContent
-                                      ?.toLowerCase()
-                                      .trim();
-                                    if (word === inputValue) {
-                                      item.classList.add(
-                                        'opacity-50',
-                                        'cursor-not-allowed'
-                                      );
-                                      item.style.pointerEvents = 'none';
-                                    } else {
-                                      item.classList.remove(
-                                        'opacity-50',
-                                        'cursor-not-allowed'
-                                      );
-                                      item.style.pointerEvents = 'auto';
-                                    }
-                                  });
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Expected Outcome */}
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h6 className="font-semibold text-green-800 mb-2 flex items-center">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Expected Outcome:
-                  </h6>
-                  <p className="text-green-700">{activity.expected_outcome}</p>
-                </div>
-
-                {/* Complete Button */}
-                <Button
-                  onClick={() => handleSectionComplete(section.id)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Complete Fill-in-the-Blanks Activity
-                </Button>
-              </div>
+              <FillInBlanksActivity
+                activity={activity}
+                onComplete={() => handleSectionComplete(section.id)}
+              />
             );
           }
 
@@ -1909,6 +1781,188 @@ export default function DynamicModuleViewer({
             );
           }
 
+          // Experiment Activity
+          if (activity.type === 'experiment') {
+            return (
+              <div className="space-y-6">
+                {/* Activity Header */}
+                <div className="p-6 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-purple-500 rounded-lg">
+                      <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-purple-800">
+                        🔬 Experiment Activity
+                      </h4>
+                      <h5 className="text-lg font-semibold text-purple-700">
+                        {activity.title}
+                      </h5>
+                    </div>
+                  </div>
+                  <p className="text-purple-700 mb-4">{activity.description}</p>
+
+                  {/* Instructions */}
+                  {activity.instructions && activity.instructions.length > 0 && (
+                    <div className="space-y-3">
+                      <h6 className="font-semibold text-purple-800 flex items-center">
+                        <Target className="w-4 h-4 mr-2" />
+                        Quick Instructions:
+                      </h6>
+                      <ul className="list-decimal list-inside space-y-2 text-purple-700">
+                        {activity.instructions.map((instruction, index) => (
+                          <li key={index} className="font-medium">
+                            {instruction}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Materials Needed */}
+                {activity.materials && activity.materials.length > 0 && (
+                  <div className="p-6 bg-purple-50 border-2 border-purple-200 rounded-xl">
+                    <h6 className="font-bold text-purple-800 mb-4 flex items-center">
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      MATERIALS NEEDED
+                    </h6>
+                    <ul className="space-y-2">
+                      {activity.materials.map((material, index) => (
+                        <li
+                          key={index}
+                          className="flex items-start space-x-2 text-purple-700">
+                          <span className="text-purple-500 font-bold">•</span>
+                          <span>{material}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Detailed Instructions */}
+                {activity.detailed_instructions && (
+                  <div className="p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <h6 className="font-bold text-gray-800 mb-4 flex items-center">
+                      <Target className="w-5 h-5 mr-2" />
+                      DETAILED INSTRUCTIONS
+                    </h6>
+                    <div
+                      className="prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: activity.detailed_instructions
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Process Questions */}
+                {activity.process_questions &&
+                  activity.process_questions.length > 0 && (
+                    <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                      <h6 className="font-bold text-blue-800 mb-4 flex items-center">
+                        <Brain className="w-5 h-5 mr-2" />
+                        PROCESS QUESTIONS
+                      </h6>
+                      <div className="space-y-4">
+                        {activity.process_questions.map((question, index) => (
+                          <div
+                            key={index}
+                            className="p-4 bg-white border border-blue-200 rounded-lg">
+                            <div className="flex items-start space-x-3">
+                              <span className="text-lg font-bold text-blue-600 bg-blue-100 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1">
+                                <p className="text-gray-800 font-medium mb-3">
+                                  {question}
+                                </p>
+                                <textarea
+                                  className="w-full px-3 py-2 border-2 border-blue-400 bg-blue-50 rounded-lg text-blue-800 font-medium focus:outline-none focus:border-blue-600 focus:bg-white transition-colors min-h-[100px] resize-none"
+                                  placeholder="Type your answer here..."
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Assessment Rubric */}
+                {activity.rubric && activity.rubric.length > 0 && (
+                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                    <h6 className="font-bold text-yellow-800 mb-4 flex items-center">
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      ASSESSMENT RUBRIC
+                    </h6>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden shadow-lg bg-white">
+                        <thead className="bg-gradient-to-r from-yellow-100 to-yellow-200">
+                          <tr>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-gray-800">
+                              Criteria
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-green-700">
+                              Excellent (4 pts)
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-blue-700">
+                              Good (3 pts)
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-yellow-700">
+                              Fair (2 pts)
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-red-700">
+                              Needs Improvement (1 pt)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activity.rubric.map((row, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="border border-gray-300 px-4 py-3 font-semibold text-gray-800">
+                                {row.criteria}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {row.excellent}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {row.good}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {row.fair}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {row.needs_improvement}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expected Outcome */}
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h6 className="font-semibold text-green-800 mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Expected Outcome:
+                  </h6>
+                  <p className="text-green-700">{activity.expected_outcome}</p>
+                </div>
+
+                {/* Complete Button */}
+                <Button
+                  onClick={() => handleSectionComplete(section.id)}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Complete Experiment Activity
+                </Button>
+              </div>
+            );
+          }
+
           // Default Activity (for other types)
           return (
             <div className="space-y-6">
@@ -1921,14 +1975,16 @@ export default function DynamicModuleViewer({
                 </h5>
                 <p className="text-purple-700 mb-4">{activity.description}</p>
 
-                <div className="space-y-3">
-                  <h6 className="font-medium text-purple-800">Instructions:</h6>
-                  <ul className="list-decimal list-inside space-y-1 text-purple-700">
-                    {activity.instructions.map((instruction, index) => (
-                      <li key={index}>{instruction}</li>
-                    ))}
-                  </ul>
-                </div>
+                {activity.instructions && activity.instructions.length > 0 && (
+                  <div className="space-y-3">
+                    <h6 className="font-medium text-purple-800">Instructions:</h6>
+                    <ul className="list-decimal list-inside space-y-1 text-purple-700">
+                      {activity.instructions.map((instruction, index) => (
+                        <li key={index}>{instruction}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {activity.materials_needed && (
                   <div className="mt-4">

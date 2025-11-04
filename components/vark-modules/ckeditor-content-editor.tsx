@@ -38,7 +38,8 @@ import {
   AutoLink,
   Base64UploadAdapter,
   PasteFromOffice,
-  GeneralHtmlSupport
+  GeneralHtmlSupport,
+  SourceEditing
 } from 'ckeditor5';
 
 import 'ckeditor5/ckeditor5.css';
@@ -106,7 +107,8 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
             Font,
             Alignment,
             PasteFromOffice,
-            GeneralHtmlSupport
+            GeneralHtmlSupport,
+            SourceEditing
           ],
           toolbar: {
             items: [
@@ -147,7 +149,9 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
               'subscript',
               'superscript',
               '|',
-              'removeFormat'
+              'removeFormat',
+              '|',
+              'sourceEditing'
             ],
             shouldNotGroupWhenFull: true
           },
@@ -248,8 +252,25 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
                   // Table specific
                   'border-spacing': true,
                   // List specific
-                  'list-style-type': true
+                  'list-style-type': true,
+                  // Position for responsive iframes
+                  'position': true,
+                  'padding-bottom': true,
+                  'overflow': true,
+                  'max-width': true,
+                  'top': true,
+                  'left': true
                 }
+              },
+              {
+                name: 'iframe',
+                attributes: ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'style']
+              },
+              {
+                name: 'div',
+                attributes: true,
+                classes: true,
+                styles: true
               }
             ]
           },
@@ -318,6 +339,24 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
                     `<iframe src="https://www.dailymotion.com/embed/video/${id}" ` +
                     'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
                     'frameborder="0" allow="autoplay; fullscreen; picture-in-picture; web-share" ' +
+                    'allowfullscreen></iframe>' +
+                    '</div>'
+                  );
+                }
+              },
+              {
+                name: 'googledrive',
+                url: [
+                  /^(?:https?:\/\/)?drive\.google\.com\/file\/d\/([\w-]+)/,
+                  /^(?:https?:\/\/)?drive\.google\.com\/open\?id=([\w-]+)/
+                ],
+                html: (match: string[]) => {
+                  const id = match[1];
+                  return (
+                    '<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%;">' +
+                    `<iframe src="https://drive.google.com/file/d/${id}/preview" ` +
+                    'style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" ' +
+                    'frameborder="0" allow="autoplay" ' +
                     'allowfullscreen></iframe>' +
                     '</div>'
                   );

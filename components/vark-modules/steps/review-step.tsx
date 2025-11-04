@@ -130,57 +130,25 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
   const validationIssues = getValidationIssues();
   const isValid = hasRequiredFields() && validationIssues.length === 0;
 
-  // ✅ Sync questions from root level into their respective sections
+  // ✅ Questions are now stored directly in each section's content_data
+  // No need to sync from global array - just return sections as-is
   const syncQuestionsToSections = () => {
-    const allQuestions = formData.assessment_questions || [];
-    const updatedSections = (formData.content_structure?.sections || []).map(
-      section => {
-        if (section.content_type === 'assessment') {
-          // Filter questions that belong to this section
-          const sectionQuestions = allQuestions.filter(q => {
-            // ✅ Primary matching: Use section_id field if available
-            if ((q as any).section_id) {
-              return (q as any).section_id === section.id;
-            }
-
-            // Fallback matching for backward compatibility:
-            // - Match by question ID prefix for pre-test/post-test sections
-            if (
-              section.id === 'pre-test-section' &&
-              q.id?.startsWith('pre-test')
-            ) {
-              return true;
-            }
-            if (
-              section.id === 'post-test-section' &&
-              q.id?.startsWith('post-test')
-            ) {
-              return true;
-            }
-
-            // - Check if question ID contains section ID
-            if (q.id?.includes(section.id)) {
-              return true;
-            }
-
-            return false;
-          });
-
-          // Add questions to section's content_data
-          return {
-            ...section,
-            content_data: {
-              ...section.content_data,
-              questions: sectionQuestions, // ✅ Questions now also in section!
-              quiz_data: section.content_data?.quiz_data
-            }
-          };
-        }
-        return section;
+    return formData.content_structure?.sections || [];
+  };
+  
+  // ✅ Collect all questions from all assessment sections for backward compatibility
+  const collectAllQuestions = () => {
+    const sections = formData.content_structure?.sections || [];
+    const allQuestions: any[] = [];
+    
+    sections.forEach(section => {
+      if (section.content_type === 'assessment') {
+        const sectionQuestions = (section.content_data as any)?.questions || [];
+        allQuestions.push(...sectionQuestions);
       }
-    );
-
-    return updatedSections;
+    });
+    
+    return allQuestions;
   };
 
   // Export data as JSON file
@@ -193,8 +161,11 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         .slice(0, -5);
       const filename = `vark-module-${timestamp}.json`;
 
-      // ✅ Sync questions into sections before export
+      // ✅ Get sections (questions are already in them)
       const syncedSections = syncQuestionsToSections();
+      
+      // ✅ Collect all questions from sections for backward compatibility
+      const allQuestions = collectAllQuestions();
 
       // ✅ Diagnostic logging to verify what's being exported
       console.log('🔍 Export Diagnostic:');
@@ -203,12 +174,8 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         formData.content_structure?.sections?.length || 0
       );
       console.log(
-        '  - Assessment questions array (root):',
-        formData.assessment_questions
-      );
-      console.log(
-        '  - Total assessment questions:',
-        formData.assessment_questions?.length || 0
+        '  - Total assessment questions (collected from sections):',
+        allQuestions.length
       );
 
       // Find all assessment sections
@@ -227,22 +194,24 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         console.log(`        Questions in section: ${sectionQuestionsCount}`);
       });
 
-      // ✅ Create export data with synced sections
+      // ✅ Create export data with sections (questions are inside each section)
       const exportData = {
         ...formData,
         content_structure: {
           ...formData.content_structure,
-          sections: syncedSections // ✅ Use synced sections with questions inside!
+          sections: syncedSections // ✅ Sections with questions in content_data
         },
+        // ✅ Include collected questions at root level for backward compatibility
+        assessment_questions: allQuestions,
         // Add timestamp for reference
         _exported_at: new Date().toISOString(),
         _note:
-          'Questions are stored in BOTH assessment_questions (root) AND content_structure.sections[].content_data.questions (inside sections)',
+          'Questions are stored in content_structure.sections[].content_data.questions (primary) AND assessment_questions (backward compatibility)',
         // ✅ Add diagnostic info
         _export_info: {
           total_sections: syncedSections.length,
           assessment_sections: assessmentSections.length,
-          total_questions_root: formData.assessment_questions?.length || 0,
+          total_questions_collected: allQuestions.length,
           questions_in_sections: assessmentSections.reduce(
             (sum, s) => sum + ((s.content_data as any)?.questions?.length || 0),
             0
@@ -268,7 +237,7 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
 
       toast.success(
         `Data exported to ${filename} - ${
-          formData.assessment_questions?.length || 0
+          allQuestions.length
         } questions included`
       );
       console.log('📥 Exported module data:', exportData);

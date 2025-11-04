@@ -86,28 +86,21 @@ export default function LoginPage() {
         console.log('User role:', result.user.role);
         console.log('Onboarding completed:', result.user.onboardingCompleted);
 
+        // Wait for auth state to update before redirecting
+        console.log('Waiting for auth state to update...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Role-based redirect according to features.txt
         if (result.user.role === 'teacher') {
           console.log('Redirecting teacher to dashboard');
-          // Small delay to ensure auth state is updated
-          setTimeout(() => {
-            window.location.href = '/teacher/dashboard';
-          }, 100);
+          window.location.href = '/teacher/dashboard';
         } else if (result.user.role === 'student') {
           if (result.user.onboardingCompleted) {
-            console.log(
-              'Student onboarding completed, redirecting to dashboard'
-            );
-            setTimeout(() => {
-              window.location.href = '/student/dashboard';
-            }, 100);
+            console.log('Student onboarding completed, redirecting to dashboard');
+            window.location.href = '/student/dashboard';
           } else {
-            console.log(
-              'Student onboarding not completed, redirecting to VARK'
-            );
-            setTimeout(() => {
-              window.location.href = '/onboarding/vark';
-            }, 100);
+            console.log('Student onboarding not completed, redirecting to VARK');
+            window.location.href = '/onboarding/vark';
           }
         }
       } else {

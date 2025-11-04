@@ -19,6 +19,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog';
+import {
   Plus,
   Trash2,
   GripVertical,
@@ -53,7 +61,7 @@ const CKEditorContentEditor = dynamic(
 interface ContentStructureStepProps {
   formData: Partial<VARKModule>;
   updateFormData: (updates: Partial<VARKModule>) => void;
-  addContentSection: () => void;
+  addContentSection: (afterIndex?: number) => void;
   updateContentSection: (
     index: number,
     updates: Partial<VARKModuleContentSection>
@@ -71,24 +79,24 @@ const contentTypeOptions = [
     bgColor: 'bg-teal-50',
     borderColor: 'border-teal-200'
   },
-  {
-    value: 'video',
-    label: 'Video',
-    icon: Video,
-    description: 'Video content with controls',
-    color: 'from-emerald-500 to-emerald-600',
-    bgColor: 'bg-emerald-50',
-    borderColor: 'border-emerald-200'
-  },
-  {
-    value: 'audio',
-    label: 'Audio',
-    icon: Mic,
-    description: 'Audio lessons or podcasts',
-    color: 'from-teal-600 to-emerald-600',
-    bgColor: 'bg-teal-50',
-    borderColor: 'border-teal-200'
-  },
+  // {
+  //   value: 'video',
+  //   label: 'Video',
+  //   icon: Video,
+  //   description: 'Video content with controls',
+  //   color: 'from-emerald-500 to-emerald-600',
+  //   bgColor: 'bg-emerald-50',
+  //   borderColor: 'border-emerald-200'
+  // },
+  // {
+  //   value: 'audio',
+  //   label: 'Audio',
+  //   icon: Mic,
+  //   description: 'Audio lessons or podcasts',
+  //   color: 'from-teal-600 to-emerald-600',
+  //   bgColor: 'bg-teal-50',
+  //   borderColor: 'border-teal-200'
+  // },
   {
     value: 'read_aloud',
     label: 'Read Aloud',
@@ -98,15 +106,15 @@ const contentTypeOptions = [
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200'
   },
-  {
-    value: 'interactive',
-    label: 'Interactive',
-    icon: Play,
-    description: 'Interactive simulations',
-    color: 'from-emerald-600 to-teal-700',
-    bgColor: 'bg-emerald-50',
-    borderColor: 'border-emerald-200'
-  },
+  // {
+  //   value: 'interactive',
+  //   label: 'Interactive',
+  //   icon: Play,
+  //   description: 'Interactive simulations',
+  //   color: 'from-emerald-600 to-teal-700',
+  //   bgColor: 'bg-emerald-50',
+  //   borderColor: 'border-emerald-200'
+  // },
   {
     value: 'activity',
     label: 'Activity',
@@ -118,49 +126,49 @@ const contentTypeOptions = [
   },
   {
     value: 'assessment',
-    label: 'Assessment',
+    label: 'Test/Quiz/Assessment',
     icon: FileText,
     description: 'Quiz or test questions',
     color: 'from-emerald-700 to-teal-800',
     bgColor: 'bg-emerald-50',
     borderColor: 'border-emerald-200'
   },
-  {
-    value: 'quick_check',
-    label: 'Quick Check',
-    icon: CheckCircle,
-    description: 'Self-assessment checkpoints',
-    color: 'from-teal-500 to-emerald-500',
-    bgColor: 'bg-teal-50',
-    borderColor: 'border-teal-200'
-  },
-  {
-    value: 'highlight',
-    label: 'Highlight',
-    icon: Brain,
-    description: 'Key concepts and important points',
-    color: 'from-emerald-500 to-teal-600',
-    bgColor: 'bg-emerald-50',
-    borderColor: 'border-emerald-200'
-  },
-  {
-    value: 'table',
-    label: 'Table',
-    icon: Table,
-    description: 'Data tables and structured information',
-    color: 'from-teal-600 to-emerald-600',
-    bgColor: 'bg-teal-50',
-    borderColor: 'border-teal-200'
-  },
-  {
-    value: 'diagram',
-    label: 'Diagram',
-    icon: BarChart3,
-    description: 'Visual diagrams and charts',
-    color: 'from-emerald-600 to-teal-700',
-    bgColor: 'bg-emerald-50',
-    borderColor: 'border-emerald-200'
-  }
+  // {
+  //   value: 'quick_check',
+  //   label: 'Quick Check',
+  //   icon: CheckCircle,
+  //   description: 'Self-assessment checkpoints',
+  //   color: 'from-teal-500 to-emerald-500',
+  //   bgColor: 'bg-teal-50',
+  //   borderColor: 'border-teal-200'
+  // },
+  // {
+  //   value: 'highlight',
+  //   label: 'Highlight',
+  //   icon: Brain,
+  //   description: 'Key concepts and important points',
+  //   color: 'from-emerald-500 to-teal-600',
+  //   bgColor: 'bg-emerald-50',
+  //   borderColor: 'border-emerald-200'
+  // },
+  // {
+  //   value: 'table',
+  //   label: 'Table',
+  //   icon: Table,
+  //   description: 'Data tables and structured information',
+  //   color: 'from-teal-600 to-emerald-600',
+  //   bgColor: 'bg-teal-50',
+  //   borderColor: 'border-teal-200'
+  // },
+  // {
+  //   value: 'diagram',
+  //   label: 'Diagram',
+  //   icon: BarChart3,
+  //   description: 'Visual diagrams and charts',
+  //   color: 'from-emerald-600 to-teal-700',
+  //   bgColor: 'bg-emerald-50',
+  //   borderColor: 'border-emerald-200'
+  // }
 ];
 
 const learningStyleOptions = [
@@ -207,21 +215,33 @@ export default function ContentStructureStep({
   const [selectedSectionIndex, setSelectedSectionIndex] = useState<
     number | null
   >(null);
+  const [showPlacementModal, setShowPlacementModal] = useState(false);
+  const [selectedPlacementIndex, setSelectedPlacementIndex] = useState<number | null>(null);
   // ✅ Removed useEditorJS toggle - Editor.js is always embedded in the form
   const sections = formData.content_structure?.sections || [];
 
-  // Filter assessment questions based on section ID
-  const getFilteredAssessmentQuestions = (sectionId: string) => {
-    const allQuestions = formData.assessment_questions || [];
+  // Get assessment questions from section's own content_data (not shared global array)
+  const getSectionQuestions = (section: VARKModuleContentSection) => {
+    if (section.content_type !== 'assessment') return [];
+    return (section.content_data as any)?.questions || [];
+  };
 
-    if (sectionId === 'pre-test-section') {
-      return allQuestions.filter(q => q.id.startsWith('pre-test'));
-    } else if (sectionId === 'post-test-section') {
-      return allQuestions.filter(q => q.id.startsWith('post-test'));
-    }
-
-    // For other assessment sections, show all questions
-    return allQuestions;
+  // Update questions for a specific section
+  const updateSectionQuestions = (sectionIndex: number, questions: any[]) => {
+    const updatedSections = [...sections];
+    updatedSections[sectionIndex] = {
+      ...updatedSections[sectionIndex],
+      content_data: {
+        ...updatedSections[sectionIndex].content_data,
+        questions
+      }
+    };
+    updateFormData({
+      content_structure: {
+        ...formData.content_structure,
+        sections: updatedSections
+      }
+    });
   };
 
   const renderContentTypeForm = (
@@ -671,29 +691,18 @@ export default function ContentStructureStep({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // Add a new question to the assessment_questions array
-                    const currentQuestions =
-                      formData.assessment_questions || [];
-
-                    // Generate ID prefix based on section
-                    let idPrefix = 'question';
-                    if (section.id === 'pre-test-section') {
-                      idPrefix = 'pre-test';
-                    } else if (section.id === 'post-test-section') {
-                      idPrefix = 'post-test';
-                    }
+                    // Add a new question to THIS section's questions array
+                    const currentQuestions = getSectionQuestions(section);
 
                     const newQuestion = {
-                      id: `${idPrefix}-${Date.now()}`,
+                      id: `${section.id}-q-${Date.now()}`,
                       type: 'single_choice' as const,
                       question: '',
                       options: [''],
                       correct_answer: '',
                       points: 10
                     };
-                    updateFormData({
-                      assessment_questions: [...currentQuestions, newQuestion]
-                    });
+                    updateSectionQuestions(index, [...currentQuestions, newQuestion]);
                   }}
                   className="bg-green-600 hover:bg-green-700 text-white">
                   <Plus className="w-4 h-4 mr-1" />
@@ -703,7 +712,7 @@ export default function ContentStructureStep({
 
               {/* Questions List */}
               <div className="space-y-3">
-                {getFilteredAssessmentQuestions(section.id).map(
+                {getSectionQuestions(section).map(
                   (question, qIndex) => (
                     <Card key={question.id} className="border border-gray-200">
                       <CardContent className="p-4">
@@ -718,12 +727,9 @@ export default function ContentStructureStep({
                               variant="ghost"
                               size="sm"
                               onClick={() => {
-                                const updatedQuestions = (
-                                  formData.assessment_questions || []
-                                ).filter((_, i) => i !== qIndex);
-                                updateFormData({
-                                  assessment_questions: updatedQuestions
-                                });
+                                const currentQuestions = getSectionQuestions(section);
+                                const updatedQuestions = currentQuestions.filter((_, i) => i !== qIndex);
+                                updateSectionQuestions(index, updatedQuestions);
                               }}
                               className="text-red-600 hover:text-red-700">
                               <Trash2 className="w-4 h-4" />
@@ -739,16 +745,13 @@ export default function ContentStructureStep({
                               placeholder="Enter the question..."
                               value={question.question || ''}
                               onChange={e => {
-                                const updatedQuestions = [
-                                  ...(formData.assessment_questions || [])
-                                ];
+                                const currentQuestions = getSectionQuestions(section);
+                                const updatedQuestions = [...currentQuestions];
                                 updatedQuestions[qIndex] = {
                                   ...updatedQuestions[qIndex],
                                   question: e.target.value
                                 };
-                                updateFormData({
-                                  assessment_questions: updatedQuestions
-                                });
+                                updateSectionQuestions(index, updatedQuestions);
                               }}
                               className="min-h-[80px] resize-none"
                             />
@@ -762,9 +765,8 @@ export default function ContentStructureStep({
                             <Select
                               value={question.type || 'single_choice'}
                               onValueChange={value => {
-                                const updatedQuestions = [
-                                  ...(formData.assessment_questions || [])
-                                ];
+                                const currentQuestions = getSectionQuestions(section);
+                                const updatedQuestions = [...currentQuestions];
                                 updatedQuestions[qIndex] = {
                                   ...updatedQuestions[qIndex],
                                   type: value as
@@ -773,9 +775,7 @@ export default function ContentStructureStep({
                                     | 'true_false'
                                     | 'short_answer'
                                 };
-                                updateFormData({
-                                  assessment_questions: updatedQuestions
-                                });
+                                updateSectionQuestions(index, updatedQuestions);
                               }}>
                               <SelectTrigger>
                                 <SelectValue />
@@ -815,24 +815,17 @@ export default function ContentStructureStep({
                                         }`}
                                         value={option}
                                         onChange={e => {
-                                          const updatedQuestions = [
-                                            ...(formData.assessment_questions ||
-                                              [])
-                                          ];
+                                          const currentQuestions = getSectionQuestions(section);
+                                          const updatedQuestions = [...currentQuestions];
                                           const newOptions = [
-                                            ...(updatedQuestions[qIndex]
-                                              .options || [])
+                                            ...(updatedQuestions[qIndex].options || [])
                                           ];
-                                          newOptions[optionIndex] =
-                                            e.target.value;
+                                          newOptions[optionIndex] = e.target.value;
                                           updatedQuestions[qIndex] = {
                                             ...updatedQuestions[qIndex],
                                             options: newOptions
                                           };
-                                          updateFormData({
-                                            assessment_questions:
-                                              updatedQuestions
-                                          });
+                                          updateSectionQuestions(index, updatedQuestions);
                                         }}
                                         className="flex-1"
                                       />
@@ -842,24 +835,16 @@ export default function ContentStructureStep({
                                           variant="outline"
                                           size="sm"
                                           onClick={() => {
-                                            const updatedQuestions = [
-                                              ...(formData.assessment_questions ||
-                                                [])
-                                            ];
+                                            const currentQuestions = getSectionQuestions(section);
+                                            const updatedQuestions = [...currentQuestions];
                                             const newOptions = (
-                                              updatedQuestions[qIndex]
-                                                .options || []
-                                            ).filter(
-                                              (_, i) => i !== optionIndex
-                                            );
+                                              updatedQuestions[qIndex].options || []
+                                            ).filter((_, i) => i !== optionIndex);
                                             updatedQuestions[qIndex] = {
                                               ...updatedQuestions[qIndex],
                                               options: newOptions
                                             };
-                                            updateFormData({
-                                              assessment_questions:
-                                                updatedQuestions
-                                            });
+                                            updateSectionQuestions(index, updatedQuestions);
                                           }}
                                           className="text-red-600 hover:text-red-700">
                                           <Trash2 className="w-4 h-4" />
@@ -872,21 +857,17 @@ export default function ContentStructureStep({
                                   type="button"
                                   variant="outline"
                                   onClick={() => {
-                                    const updatedQuestions = [
-                                      ...(formData.assessment_questions || [])
-                                    ];
+                                    const currentQuestions = getSectionQuestions(section);
+                                    const updatedQuestions = [...currentQuestions];
                                     const newOptions = [
-                                      ...(updatedQuestions[qIndex].options ||
-                                        []),
+                                      ...(updatedQuestions[qIndex].options || []),
                                       ''
                                     ];
                                     updatedQuestions[qIndex] = {
                                       ...updatedQuestions[qIndex],
                                       options: newOptions
                                     };
-                                    updateFormData({
-                                      assessment_questions: updatedQuestions
-                                    });
+                                    updateSectionQuestions(index, updatedQuestions);
                                   }}
                                   className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
                                   <Plus className="w-4 h-4 mr-2" />
@@ -905,16 +886,13 @@ export default function ContentStructureStep({
                               placeholder="Enter the correct answer..."
                               value={question.correct_answer || ''}
                               onChange={e => {
-                                const updatedQuestions = [
-                                  ...(formData.assessment_questions || [])
-                                ];
+                                const currentQuestions = getSectionQuestions(section);
+                                const updatedQuestions = [...currentQuestions];
                                 updatedQuestions[qIndex] = {
                                   ...updatedQuestions[qIndex],
                                   correct_answer: e.target.value
                                 };
-                                updateFormData({
-                                  assessment_questions: updatedQuestions
-                                });
+                                updateSectionQuestions(index, updatedQuestions);
                               }}
                             />
                           </div>
@@ -930,16 +908,13 @@ export default function ContentStructureStep({
                               placeholder="10"
                               value={question.points || ''}
                               onChange={e => {
-                                const updatedQuestions = [
-                                  ...(formData.assessment_questions || [])
-                                ];
+                                const currentQuestions = getSectionQuestions(section);
+                                const updatedQuestions = [...currentQuestions];
                                 updatedQuestions[qIndex] = {
                                   ...updatedQuestions[qIndex],
                                   points: parseInt(e.target.value) || 0
                                 };
-                                updateFormData({
-                                  assessment_questions: updatedQuestions
-                                });
+                                updateSectionQuestions(index, updatedQuestions);
                               }}
                             />
                           </div>
@@ -949,7 +924,7 @@ export default function ContentStructureStep({
                   )
                 )}
 
-                {getFilteredAssessmentQuestions(section.id).length === 0 && (
+                {getSectionQuestions(section).length === 0 && (
                   <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
                     <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p>No assessment questions yet</p>
@@ -1668,9 +1643,9 @@ export default function ContentStructureStep({
                 <SelectContent>
                   <SelectItem value="discussion">Fill-in-the-Blanks</SelectItem>
                   <SelectItem value="matching">Matching</SelectItem>
-                  <SelectItem value="labeling">Labeling</SelectItem>
+                  {/* <SelectItem value="labeling">Labeling</SelectItem>
                   <SelectItem value="drag_drop">Drag & Drop</SelectItem>
-                  <SelectItem value="simulation">Simulation</SelectItem>
+                  <SelectItem value="simulation">Simulation</SelectItem> */}
                   <SelectItem value="experiment">Experiment</SelectItem>
                 </SelectContent>
               </Select>
@@ -1778,62 +1753,131 @@ export default function ContentStructureStep({
                   <Label className="text-sm font-medium text-gray-700">
                     Fill-in-the-Blank Questions
                   </Label>
-                  <div className="space-y-3">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Use _____ (5 underscores) for each blank. You can have multiple blanks per question.
+                  </p>
+                  <div className="space-y-4">
                     {(
                       section.content_data?.activity_data?.questions || ['']
-                    ).map((question, qIndex) => (
-                      <div key={qIndex} className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-600 w-8">
-                          {qIndex + 1}.
-                        </span>
-                        <Input
-                          placeholder="Enter question with blanks (use _____ for blanks)"
-                          value={question}
-                          onChange={e => {
-                            const currentQuestions = section.content_data
-                              ?.activity_data?.questions || [''];
-                            const newQuestions = [...currentQuestions];
-                            newQuestions[qIndex] = e.target.value;
-                            updateContentSection(index, {
-                              content_data: {
-                                ...section.content_data,
-                                activity_data: {
-                                  ...section.content_data?.activity_data,
-                                  questions: newQuestions
-                                }
-                              }
-                            });
-                          }}
-                          className="flex-1"
-                        />
-                        {(section.content_data?.activity_data?.questions || [])
-                          .length > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const currentQuestions = section.content_data
-                                ?.activity_data?.questions || [''];
-                              const newQuestions = currentQuestions.filter(
-                                (_, i) => i !== qIndex
-                              );
-                              updateContentSection(index, {
-                                content_data: {
-                                  ...section.content_data,
-                                  activity_data: {
-                                    ...section.content_data?.activity_data,
-                                    questions: newQuestions
-                                  }
-                                }
-                              });
-                            }}
-                            className="text-red-600 hover:text-red-700">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                    ).map((question, qIndex) => {
+                      // Count blanks in this question
+                      const blankCount = (question.match(/_____/g) || []).length;
+                      const currentAnswers = section.content_data?.activity_data?.correct_answers || [];
+                      const questionAnswers = currentAnswers[qIndex] || [];
+
+                      return (
+                        <Card key={qIndex} className="border border-blue-200">
+                          <CardContent className="p-4 space-y-3">
+                            {/* Question Input */}
+                            <div className="flex items-start space-x-2">
+                              <span className="text-sm font-medium text-gray-600 w-8 mt-2">
+                                {qIndex + 1}.
+                              </span>
+                              <div className="flex-1 space-y-2">
+                                <Input
+                                  placeholder="Enter question with blanks (use _____ for blanks)"
+                                  value={question}
+                                  onChange={e => {
+                                    const currentQuestions = section.content_data
+                                      ?.activity_data?.questions || [''];
+                                    const newQuestions = [...currentQuestions];
+                                    newQuestions[qIndex] = e.target.value;
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          questions: newQuestions
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="flex-1"
+                                />
+
+                                {/* Correct Answers Section */}
+                                {blankCount > 0 && (
+                                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+                                    <Label className="text-xs font-semibold text-green-800 flex items-center">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Correct Answers ({blankCount} blank{blankCount > 1 ? 's' : ''})
+                                    </Label>
+                                    {Array.from({ length: blankCount }).map((_, blankIndex) => (
+                                      <div key={blankIndex} className="flex items-center space-x-2">
+                                        <span className="text-xs font-medium text-green-700 w-16">
+                                          Blank {blankIndex + 1}:
+                                        </span>
+                                        <Input
+                                          placeholder="Enter correct answer"
+                                          value={questionAnswers[blankIndex] || ''}
+                                          onChange={e => {
+                                            const currentAnswers = section.content_data
+                                              ?.activity_data?.correct_answers || [];
+                                            const newAnswers = [...currentAnswers];
+
+                                            // Ensure array exists for this question
+                                            if (!newAnswers[qIndex]) {
+                                              newAnswers[qIndex] = [];
+                                            }
+
+                                            newAnswers[qIndex][blankIndex] = e.target.value;
+
+                                            updateContentSection(index, {
+                                              content_data: {
+                                                ...section.content_data,
+                                                activity_data: {
+                                                  ...section.content_data?.activity_data,
+                                                  correct_answers: newAnswers
+                                                }
+                                              }
+                                            });
+                                          }}
+                                          className="flex-1 text-sm bg-white"
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {(section.content_data?.activity_data?.questions || [])
+                                .length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const currentQuestions = section.content_data
+                                      ?.activity_data?.questions || [''];
+                                    const currentAnswers = section.content_data
+                                      ?.activity_data?.correct_answers || [];
+                                    const newQuestions = currentQuestions.filter(
+                                      (_, i) => i !== qIndex
+                                    );
+                                    const newAnswers = currentAnswers.filter(
+                                      (_, i) => i !== qIndex
+                                    );
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          questions: newQuestions,
+                                          correct_answers: newAnswers
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="text-red-600 hover:text-red-700 mt-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                     <Button
                       type="button"
                       variant="outline"
@@ -1999,6 +2043,424 @@ export default function ContentStructureStep({
                       className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Matching Pair
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Experiment Activity */}
+            {section.content_data?.activity_data?.type === 'experiment' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <h4 className="font-semibold text-purple-800 mb-2 flex items-center">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Experiment Activity
+                  </h4>
+                  <p className="text-sm text-purple-700">
+                    Create hands-on experiments with materials, instructions, process questions, and rubrics
+                  </p>
+                </div>
+
+                {/* Materials Needed */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Materials Needed
+                  </Label>
+                  <div className="space-y-2">
+                    {(
+                      section.content_data?.activity_data?.materials || ['']
+                    ).map((material, matIndex) => (
+                      <div
+                        key={matIndex}
+                        className="flex items-center space-x-2">
+                        <Input
+                          placeholder={`Material ${matIndex + 1} (e.g., Play-Doh or modeling clay)`}
+                          value={material}
+                          onChange={e => {
+                            const currentMaterials = section.content_data
+                              ?.activity_data?.materials || [''];
+                            const newMaterials = [...currentMaterials];
+                            newMaterials[matIndex] = e.target.value;
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  materials: newMaterials
+                                }
+                              }
+                            });
+                          }}
+                          className="flex-1"
+                        />
+                        {(section.content_data?.activity_data?.materials || [])
+                          .length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentMaterials = section.content_data
+                                ?.activity_data?.materials || [''];
+                              const newMaterials = currentMaterials.filter(
+                                (_, i) => i !== matIndex
+                              );
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    materials: newMaterials
+                                  }
+                                }
+                              });
+                            }}
+                            className="text-red-600 hover:text-red-700">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentMaterials = section.content_data
+                          ?.activity_data?.materials || [''];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              materials: [...currentMaterials, '']
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Material
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Instructions with CKEditor */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <Target className="w-4 h-4 mr-2" />
+                    Detailed Instructions
+                  </Label>
+                  <div className="border border-gray-200 rounded-lg p-2">
+                    <CKEditorContentEditor
+                      key={`experiment-instructions-${section.id}`}
+                      data={section.content_data?.activity_data?.detailed_instructions || ''}
+                      onChange={(content) => {
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              detailed_instructions: content
+                            }
+                          }
+                        });
+                      }}
+                      placeholder="Enter detailed step-by-step instructions with formatting, tables, images, etc."
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Use the rich editor to format instructions, add tables, images, and more!
+                  </p>
+                </div>
+
+                {/* Process Questions */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <Brain className="w-4 h-4 mr-2" />
+                    Process Questions
+                  </Label>
+                  <div className="space-y-2">
+                    {(
+                      section.content_data?.activity_data?.process_questions || ['']
+                    ).map((question, qIndex) => (
+                      <div
+                        key={qIndex}
+                        className="flex items-start space-x-2">
+                        <span className="text-sm font-medium text-gray-600 w-8 mt-2">
+                          {qIndex + 1}.
+                        </span>
+                        <Textarea
+                          placeholder={`Process question ${qIndex + 1} (e.g., Which type of cell division did you choose to model, and why?)`}
+                          value={question}
+                          onChange={e => {
+                            const currentQuestions = section.content_data
+                              ?.activity_data?.process_questions || [''];
+                            const newQuestions = [...currentQuestions];
+                            newQuestions[qIndex] = e.target.value;
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  process_questions: newQuestions
+                                }
+                              }
+                            });
+                          }}
+                          className="flex-1 min-h-[80px] resize-none"
+                        />
+                        {(section.content_data?.activity_data?.process_questions || [])
+                          .length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const currentQuestions = section.content_data
+                                ?.activity_data?.process_questions || [''];
+                              const newQuestions = currentQuestions.filter(
+                                (_, i) => i !== qIndex
+                              );
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    process_questions: newQuestions
+                                  }
+                                }
+                              });
+                            }}
+                            className="text-red-600 hover:text-red-700 mt-2">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentQuestions = section.content_data
+                          ?.activity_data?.process_questions || [''];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              process_questions: [...currentQuestions, '']
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Process Question
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Rubric Table */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    Assessment Rubric
+                  </Label>
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.rubric || [
+                        { criteria: '', excellent: '', good: '', fair: '', needs_improvement: '' }
+                      ]
+                    ).map((row, rowIndex) => (
+                      <Card key={rowIndex} className="border border-gray-200">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-gray-800">
+                              Criteria {rowIndex + 1}
+                            </Label>
+                            {(section.content_data?.activity_data?.rubric || []).length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = currentRubric.filter(
+                                    (_, i) => i !== rowIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-600">Criteria Name</Label>
+                            <Input
+                              placeholder="e.g., Accuracy of Cell Division Model"
+                              value={row.criteria}
+                              onChange={e => {
+                                const currentRubric = section.content_data
+                                  ?.activity_data?.rubric || [];
+                                const newRubric = [...currentRubric];
+                                newRubric[rowIndex] = {
+                                  ...newRubric[rowIndex],
+                                  criteria: e.target.value
+                                };
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      rubric: newRubric
+                                    }
+                                  }
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs text-green-700 font-medium">Excellent (4 pts)</Label>
+                              <Textarea
+                                placeholder="Clearly shows correct stages and chromosome behavior"
+                                value={row.excellent}
+                                onChange={e => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = [...currentRubric];
+                                  newRubric[rowIndex] = {
+                                    ...newRubric[rowIndex],
+                                    excellent: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-blue-700 font-medium">Good (3 pts)</Label>
+                              <Textarea
+                                placeholder="Mostly accurate with minor errors"
+                                value={row.good}
+                                onChange={e => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = [...currentRubric];
+                                  newRubric[rowIndex] = {
+                                    ...newRubric[rowIndex],
+                                    good: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-yellow-700 font-medium">Fair (2 pts)</Label>
+                              <Textarea
+                                placeholder="Some stages unclear or missing"
+                                value={row.fair}
+                                onChange={e => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = [...currentRubric];
+                                  newRubric[rowIndex] = {
+                                    ...newRubric[rowIndex],
+                                    fair: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-red-700 font-medium">Needs Improvement (1 pt)</Label>
+                              <Textarea
+                                placeholder="Model lacks key features"
+                                value={row.needs_improvement}
+                                onChange={e => {
+                                  const currentRubric = section.content_data
+                                    ?.activity_data?.rubric || [];
+                                  const newRubric = [...currentRubric];
+                                  newRubric[rowIndex] = {
+                                    ...newRubric[rowIndex],
+                                    needs_improvement: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        rubric: newRubric
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="min-h-[60px] resize-none text-sm"
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentRubric = section.content_data?.activity_data?.rubric || [];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              rubric: [
+                                ...currentRubric,
+                                { criteria: '', excellent: '', good: '', fair: '', needs_improvement: '' }
+                              ]
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Rubric Criteria
                     </Button>
                   </div>
                 </div>
@@ -3179,6 +3641,116 @@ export default function ContentStructureStep({
 
   return (
     <div className="space-y-8">
+      {/* Section Placement Modal */}
+      <Dialog open={showPlacementModal} onOpenChange={setShowPlacementModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="w-5 h-5 text-teal-600" />
+              Choose Section Placement
+            </DialogTitle>
+            <DialogDescription>
+              Select where you want to insert the new section. It will be placed right after the section you choose.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-4">
+            {/* Option: Add at the beginning */}
+            <div
+              onClick={() => setSelectedPlacementIndex(-1)}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                selectedPlacementIndex === -1
+                  ? 'border-teal-500 bg-teal-50 shadow-md'
+                  : 'border-gray-200 hover:border-teal-300 hover:bg-gray-50'
+              }`}>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold">
+                  ↑
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">At the Beginning</div>
+                  <div className="text-sm text-gray-500">Insert as the first section</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Existing sections */}
+            {sections.map((section, index) => (
+              <div
+                key={section.id}
+                onClick={() => setSelectedPlacementIndex(index)}
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedPlacementIndex === index
+                    ? 'border-teal-500 bg-teal-50 shadow-md'
+                    : 'border-gray-200 hover:border-teal-300 hover:bg-gray-50'
+                }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-lg font-bold ${
+                    selectedPlacementIndex === index
+                      ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900">
+                      {section.title || `Section ${index + 1}`}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {section.content_type}
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        {section.time_estimate_minutes} min
+                      </span>
+                    </div>
+                  </div>
+                  {selectedPlacementIndex === index && (
+                    <div className="text-teal-600 text-sm font-medium">
+                      ↓ New section here
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPlacementModal(false);
+                setSelectedPlacementIndex(null);
+              }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedPlacementIndex !== null) {
+                  addContentSection(selectedPlacementIndex);
+                  
+                  // Calculate the new section's index and select it
+                  const newSectionIndex = selectedPlacementIndex === -1 
+                    ? 0 // If added at beginning, index is 0
+                    : selectedPlacementIndex + 1; // Otherwise, it's after the selected index
+                  
+                  // Use setTimeout to ensure the section is added before selecting
+                  setTimeout(() => {
+                    setSelectedSectionIndex(newSectionIndex);
+                  }, 0);
+                  
+                  setShowPlacementModal(false);
+                  setSelectedPlacementIndex(null);
+                }
+              }}
+              disabled={selectedPlacementIndex === null}
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Section
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* Enhanced Header */}
       {/* <div className="text-center space-y-6">
         <div className="relative">
@@ -3209,7 +3781,15 @@ export default function ContentStructureStep({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Content Sections</CardTitle>
                 <Button
-                  onClick={addContentSection}
+                  onClick={() => {
+                    if (sections.length === 0) {
+                      // If no sections exist, add directly
+                      addContentSection();
+                    } else {
+                      // Show placement modal
+                      setShowPlacementModal(true);
+                    }
+                  }}
                   size="sm"
                   className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200">
                   <Plus className="w-4 h-4 mr-1" />

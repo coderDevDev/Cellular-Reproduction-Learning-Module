@@ -375,6 +375,13 @@ export class VARKModulesAPI {
       _export_info,
       _exported_at,
       _note,
+      exported_by,
+      exported_at,
+      teacher_name,
+      category,
+      progress,
+      target_class,
+      target_students,
       ...cleanModuleData
     } = moduleData as any;
 

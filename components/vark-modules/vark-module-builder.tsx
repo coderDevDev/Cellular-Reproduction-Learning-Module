@@ -249,7 +249,9 @@ export default function VARKModuleBuilder({
     updateFormData({ [field]: newArray });
   };
 
-  const addContentSection = () => {
+  const addContentSection = (afterIndex?: number) => {
+    const currentSections = formData.content_structure?.sections || [];
+    
     const newSection: VARKModuleContentSection = {
       id: crypto.randomUUID(),
       title: '',
@@ -258,7 +260,7 @@ export default function VARKModuleBuilder({
         // ✅ Simple text field for CKEditor (stores HTML)
         text: ''
       },
-      position: (formData.content_structure?.sections?.length || 0) + 1,
+      position: 0, // Will be set below
       is_required: true,
       time_estimate_minutes: 5,
       learning_style_tags: ['reading_writing'],
@@ -268,10 +270,29 @@ export default function VARKModuleBuilder({
       }
     };
 
-    const updatedSections = [
-      ...(formData.content_structure?.sections || []),
-      newSection
-    ];
+    let updatedSections: VARKModuleContentSection[];
+    
+    if (afterIndex === undefined) {
+      // Add at the end (default behavior)
+      updatedSections = [...currentSections, newSection];
+    } else if (afterIndex === -1) {
+      // Add at the beginning
+      updatedSections = [newSection, ...currentSections];
+    } else {
+      // Insert after the specified index
+      updatedSections = [
+        ...currentSections.slice(0, afterIndex + 1),
+        newSection,
+        ...currentSections.slice(afterIndex + 1)
+      ];
+    }
+    
+    // Update position numbers for all sections
+    updatedSections = updatedSections.map((section, index) => ({
+      ...section,
+      position: index + 1
+    }));
+    
     updateFormData({
       content_structure: {
         ...formData.content_structure,

@@ -54,23 +54,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check for current user on mount
     const checkCurrentUser = async () => {
       try {
-        console.log('🔍 Starting auth check...');
+        console.log('🔍 Starting auth check (fast session check)...');
         
-        // Add timeout to prevent hanging (increased to 8 seconds for slow connections)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => {
-            console.warn('⏱️ Auth check taking longer than expected...');
-            reject(new Error('Auth check timeout'));
-          }, 8000)
+        // Add timeout to getSession (3 seconds)
+        const sessionTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('getSession timeout')), 10000)
         );
         
-        const authPromise = AuthAPI.getCurrentUser();
+        const sessionPromise = supabase.auth.getSession();
+        const sessionResult = await Promise.race([sessionPromise, sessionTimeout]) as any;
+        const session = sessionResult?.data?.session;
         
-        // Race between auth check and timeout
-        const result = await Promise.race([authPromise, timeoutPromise]);
-        const { user, session } = result as any;
-
-        if (user && session) {
+        console.log({session})
+        if (session?.user) {
+          // Build user object from session metadata (no database call needed)
+          const metadata = session.user.user_metadata;
+          const user = {
+            id: session.user.id,
+            email: session.user.email || '',
+            role: metadata.role || 'student',
+            firstName: metadata.first_name,
+            middleName: metadata.middle_name,
+            lastName: metadata.last_name,
+            fullName: `${metadata.first_name || ''} ${metadata.middle_name || ''} ${metadata.last_name || ''}`.trim() || undefined,
+            profilePhoto: undefined,
+            learningStyle: undefined,
+            gradeLevel: metadata.grade_level,
+            onboardingCompleted: false, // Will be updated by auth listener if needed
+            createdAt: session.user.created_at,
+            updatedAt: session.user.updated_at
+          };
+          
+          console.log('✅ Session found, user:', { id: user.id, email: user.email, role: user.role });
           console.log('✅ User authenticated:', {
             id: user.id,
             email: user.email,
@@ -93,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch (error: any) {
+
         if (error.message === 'Auth check timeout') {
           console.error('⚠️ Auth check timed out - possible slow connection or database issue');
           console.log('→ Treating as not authenticated');
@@ -143,7 +159,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.id);
 
-      if (event === 'SIGNED_IN' && session) {
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('Auth state changed: SIGNED_IN', session.user.id);
+        
+        // Store sign-in event for potential fallback
+        sessionStorage.setItem('auth_signed_in', 'true');
+        sessionStorage.setItem('auth_user_id', session.user.id);
+        sessionStorage.setItem('auth_role', session.user.user_metadata?.role || 'student');
+
+        setTimeout(() => {
+          const role = sessionStorage.getItem('auth_role');
+          if (role === 'student') {
+            // Redirect to student dashboard
+          } else if (role === 'teacher') {
+            // Redirect to teacher dashboard
+          }
+        }, 1000);
+      } else if (event === 'SIGNED_IN' && session) {
         const { user } = await AuthAPI.getCurrentUser();
         if (user) {
           setAuthState({

@@ -559,7 +559,7 @@ export default function TeacherVARKModulesPage() {
             const newModule = await varkAPI.createModule({
               ...moduleData,
               created_by: user.id,
-              status: 'draft' // Import as draft by default
+              is_published: false // Import as draft (unpublished) by default
             });
             imported.push(newModule);
           } catch (error) {
@@ -582,7 +582,7 @@ export default function TeacherVARKModulesPage() {
         const newModule = await varkAPI.createModule({
           ...importPreview.module,
           created_by: user.id,
-          status: 'draft'
+          is_published: false // Import as draft (unpublished) by default
         });
 
         setModules(prev => [newModule, ...prev]);

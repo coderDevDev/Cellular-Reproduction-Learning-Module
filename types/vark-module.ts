@@ -146,11 +146,24 @@ export interface VARKActivityData {
   // Fill-in-the-blanks activity fields
   word_bank?: string[];
   questions?: string[];
+  // Correct answers for fill-in-the-blanks (array of arrays for multiple blanks per question)
+  correct_answers?: string[][]; // e.g., [['growth', 'repair'], ['mitosis']] for 2 questions
   // Matching activity fields
   matching_pairs?: Array<{
     description: string;
     term: string;
   }>;
+  // Experiment activity fields
+  materials?: string[]; // List of materials needed
+  detailed_instructions?: string; // Rich HTML content from CKEditor
+  process_questions?: string[]; // Questions for reflection
+  rubric?: Array<{
+    criteria: string;
+    excellent: string;
+    good: string;
+    fair: string;
+    needs_improvement: string;
+  }>; // Assessment rubric table
 }
 
 export interface VARKMultimediaData {

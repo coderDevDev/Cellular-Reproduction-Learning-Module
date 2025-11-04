@@ -1,0 +1,642 @@
+{
+  "id": "c7ee80b5-e75b-4ac2-9105-d7c29a463ce9",
+  "category_id": "general-education",
+  "title": "LESSON 1  Module Sets",
+  "description": "A comprehensive learning module designed for diverse learning styles.",
+  "learning_objectives": [
+    "Understand the key concepts",
+    "Apply knowledge to real-world scenarios"
+  ],
+  "content_structure": {
+    "sections": [
+      {
+        "id": "a546e6c3-c9a8-411d-b11c-786fe2b43a20",
+        "title": "Introduction",
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        },
+        "position": 1,
+        "is_required": true,
+        "content_data": {
+          "text": "<p><meta charset=\"utf-8\"></p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Introduction</strong></span></span></p><p>&nbsp;</p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Have you ever wondered how your body grows, heals, or even how life begins? It all starts with tiny cells working behind the scenes. Every living thing from the smallest insect to the tallest tree is made up of cells. These cells don’t just stay the same; they divide, multiply, and change to help the body grow, repair itself, and create new life.</span></span></p><p>&nbsp;</p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">In this lesson, you’ll learn about&nbsp;<strong>cell division</strong>, the process that allows one cell to become two or more. You’ll explore two types of cell division,&nbsp;<strong>mitosis</strong> and&nbsp;<strong>meiosis</strong>, and discover how they help living organisms grow and reproduce. By the end, you’ll understand how your body keeps building itself and how new life begins from just a single cell.</span></span></p><p>&nbsp;</p><p style=\"margin-bottom:0pt;margin-top:0pt;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Content Standards:&nbsp;</strong></span></span></p><ol style=\"margin-bottom:0;margin-top:0;\"><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"ed74d995311c841a59fe9c93d77521cd6\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Cells are the basic unit of life and mitosis, and meiosis are the basic forms of cell division.</span></span></li></ol><p>&nbsp;</p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Learning Competency:&nbsp;</strong></span></span></p><ul style=\"margin-bottom:0;margin-top:0;\"><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"e928cefe5301ad2d901ad6c5f8914764d\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">recognize that cells reproduce through two types of cell division, mitosis and meiosis, and describe mitosis as cell division for growth and repair;</span></span></li></ul><p>&nbsp;</p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Content:</strong></span></span></p><ul style=\"margin-bottom:0;margin-top:0;\"><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"e0eb5f03466932786a092da5a1c7cb475\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Cell division</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"e2df422114ef64332074957873f486f61\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Mitosis</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"eed037f2c1caad2e6f75ca79660113d58\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Stages of Mitosis</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"e664ed7ff86e09f77ee8786f77d06d432\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Meiosis</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:disc;vertical-align:baseline;\" data-list-item-id=\"e2293e3b2c456791f1fcb71ded7f074d0\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">Stages of Meiosis</span></span></li></ul><p>&nbsp;</p><p>&nbsp;</p><p>&nbsp;</p>"
+        },
+        "content_type": "text",
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "time_estimate_minutes": 5
+      },
+      {
+        "id": "93abbdd7-6a54-43a4-b65d-5d814cdfc709",
+        "title": "Objectives",
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        },
+        "position": 2,
+        "is_required": true,
+        "content_data": {
+          "text": "<p><meta charset=\"utf-8\"></p><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Objectives:</strong></span></span></p><ul><li class=\"ck-list-marker-italic ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;\" data-list-item-id=\"ea63a419a3d37966cd6febf378790a2ed\"><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\"><span style=\"background-color:transparent;color:#000000;\"><i><span style=\"vertical-align:baseline;\">At the end of the lessons, the students will be able to:</span></i></span></p></li></ul><p style=\"margin-bottom:0pt;margin-top:0pt;text-align:justify;\" dir=\"ltr\">&nbsp;</p><p><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">1. Differentiate between mitosis and meiosis by identifying their purposes, number of daughter cells produced, and chromosome count.</span></span></p><p><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">2. Explain how meiosis contributes to sexual reproduction by producing genetically unique gametes and forming a diploid zygote during fertilization.</span></span></p><p><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">3. Describe the importance of cell division.&nbsp;&nbsp;</span></span></p><p><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">4. Identify and summarize the key stages of the cell cycle, mitosis, and meiosis, including the major events in each phase.&nbsp;</span></span></p>"
+        },
+        "content_type": "text",
+        "learning_style_tags": [
+          "reading_writing"
+        ],
+        "interactive_elements": [],
+        "time_estimate_minutes": 5
+      },
+      {
+        "id": "7d783768-f6a4-4a78-8e16-ba75bf017371",
+        "title": "Pre-Test",
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        },
+        "position": 3,
+        "is_required": true,
+        "content_data": {
+          "questions": [
+            {
+              "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-1",
+              "type": "single_choice",
+              "question": "What is the main purpose of cell division?",
+              "options": [
+                "A. To produce energy",
+                "B. To stop cell growth",
+                "C. To create new cells for growth, repair, and reproduction",
+                "D. To eliminate old cells"
+              ],
+              "correct_answer": "C. To create new cells for growth, repair, and reproduction",
+              "points": 1
+            },
+            {
+              "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-2",
+              "type": "single_choice",
+              "question": "Which type of cell division results in genetically identical daughter cells?",
+              "options": [
+                "A. Mitosis",
+                "B. Fertilization",
+                "C. Binary fission",
+                "D. Meiosis"
+              ],
+              "correct_answer": "A. Mitosis",
+              "points": 1
+            },
+            {
+              "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-3",
+              "type": "single_choice",
+              "question": "What phase of the cell cycle involves DNA replication?",
+              "options": [
+                "A. M Phase",
+                "B. G2 Phase",
+                "C. S Phase",
+                "D. G1 Phase"
+              ],
+              "correct_answer": "C. S Phase",
+              "points": 1
+            },
+            {
+              "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-4",
+              "type": "single_choice",
+              "question": "How many daughter cells are produced in meiosis?",
+              "options": [
+                "A. 2",
+                "B. 8",
+                "C. 4",
+                "D. 6"
+              ],
+              "correct_answer": "C. 4",
+              "points": 1
+            },
+            {
+              "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-5",
+              "type": "single_choice",
+              "question": "Which process contributes to genetic variation during meiosis?",
+              "options": [
+                "A. Chromosome duplication",
+                "B. DNA replication",
+                "C. Cytokinesis",
+                "D. Crossing-over"
+              ],
+              "correct_answer": "D. Crossing-over",
+              "points": 1
+            }
+          ],
+          "quiz_data": {
+            "question": "Pre-Test (Instruction: Click the letter of the correct answer for each question.)"
+          }
+        },
+        "content_type": "assessment",
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "time_estimate_minutes": 5
+      },
+      {
+        "id": "f060447f-4ac7-46bc-b7a2-3fb8655b45d8",
+        "title": "Activity 1: Complete the Cell Story",
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        },
+        "position": 4,
+        "is_required": true,
+        "content_data": {
+          "activity_data": {
+            "type": "discussion",
+            "title": "“Complete the Cell Story”",
+            "questions": [
+              "Cell division is important for _____  and reproduction",
+              "_____  is the type of cell division that makes body cells for growth and _____  ",
+              "_____  is the type of cell division that produces sex cells, also called _____ .",
+              "Mitosis produces _____  daughter cells that are _____  to the parent cell.",
+              "Meiosis produces _____  daughter cells with _____  the number of _____  .",
+              "In humans, sex cells join together to form a _____  during fertilization.",
+              "The _____  phase of the cell cycle is when DNA is copied.",
+              "_____  helps heal wounds because it makes new skin cells.",
+              "_____  makes sperm cells in males and egg cells in females.",
+              "If cells were never divided, living things would not be able to  _____  or repair themselves."
+            ],
+            "word_bank": [
+              "growth",
+              "repair",
+              "mitosis",
+              "meiosis",
+              "identical",
+              "different",
+              "four",
+              "gametes",
+              "two",
+              "half",
+              "zygote",
+              "chromosomes"
+            ],
+            "description": "",
+            "instructions": [
+              "Instructions:",
+              "Read each sentence carefully. Fill in the blanks with the correct word from the word bank. Some words may be used more than once."
+            ],
+            "correct_answers": [
+              [
+                "growth"
+              ],
+              [
+                "Mitosis",
+                "repair"
+              ],
+              [
+                "Meiosis",
+                "gametes"
+              ],
+              [
+                " two",
+                "identical"
+              ],
+              [
+                "four",
+                "half",
+                "chromosomes"
+              ],
+              [
+                "zygote"
+              ],
+              [
+                "interphase"
+              ],
+              [
+                "Mitosis"
+              ],
+              [
+                "Meiosis"
+              ],
+              [
+                "grow"
+              ]
+            ]
+          }
+        },
+        "content_type": "activity",
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "time_estimate_minutes": 5
+      },
+      {
+        "id": "a743887a-c110-4ad0-b5ba-b4a26091ce11",
+        "title": "Activity 2: Cell Division in Action",
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        },
+        "position": 5,
+        "is_required": true,
+        "content_data": {
+          "activity_data": {
+            "type": "experiment",
+            "rubric": [
+              {
+                "fair": "Some stages unclear or missing",
+                "good": "Mostly accurate with minor errors",
+                "criteria": "Accuracy of Cell Division Model",
+                "excellent": "Clearly shows correct stages and chromosome behavior",
+                "needs_improvement": "Model lacks key features"
+              },
+              {
+                "fair": "Basic effort shown",
+                "good": "Materials mostly used correctly",
+                "criteria": "Creativity and Use of Materials",
+                "excellent": "Highly creative and symbolic use of materials",
+                "needs_improvement": "Minimal effort or incomplete"
+              },
+              {
+                "fair": "Partial understanding",
+                "good": "Reflection shows general understanding",
+                "criteria": "Understanding of Concepts",
+                "excellent": "Reflection shows deep understanding",
+                "needs_improvement": "Reflection unclear or incorrect"
+              },
+              {
+                "fair": "Some labels or explanations missing",
+                "good": "Most stages labeled and explained",
+                "criteria": "Labeling and Explanation",
+                "excellent": "All stages labeled and clearly explained",
+                "needs_improvement": "Labels or explanations absent"
+              },
+              {
+                "fair": "Some parts messy or incomplete",
+                "good": "Mostly neat and complete",
+                "criteria": "Effort and Presentation",
+                "excellent": "Neat, organized, and well-presented",
+                "needs_improvement": "Disorganized or rushed work"
+              }
+            ],
+            "materials": [
+              "Play-Doh or modeling clay (at least 2 colors)",
+              "Popsicle sticks or toothpicks (to represent spindle fibers)",
+              "String or yarn (to represent the cell membrane or centrioles)",
+              "Clear workspace (desk, table, or floor)",
+              "Printed diagram of mitosis and meiosis stages (for reference)",
+              "Paper and pencil (for labeling and reflection)"
+            ],
+            "process_questions": [
+              "Which type of cell division did you choose to model, and why?",
+              "How did your materials represent the parts of the cell and the process of division?",
+              "What was the most challenging stage to model, and how did you solve it?",
+              "How does your model help explain the difference between mitosis and meiosis?",
+              "If you could improve your model, what would you add or change"
+            ],
+            "detailed_instructions": "<p><meta charset=\"utf-8\"></p><ol style=\"margin-bottom:0;margin-top:0;\"><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"e11807d38506d1fefe4639dcc3875debe\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Choose Your Model</strong></span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;Decide whether you will simulate&nbsp;<strong>mitosis</strong> or&nbsp;<strong>meiosis</strong>. Review the reference diagram before starting.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"e88671d8e57345be66777eb8e42da210e\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Set Up Your Cell</strong></span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;Use clay to form a circular cell. Place string around it to represent the cell membrane.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"e5bae74d844f546844141ffa3ae0897d6\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Create Chromosomes</strong></span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;Roll clay into short rods (use different colors for chromosome pairs). Place them inside the cell.</span></span></li><li class=\"ck-list-marker-bold ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"e97df90f9fe1f12dc8326e59e821b22b8\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Simulate the Stages</strong></span></span><ul style=\"margin-bottom:0;margin-top:0;\"><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:circle;vertical-align:baseline;\" data-list-item-id=\"e466f2320baebd6197ec8420206ab37fa\" dir=\"ltr\" aria-level=\"2\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">For&nbsp;<strong>mitosis</strong>, model the stages: Prophase, Metaphase, Anaphase, Telophase.</span></span></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:circle;vertical-align:baseline;\" data-list-item-id=\"e5bfa15d532056dc980489455a2a23123\" dir=\"ltr\" aria-level=\"2\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">For&nbsp;<strong>meiosis</strong>, model Meiosis I and II with key stages.</span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;Use popsicle sticks or toothpicks to represent spindle fibers pulling chromosomes apart.</span></span></li></ul></li><li class=\"ck-list-marker-color\" style=\"--ck-content-list-marker-color:#000000;background-color:transparent;color:#000000;list-style-type:decimal;vertical-align:baseline;\" data-list-item-id=\"ecec9af46e17c2b0404c66932390396fa\" dir=\"ltr\" aria-level=\"1\"><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Label Each Stage</strong></span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;On paper, draw or describe each stage you modeled. Include what happens to the chromosomes and the cell.</span></span></li></ol><p><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\"><strong>Reflect</strong></span></span><br><span style=\"background-color:transparent;color:#000000;\"><span style=\"vertical-align:baseline;\">&nbsp;Answer the process questions below in your notebook</span></span></p>"
+          }
+        },
+        "content_type": "activity",
+        "learning_style_tags": [
+          "everyone"
+        ],
+        "interactive_elements": [],
+        "time_estimate_minutes": 5
+      },
+      {
+        "id": "001fae52-9758-4063-a2ea-8b05c811d4e6",
+        "title": "Post-Test",
+        "content_type": "assessment",
+        "content_data": {
+          "questions": [
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-1",
+              "type": "single_choice",
+              "question": "What is the chromosome number in human gametes produced by meiosis?",
+              "options": [
+                "A. 23",
+                "B. 92",
+                "C. 46",
+                "D. 12"
+              ],
+              "correct_answer": "A. 23",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-2",
+              "type": "single_choice",
+              "question": "Which phase of meiosis involves homologous chromosomes separating?",
+              "options": [
+                "A. Metaphase II",
+                "B. Anaphase I",
+                "C. Telophase II",
+                "D. Prophase I"
+              ],
+              "correct_answer": "B. Anaphase I",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-3",
+              "type": "single_choice",
+              "question": "What structure forms during synapsis in Prophase I?",
+              "options": [
+                "A. Spindle fiber",
+                "B. Chromatid",
+                "C. Tetrad",
+                "D. Centromere"
+              ],
+              "correct_answer": "C. Tetrad",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-4",
+              "type": "single_choice",
+              "question": "What is the result of fertilization in humans?",
+              "options": [
+                "A. Four gametes",
+                "B. A diploid zygote",
+                "C. Two haploid cells",
+                "D. A single sperm cell"
+              ],
+              "correct_answer": "B. A diploid zygote",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-5",
+              "type": "single_choice",
+              "question": "Which phase of the cell cycle prepares the cell for division by checking DNA and organizing chromosomes?",
+              "options": [
+                "A. M Phase",
+                "B. G2 Phase",
+                "C. G1 Phase",
+                "D. S Phase"
+              ],
+              "correct_answer": "B. G2 Phase",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-6",
+              "type": "single_choice",
+              "question": "What happens during Metaphase II of meiosis?",
+              "options": [
+                "A. DNA replication occurs",
+                "B. Sister chromatids separate",
+                "C. Chromosomes line up individually along the equatorial plate",
+                "D. Homologous chromosomes pair up"
+              ],
+              "correct_answer": "C. Chromosomes line up individually along the equatorial plate",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-7",
+              "type": "single_choice",
+              "question": "Which organ produces sperm cells through meiosis?",
+              "options": [
+                "A. Ovary",
+                "B. Brain",
+                "C. Testes",
+                "D. Liver"
+              ],
+              "correct_answer": "C. Testes",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-8",
+              "type": "single_choice",
+              "question": "What is the role of mitochondria in sperm cells?",
+              "options": [
+                "A. Provide energy for movement",
+                "B. Store DNA",
+                "C. Help fertilization",
+                "D. Form the tail"
+              ],
+              "correct_answer": "A. Provide energy for movement",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-9",
+              "type": "single_choice",
+              "question": "What happens to the tiny cells produced during meiosis in females?",
+              "options": [
+                "A. They fertilize the egg",
+                "B. They develop into embryos",
+                "C. They become sperm cells",
+                "D. They break down"
+              ],
+              "correct_answer": "D. They break down",
+              "points": 1
+            },
+            {
+              "id": "001fae52-9758-4063-a2ea-8b05c811d4e6-q-10",
+              "type": "single_choice",
+              "question": "Why is meiosis important for sexual reproduction?",
+              "options": [
+                "A. It creates genetically unique gametes",
+                "B. It produces identical cells",
+                "C. It repairs damaged tissues",
+                "D. It increases chromosome number"
+              ],
+              "correct_answer": "A. It creates genetically unique gametes",
+              "points": 1
+            }
+          ],
+          "quiz_data": {
+            "question": "Post-Test (Instruction: Click the letter of the correct answer for each question.)"
+          }
+        },
+        "position": 6,
+        "is_required": true,
+        "time_estimate_minutes": 5,
+        "learning_style_tags": [
+          "reading_writing"
+        ],
+        "interactive_elements": [],
+        "metadata": {
+          "key_points": [
+            ""
+          ]
+        }
+      }
+    ],
+    "learning_path": [],
+    "completion_criteria": [
+      ""
+    ],
+    "prerequisites_checklist": [
+      ""
+    ]
+  },
+  "difficulty_level": "beginner",
+  "estimated_duration_minutes": 30,
+  "prerequisites": [
+    ""
+  ],
+  "multimedia_content": {
+    "images": [
+      ""
+    ],
+    "videos": [
+      ""
+    ],
+    "diagrams": [
+      ""
+    ],
+    "podcasts": [
+      ""
+    ],
+    "animations": [
+      ""
+    ],
+    "virtual_labs": [
+      ""
+    ],
+    "audio_lessons": [
+      ""
+    ],
+    "discussion_guides": [
+      ""
+    ],
+    "hands_on_activities": [
+      ""
+    ],
+    "interactive_diagrams": [
+      ""
+    ],
+    "interactive_simulations": [
+      ""
+    ]
+  },
+  "interactive_elements": {
+    "simulation": false,
+    "experiments": false,
+    "note_taking": false,
+    "text_editor": false,
+    "gamification": false,
+    "drag_and_drop": false,
+    "audio_playback": false,
+    "visual_builder": false,
+    "voice_recording": false,
+    "discussion_forum": false,
+    "progress_tracking": false,
+    "virtual_laboratory": false,
+    "interactive_quizzes": false,
+    "physical_activities": false
+  },
+  "assessment_questions": [
+    {
+      "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-1",
+      "type": "single_choice",
+      "question": "What is the main purpose of cell division?",
+      "options": [
+        "A. To produce energy",
+        "B. To stop cell growth",
+        "C. To create new cells for growth, repair, and reproduction",
+        "D. To eliminate old cells"
+      ],
+      "correct_answer": "C. To create new cells for growth, repair, and reproduction",
+      "points": 1
+    },
+    {
+      "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-2",
+      "type": "single_choice",
+      "question": "Which type of cell division results in genetically identical daughter cells?",
+      "options": [
+        "A. Mitosis",
+        "B. Fertilization",
+        "C. Binary fission",
+        "D. Meiosis"
+      ],
+      "correct_answer": "A. Mitosis",
+      "points": 1
+    },
+    {
+      "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-3",
+      "type": "single_choice",
+      "question": "What phase of the cell cycle involves DNA replication?",
+      "options": [
+        "A. M Phase",
+        "B. G2 Phase",
+        "C. S Phase",
+        "D. G1 Phase"
+      ],
+      "correct_answer": "C. S Phase",
+      "points": 1
+    },
+    {
+      "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-4",
+      "type": "single_choice",
+      "question": "How many daughter cells are produced in meiosis?",
+      "options": [
+        "A. 2",
+        "B. 8",
+        "C. 4",
+        "D. 6"
+      ],
+      "correct_answer": "C. 4",
+      "points": 1
+    },
+    {
+      "id": "7d783768-f6a4-4a78-8e16-ba75bf017371-q-5",
+      "type": "single_choice",
+      "question": "Which process contributes to genetic variation during meiosis?",
+      "options": [
+        "A. Chromosome duplication",
+        "B. DNA replication",
+        "C. Cytokinesis",
+        "D. Crossing-over"
+      ],
+      "correct_answer": "D. Crossing-over",
+      "points": 1
+    }
+   
+  ],
+  "module_metadata": {
+    "vocabulary": [
+      ""
+    ],
+    "key_concepts": [
+      ""
+    ],
+    "content_standards": [
+      ""
+    ],
+    "assessment_rubrics": {},
+    "extension_activities": [
+      ""
+    ],
+    "difficulty_indicators": [
+      ""
+    ],
+    "learning_competencies": [
+      ""
+    ],
+    "accessibility_features": [
+      ""
+    ],
+    "real_world_applications": [
+      ""
+    ],
+    "estimated_completion_time": 30
+  },
+  "is_published": false,
+  "created_by": "af4eb175-79bb-4d56-b96a-0916234dac97",
+  "created_at": "2025-11-03T01:10:26.37+00:00",
+  "updated_at": "2025-11-03T09:55:26.628Z",
+  "target_class_id": "be436910-d6b4-4117-9687-1984053f2748",
+  "target_learning_styles": [
+    "reading_writing",
+    "visual",
+    "auditory",
+    "kinesthetic"
+  ],
+  "_export_info": {
+    "total_sections": 6,
+    "assessment_sections": 2,
+    "total_questions_collected": 2,
+    "questions_in_sections": 2,
+    "section_types": "text, text, assessment, activity, activity, assessment"
+  },
+  "_exported_at": "2025-11-03T09:57:46.792Z",
+  "_note": "Questions are stored in content_structure.sections[].content_data.questions (primary) AND assessment_questions (backward compatibility)"
+}

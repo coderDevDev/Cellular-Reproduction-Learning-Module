@@ -219,19 +219,57 @@ export class AuthAPI {
 
       console.log('Calling supabase.auth.signInWithPassword...');
 
-      // Wrap entire login flow with timeout (increased to 15s for slow connections)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Login timeout')), 15000)
-      );
-
+      // Login flow without timeout (removed to prevent unhandled rejections)
       const loginFlow = async () => {
-        // Step 1: Authenticate with Supabase
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        console.log('🔄 Step 1: Starting Supabase authentication...');
+        
+        // Step 1: Authenticate with Supabase (with timeout)
+        const authTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth timeout - taking too long')), 10000)
+        );
+        
+        const authPromise = supabase.auth.signInWithPassword({
           email: credentials.email,
           password: credentials.password
         });
-
-        console.log('Auth login result:', { authError, user: authData.user?.id });
+        
+        let authData: any;
+        let authError: any;
+        
+        try {
+          const result = await Promise.race([authPromise, authTimeout]) as any;
+          authData = result.data;
+          authError = result.error;
+          console.log('✅ Step 1 complete - Auth login result:', { authError, user: authData?.user?.id });
+        } catch (error: any) {
+          console.error('❌ Step 1 timeout/error:', error.message);
+          // If timeout, try to get session from Supabase directly with timeout
+          console.log('🔄 Attempting to get session directly...');
+          
+          const sessionTimeout = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('getSession timeout')), 3000)
+          );
+          
+          try {
+            const sessionPromise = supabase.auth.getSession();
+            const sessionResult = await Promise.race([sessionPromise, sessionTimeout]) as any;
+            const sessionData = sessionResult.data;
+            
+            console.log({sessionData});
+            if (sessionData?.session?.user) {
+              console.log('✅ Got session from getSession:', sessionData.session.user.id);
+              authData = { user: sessionData.session.user, session: sessionData.session };
+              authError = null;
+            } else {
+              throw new Error('Authentication failed - no session found');
+            }
+          } catch (sessionError: any) {
+            console.error('❌ getSession also timed out/failed:', sessionError.message);
+            // Last resort: Since auth listener fired with SIGNED_IN, authentication succeeded
+            // We'll throw an error to be caught by outer try-catch and let the page handle it
+            throw new Error('Login succeeded but session retrieval timed out. Please refresh the page.');
+          }
+        }
         if (authError) {
           toast.error('Login Failed', {
             description:
@@ -254,22 +292,94 @@ export class AuthAPI {
           };
         }
 
-        // Step 2: Get user profile data (optimized: only fetch needed fields)
-        console.log('✅ Auth successful, fetching profile for user:', authData.user.id);
-        const { data: userData, error: userError } = await supabase
+        // Step 2: Get user profile data with timeout and fallback
+        console.log('🔄 Step 2: Fetching profile for user:', authData.user.id);
+        const startTime = Date.now();
+        
+        // Create timeout promise (5 seconds)
+        // const timeoutPromise = new Promise((_, reject) => 
+        //   setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+        // );
+        
+        // Create profile fetch promise
+        const profilePromise = supabase
           .from('profiles')
           .select('id, email, role, first_name, middle_name, last_name, full_name, profile_photo, learning_style, grade_level, onboarding_completed, created_at, updated_at')
           .eq('id', authData.user.id)
           .single();
+        
+        let userData = null;
+        let userError = null;
+        
+        try {
+          const result = await Promise.race([profilePromise]) as any;
+          userData = result.data;
+
+          console.log({userData})
+          userError = result.error;
+          
+          const fetchTime = Date.now() - startTime;
+          console.log(`✅ Step 2 complete in ${fetchTime}ms - Profile data:`, { 
+            hasData: !!userData,
+            userId: userData?.id, 
+            userError: userError?.message,
+            fetchTime 
+          });
+        } catch (error: any) {
+          const fetchTime = Date.now() - startTime;
+          console.warn(`⚠️ Profile fetch failed/timeout after ${fetchTime}ms:`, error.message);
+          console.log('🔄 Using user_metadata as fallback...');
+          
+          // Fallback: Use user_metadata from auth response
+          const metadata = authData.user.user_metadata;
+          userData = {
+            id: authData.user.id,
+            email: authData.user.email,
+            role: metadata.role || 'student',
+            first_name: metadata.first_name || null,
+            middle_name: metadata.middle_name || null,
+            last_name: metadata.last_name || null,
+            full_name: `${metadata.first_name || ''} ${metadata.middle_name || ''} ${metadata.last_name || ''}`.trim() || null,
+            profile_photo: null,
+            learning_style: null,
+            grade_level: metadata.grade_level || null,
+            onboarding_completed: false,
+            created_at: authData.user.created_at,
+            updated_at: authData.user.updated_at
+          };
+          userError = null; // Clear error since we have fallback data
+          console.log('✅ Fallback data created from user_metadata');
+        }
 
         return { authData, userData, userError };
       };
 
-      // Race between login flow and timeout
-      const result = (await Promise.race([loginFlow(), timeoutPromise])) as any;
-
+      // Execute login flow
+      console.log('🚀 Executing login flow...');
+      let result: any;
+      
+      try {
+        result = await loginFlow();
+        console.log('✅ Login flow complete, result:', { 
+          hasResult: !!result,
+          hasAuthData: !!result?.authData,
+          hasUserData: !!result?.userData,
+          userError: result?.userError?.message
+        });
+      } catch (flowError: any) {
+        console.error('❌ Login flow error:', flowError);
+        toast.error('Login Error', {
+          description: flowError.message || 'An error occurred during login'
+        });
+        return {
+          success: false,
+          message: flowError.message || 'Login flow failed'
+        };
+      }
+      
       // If timeout or error in flow
       if (!result || result.success === false) {
+        console.log('⚠️ Login flow returned unsuccessful result');
         return result;
       }
 
@@ -324,19 +434,21 @@ export class AuthAPI {
       });
 
       console.log(
-        'Login successful, returning user:',
+        '🎉 Login successful, returning user:',
         user?.id,
         'role:',
         user?.role,
         'onboarding:',
         user?.onboardingCompleted
       );
-      return {
+      const finalResult = {
         success: true,
         message: 'Login successful',
         user,
         session: authData.session
       };
+      console.log('📤 Returning final result:', finalResult);
+      return finalResult;
     } catch (error) {
       console.error('Login error:', error);
 
@@ -472,16 +584,21 @@ export class AuthAPI {
       }
 
       if (!session) {
+        console.log('🔄 Step 1: No session to refresh...');
         return { success: false, message: 'No session to refresh' };
       }
 
-      // Get updated user data
+      console.log('✅ Step 1 complete - Session refreshed:', { session: session.id });
+      console.log('🔄 Step 2: Fetching user profile from database...');
+      // Step 2: Fetch user profile from users table
       const { data: userData, error: userError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', session.user.id)
         .single();
 
+      console.log('✅ Step 2 complete - User data:', { userData: userData?.id, userError });
+      console.log('🎯 Returning from refreshSession...');
       if (userError) {
         console.error('User data fetch error:', userError);
         return { success: false, message: 'Failed to fetch user data' };
