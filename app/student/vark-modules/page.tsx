@@ -8,6 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -37,6 +44,9 @@ import {
   Filter,
   TrendingUp,
   Award,
+  Trophy,
+  Download,
+  Calendar as CalendarIcon,
   Loader2,
   ArrowRight,
   Bookmark,
@@ -115,6 +125,10 @@ export default function StudentVARKModulesPage() {
     'all' | 'recommended' | 'in-progress' | 'completed'
   >('all');
   const [bookmarkedModules, setBookmarkedModules] = useState<string[]>([]);
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [selectedModuleForResults, setSelectedModuleForResults] = useState<string | null>(null);
+  const [resultsData, setResultsData] = useState<any>(null);
+  const [loadingResults, setLoadingResults] = useState(false);
 
   const varkAPI = new VARKModulesAPI();
 
@@ -178,6 +192,67 @@ export default function StudentVARKModulesPage() {
         ? 'Module removed from bookmarks'
         : 'Module added to bookmarks'
     );
+  };
+
+  const handleViewResults = async (moduleId: string) => {
+    try {
+      setLoadingResults(true);
+      setSelectedModuleForResults(moduleId);
+      setShowResultsModal(true);
+
+      // Load module data
+      const module = await varkAPI.getModuleById(moduleId);
+
+      // Load completion data
+      const completionData = await varkAPI.getStudentModuleCompletion(
+        user!.id,
+        moduleId
+      );
+
+      // Load all section submissions
+      const submissionsData = await varkAPI.getStudentSubmissions(
+        user!.id,
+        moduleId
+      );
+
+      setResultsData({
+        module,
+        completion: completionData,
+        submissions: submissionsData
+      });
+
+      console.log('📊 Results loaded:', { completionData, submissionsData });
+    } catch (error) {
+      console.error('Error loading results:', error);
+      toast.error('Failed to load results');
+      setShowResultsModal(false);
+    } finally {
+      setLoadingResults(false);
+    }
+  };
+
+  const downloadResults = () => {
+    if (!resultsData) return;
+
+    const exportData = {
+      module: resultsData.module?.title,
+      student: user?.firstName + ' ' + user?.lastName,
+      completion: resultsData.completion,
+      submissions: resultsData.submissions
+    };
+
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${resultsData.module?.title}-results-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success('Results downloaded!');
   };
 
   const getModuleProgress = (moduleId: string) => {
@@ -831,9 +906,7 @@ export default function StudentVARKModulesPage() {
                             Review Module
                           </Button>
                           <Button
-                            onClick={() => {
-                              window.location.href = `/student/vark-modules/${module.id}/results`;
-                            }}
+                            onClick={() => handleViewResults(module.id)}
                             className="w-full bg-green-600 hover:bg-green-700 text-white">
                             <BarChart3 className="w-4 h-4 mr-2" />
                             View Results
@@ -932,6 +1005,206 @@ export default function StudentVARKModulesPage() {
           </CardContent>
         </Card> */}
       </div>
+
+      {/* Results Modal */}
+      <Dialog open={showResultsModal} onOpenChange={setShowResultsModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center justify-between">
+              <span>Module Results</span>
+              {resultsData && (
+                <Button onClick={downloadResults} variant="outline" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {resultsData?.module?.title || 'Loading...'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingResults ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : resultsData ? (
+            <div className="space-y-6 mt-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Final Score */}
+                <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Trophy className="w-6 h-6" />
+                      <Badge className="bg-white text-green-600 text-xs">Score</Badge>
+                    </div>
+                    <div className="text-3xl font-bold">
+                      {resultsData.completion?.final_score || 0}%
+                    </div>
+                    <p className="text-green-100 text-sm mt-1">
+                      {(resultsData.completion?.final_score || 0) >= 90
+                        ? 'Excellent!'
+                        : (resultsData.completion?.final_score || 0) >= 80
+                        ? 'Great Job!'
+                        : 'Good Work!'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Time Spent */}
+                <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Clock className="w-6 h-6" />
+                      <Badge className="bg-white text-blue-600 text-xs">Time</Badge>
+                    </div>
+                    <div className="text-3xl font-bold">
+                      {Math.floor((resultsData.completion?.time_spent_minutes || 0) / 60) > 0
+                        ? `${Math.floor((resultsData.completion?.time_spent_minutes || 0) / 60)}h`
+                        : `${resultsData.completion?.time_spent_minutes || 0}m`}
+                    </div>
+                    <p className="text-blue-100 text-sm mt-1">Study time</p>
+                  </CardContent>
+                </Card>
+
+                {/* Sections */}
+                <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <CheckCircle className="w-6 h-6" />
+                      <Badge className="bg-white text-purple-600 text-xs">Sections</Badge>
+                    </div>
+                    <div className="text-3xl font-bold">
+                      {resultsData.completion?.sections_completed || 0}
+                    </div>
+                    <p className="text-purple-100 text-sm mt-1">
+                      {resultsData.completion?.perfect_sections || 0} perfect
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Completion Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <Award className="w-5 h-5 mr-2 text-yellow-600" />
+                    Completion Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-3">
+                      <CalendarIcon className="w-5 h-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-600">Completed On</p>
+                        <p className="font-semibold">
+                          {resultsData.completion?.completion_date
+                            ? new Date(resultsData.completion.completion_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })
+                            : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {resultsData.completion?.pre_test_score !== undefined && (
+                      <div className="flex items-center space-x-3">
+                        <Target className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Pre-Test Score</p>
+                          <p className="font-semibold">{resultsData.completion.pre_test_score}%</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {resultsData.completion?.post_test_score !== undefined && (
+                      <div className="flex items-center space-x-3">
+                        <Zap className="w-5 h-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Post-Test Score</p>
+                          <p className="font-semibold">{resultsData.completion.post_test_score}%</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Section Submissions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center">
+                    <BarChart3 className="w-5 h-5 mr-2 text-blue-600" />
+                    Section Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {resultsData.submissions?.length === 0 ? (
+                      <p className="text-gray-600 text-center py-4">No submissions found.</p>
+                    ) : (
+                      resultsData.submissions?.map((submission: any, index: number) => (
+                        <div
+                          key={submission.section_id}
+                          className="border rounded-lg p-3 hover:bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="font-semibold text-sm">
+                                  {index + 1}. {submission.section_title}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {submission.section_type}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-gray-600">
+                                {new Date(submission.submitted_at).toLocaleString()}
+                              </p>
+                            </div>
+
+                            {submission.assessment_results && (
+                              <div className="text-right">
+                                <div
+                                  className={`text-xl font-bold ${
+                                    submission.assessment_results.passed
+                                      ? 'text-green-600'
+                                      : 'text-red-600'
+                                  }`}>
+                                  {submission.assessment_results.percentage.toFixed(1)}%
+                                </div>
+                                <p className="text-xs text-gray-600">
+                                  {submission.assessment_results.correct_count}/
+                                  {submission.assessment_results.total_questions} correct
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {submission.assessment_results && (
+                            <Progress
+                              value={submission.assessment_results.percentage}
+                              className="h-2 mt-2"
+                            />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <XCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+              <p className="text-gray-600">No results data available.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
