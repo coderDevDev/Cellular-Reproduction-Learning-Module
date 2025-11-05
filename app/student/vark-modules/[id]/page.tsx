@@ -78,6 +78,7 @@ export default function StudentVARKModulePage() {
   const [progress, setProgress] = useState<VARKModuleProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [previousSubmissions, setPreviousSubmissions] = useState<any[]>([]);
 
   const varkAPI = new VARKModulesAPI();
   const moduleId = params.id as string;
@@ -161,19 +162,26 @@ export default function StudentVARKModulePage() {
             return true;
           }
 
-          // Rule 3: EXACT MATCH - Section tags must be a subset of student's learning styles
-          // This means: ALL section tags must be in the student's preferred styles
-          // Example: Student has ['visual', 'auditory'], Section has ['visual'] → SHOW ✅
-          // Example: Student has ['visual'], Section has ['visual', 'auditory'] → HIDE ❌
-          const sectionMatchesStudent = tags.every((tag: string) => studentLearningStyles.includes(tag));
+          // Rule 3: EXACT MATCH - Section tags must EXACTLY match student's learning styles
+          // For multi-style students (Bimodal, Trimodal, Multimodal): section must have ALL their styles
+          // For single-style students (Unimodal): section must have only that one style
           
-          if (sectionMatchesStudent) {
-            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (section tags ${JSON.stringify(tags)} are subset of student styles ${JSON.stringify(studentLearningStyles)})`);
+          // Check if section tags exactly match student's learning styles
+          const tagsSet = new Set(tags);
+          const studentStylesSet = new Set(studentLearningStyles);
+          
+          // For EXACT match: both sets must be equal
+          const isExactMatch = 
+            tags.length === studentLearningStyles.length &&
+            tags.every((tag: string) => studentStylesSet.has(tag));
+          
+          if (isExactMatch) {
+            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (EXACT MATCH: section tags ${JSON.stringify(tags)} === student styles ${JSON.stringify(studentLearningStyles)})`);
             return true;
           }
 
           // Otherwise, HIDE the section
-          console.log(`❌ Section ${index + 1}: "${section.title}" - EXCLUDED (section has tags not in student's preferred styles)`, { sectionTags: tags, studentStyles: studentLearningStyles });
+          console.log(`❌ Section ${index + 1}: "${section.title}" - EXCLUDED (not exact match)`, { sectionTags: tags, studentStyles: studentLearningStyles });
           return false;
         });
 
@@ -202,7 +210,8 @@ export default function StudentVARKModulePage() {
         if (hiddenCount > 0) {
           const styleNames = preferredModules.join(' + ');
           toast.success(
-            `📚 Personalized for ${styleNames}: Showing ${filteredCount} of ${originalSectionCount} sections`,
+            `📚 Personalized for ${styleNames}: Showing ${filteredCount} 
+      section`,
             { duration: 4000 }
           );
         } else {

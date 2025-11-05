@@ -36,6 +36,7 @@ import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
 import { VARKModulesAPI } from '@/lib/api/vark-modules';
 import ModuleCompletionModal from './module-completion-modal';
+import SubmissionConfirmationModal from './submission-confirmation-modal';
 import { toast } from 'sonner';
 import FillInBlanksActivity from './fill-in-blanks-activity';
 
@@ -98,7 +99,18 @@ export default function DynamicModuleViewer({
   const [showQuizResults, setShowQuizResults] = useState<
     Record<string, boolean>
   >({});
+  const [sectionStartTimes, setSectionStartTimes] = useState<Record<string, number>>({});
+  const [isSavingSubmission, setIsSavingSubmission] = useState(false);
   const [assessmentResults, setAssessmentResults] = useState<Record<string, any>>({});
+  
+  // 💾 SUBMISSION CONFIRMATION MODAL STATE
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+  const [submissionModalData, setSubmissionModalData] = useState<{
+    sectionTitle: string;
+    sectionType: string;
+    timeSpent: number;
+    assessmentResult?: any;
+  } | null>(null);
   
   // ✅ MODULE COMPLETION STATE
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -259,6 +271,141 @@ export default function DynamicModuleViewer({
     }
   }, [memoizedSections, initialProgress]);
 
+  // 📊 EXPORT ALL SECTION DATA - Comprehensive data capture
+  const exportAllSectionData = useCallback(() => {
+    const allSectionData = module.content_structure.sections.map((section) => {
+      const sectionId = section.id;
+      const answers = quizAnswers[sectionId] || {};
+      const results = assessmentResults[sectionId];
+      const isCompleted = sectionProgress[sectionId] || false;
+      const startTime = sectionStartTimes[sectionId] || Date.now();
+      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+
+      return {
+        section_id: sectionId,
+        section_title: section.title,
+        section_type: section.content_type,
+        learning_style_tags: section.learning_style_tags,
+        time_estimate_minutes: section.time_estimate_minutes,
+        is_required: section.is_required,
+        
+        // Student interaction data
+        student_answers: answers,
+        assessment_results: results ? {
+          score: results.totalEarned,
+          total_possible: results.totalPossible,
+          percentage: results.percentage,
+          correct_count: results.correctCount,
+          total_questions: results.totalQuestions,
+          passed: results.passed,
+          detailed_results: results.results
+        } : null,
+        
+        time_spent_seconds: timeSpent,
+        is_completed: isCompleted,
+        completed_at: isCompleted ? new Date().toISOString() : null,
+        
+        // Section content snapshot (for reference)
+        content_summary: {
+          has_assessment: section.content_type === 'assessment',
+          has_activity: section.content_type === 'activity',
+          question_count: section.content_type === 'assessment' 
+            ? (section.content_data as any)?.questions?.length || 0
+            : 0
+        }
+      };
+    });
+
+    return {
+      module_id: module.id,
+      module_title: module.title,
+      student_id: userId,
+      export_timestamp: new Date().toISOString(),
+      total_sections: module.content_structure.sections.length,
+      completed_sections: Object.values(sectionProgress).filter(Boolean).length,
+      sections_data: allSectionData,
+      
+      // Overall statistics
+      overall_stats: {
+        total_time_spent_seconds: allSectionData.reduce((sum, s) => sum + s.time_spent_seconds, 0),
+        total_assessments: allSectionData.filter(s => s.section_type === 'assessment').length,
+        assessments_passed: allSectionData.filter(s => s.assessment_results?.passed).length,
+        average_score: (() => {
+          const scores = allSectionData
+            .filter(s => s.assessment_results)
+            .map(s => s.assessment_results!.percentage);
+          return scores.length > 0 
+            ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+            : 0;
+        })()
+      }
+    };
+  }, [module, quizAnswers, assessmentResults, sectionProgress, sectionStartTimes, userId]);
+
+  // 💾 SAVE ALL SECTION DATA TO DATABASE
+  const saveAllSectionsToDatabase = useCallback(async () => {
+    if (previewMode || !userId) return;
+
+    try {
+      const varkAPI = new VARKModulesAPI();
+      const exportData = exportAllSectionData();
+      
+      console.log('💾 Saving all section data to database...');
+      console.log('📊 Export data:', exportData);
+
+      // Save each section's data
+      const savePromises = exportData.sections_data.map(async (sectionData) => {
+        try {
+          await varkAPI.saveSubmission({
+            student_id: userId,
+            module_id: module.id,
+            section_id: sectionData.section_id,
+            section_title: sectionData.section_title,
+            section_type: sectionData.section_type,
+            submission_data: {
+              answers: sectionData.student_answers,
+              content_type: sectionData.section_type,
+              timestamp: new Date().toISOString(),
+              learning_style_tags: sectionData.learning_style_tags
+            },
+            assessment_results: sectionData.assessment_results,
+            time_spent_seconds: sectionData.time_spent_seconds,
+            submission_status: sectionData.is_completed ? 'submitted' : 'draft'
+          });
+          console.log(`✅ Saved section: ${sectionData.section_title}`);
+        } catch (error) {
+          console.error(`❌ Failed to save section ${sectionData.section_title}:`, error);
+        }
+      });
+
+      await Promise.all(savePromises);
+      console.log('✅ All section data saved to database!');
+      
+      return exportData;
+    } catch (error) {
+      console.error('❌ Error saving section data:', error);
+      throw error;
+    }
+  }, [exportAllSectionData, previewMode, userId, module.id]);
+
+  // 📥 DOWNLOAD SECTION DATA AS JSON (for debugging/backup)
+  const downloadSectionDataAsJSON = useCallback(() => {
+    const exportData = exportAllSectionData();
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `module-${module.id}-student-${userId}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success('Section data exported as JSON!');
+    console.log('📥 Downloaded section data:', exportData);
+  }, [exportAllSectionData, module.id, userId]);
+
   const handleSectionComplete = useCallback(
     (sectionId: string) => {
       if (!mountedRef.current) return;
@@ -286,15 +433,88 @@ export default function DynamicModuleViewer({
     [onProgressUpdate, onSectionComplete]
   );
 
+  // 💾 AUTO-SAVE SUBMISSION TO DATABASE
+  const saveSubmissionToDatabase = useCallback(
+    async (
+      section: VARKModuleContentSection,
+      answers: any,
+      assessmentResult?: any,
+      status: 'draft' | 'submitted' = 'draft'
+    ) => {
+      // Skip if in preview mode or no user ID
+      if (previewMode || !userId) return;
+
+      try {
+        setIsSavingSubmission(true);
+        const varkAPI = new VARKModulesAPI();
+
+        // Calculate time spent on this section
+        const startTime = sectionStartTimes[section.id] || Date.now();
+        const timeSpentSeconds = Math.floor((Date.now() - startTime) / 1000);
+
+        const submissionData = {
+          student_id: userId,
+          module_id: module.id,
+          section_id: section.id,
+          section_title: section.title,
+          section_type: section.content_type, // NEW: include section type
+          submission_data: {
+            answers: answers || {},
+            content_type: section.content_type,
+            timestamp: new Date().toISOString()
+          },
+          assessment_results: assessmentResult,
+          time_spent_seconds: timeSpentSeconds,
+          submission_status: status
+        };
+
+        await varkAPI.saveSubmission(submissionData);
+
+        console.log('✅ Submission saved:', {
+          section: section.title,
+          status,
+          timeSpent: `${timeSpentSeconds}s`,
+          hasAssessment: !!assessmentResult
+        });
+
+        // 🎉 Show confirmation modal only for submitted (not draft)
+        if (status === 'submitted') {
+          setSubmissionModalData({
+            sectionTitle: section.title,
+            sectionType: section.content_type,
+            timeSpent: timeSpentSeconds,
+            assessmentResult: assessmentResult ? {
+              score: assessmentResult.correctCount || 0,
+              totalQuestions: assessmentResult.totalQuestions || 0,
+              percentage: assessmentResult.percentage || 0,
+              passed: assessmentResult.passed || false
+            } : undefined
+          });
+          setShowSubmissionModal(true);
+        }
+      } catch (error) {
+        console.error('❌ Error saving submission:', error);
+        // Don't show error toast for auto-saves to avoid annoying the user
+        if (status === 'submitted') {
+          toast.error('Failed to save submission. Please try again.');
+        }
+      } finally {
+        setIsSavingSubmission(false);
+      }
+    },
+    [previewMode, userId, module.id, sectionStartTimes]
+  );
+
   const handleQuizSubmit = useCallback(
-    (sectionId: string, answers: any, questions?: any[]) => {
+    async (sectionId: string, answers: any, questions?: any[]) => {
       // Save answers
       setQuizAnswers(prev => ({ ...prev, [sectionId]: answers }));
       setShowQuizResults(prev => ({ ...prev, [sectionId]: true }));
       
       // ✅ Calculate scores and validate if questions provided
+      let results = null;
       if (questions && questions.length > 0) {
-        const results = calculateAssessmentScore(questions, answers);
+        results = calculateAssessmentScore(questions, answers);
         setAssessmentResults(prev => ({ ...prev, [sectionId]: results }));
         
         console.log('📊 Assessment Results:', {
@@ -306,9 +526,15 @@ export default function DynamicModuleViewer({
         });
       }
       
+      // 💾 Save submission to database
+      const section = module.content_structure.sections.find(s => s.id === sectionId);
+      if (section) {
+        await saveSubmissionToDatabase(section, answers, results, 'submitted');
+      }
+      
       handleSectionComplete(sectionId);
     },
-    [handleSectionComplete, calculateAssessmentScore]
+    [handleSectionComplete, calculateAssessmentScore, module.content_structure.sections, saveSubmissionToDatabase]
   );
 
   const handleQuizAnswerChange = useCallback(
@@ -3303,6 +3529,13 @@ export default function DynamicModuleViewer({
       return;
     }
     
+    // If on last section, complete the module
+    if (currentSectionIndex === totalSections - 1) {
+      handleModuleCompletion();
+      return;
+    }
+    
+    // Otherwise, go to next section
     if (currentSectionIndex < totalSections - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3358,17 +3591,34 @@ export default function DynamicModuleViewer({
         perfectSections
       });
 
-      // Save completion to database
-      await varkAPI.completeModule({
-        student_id: userId,
-        module_id: module.id,
-        final_score: finalScore,
-        time_spent_minutes: timeSpentMinutes,
-        pre_test_score: preTestScore > 0 ? preTestScore : undefined,
-        post_test_score: postTestScore > 0 ? postTestScore : undefined,
-        sections_completed: totalSections,
-        perfect_sections: perfectSections
-      });
+      // 💾 STEP 1: Save ALL section data first
+      console.log('💾 Step 1: Saving all section data...');
+      try {
+        await saveAllSectionsToDatabase();
+        console.log('✅ All section data saved successfully!');
+      } catch (sectionError) {
+        console.error('❌ Failed to save section data:', sectionError);
+        // Continue anyway - don't block module completion
+      }
+
+      // 💾 STEP 2: Save module completion summary
+      console.log('💾 Step 2: Saving module completion summary...');
+      try {
+        await varkAPI.completeModule({
+          student_id: userId,
+          module_id: module.id,
+          final_score: finalScore,
+          time_spent_minutes: timeSpentMinutes,
+          pre_test_score: preTestScore > 0 ? preTestScore : undefined,
+          post_test_score: postTestScore > 0 ? postTestScore : undefined,
+          sections_completed: totalSections,
+          perfect_sections: perfectSections
+        });
+        console.log('✅ Module completion saved to database!');
+      } catch (dbError) {
+        console.error('❌ Database save failed:', dbError);
+        // Continue anyway to show modal
+      }
 
       // Determine badge based on score
       let badge = null;
@@ -3444,17 +3694,22 @@ export default function DynamicModuleViewer({
 
       setEarnedBadge(badge);
 
-      // Notify teacher
+      // Notify teacher (optional - don't break if it fails)
       if (module.created_by) {
-        await varkAPI.notifyTeacher({
-          teacher_id: module.created_by,
-          type: 'module_completion',
-          title: 'Student Completed Module',
-          message: `${userName} completed "${module.title}" with a score of ${finalScore}%`,
-          student_id: userId,
-          module_id: module.id,
-          priority: finalScore < 60 ? 'high' : 'normal'
-        });
+        // try {
+        //   await varkAPI.notifyTeacher({
+        //     teacher_id: module.created_by,
+        //     type: 'module_completion',
+        //     title: 'Student Completed Module',
+        //     message: `${userName} completed "${module.title}" with a score of ${finalScore}%`,
+        //     student_id: userId,
+        //     module_id: module.id,
+        //     priority: finalScore < 60 ? 'high' : 'normal'
+        //   });
+        // } catch (notifyError) {
+        //   console.warn('⚠️ Teacher notification failed (non-critical):', notifyError);
+        //   // Continue anyway - notification is not critical
+        // }
       }
 
       // Set completion data for modal
@@ -3540,7 +3795,18 @@ export default function DynamicModuleViewer({
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-4">
+                {/* Export Data Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadSectionDataAsJSON}
+                  className="flex items-center space-x-2 border-blue-300 text-blue-700 hover:bg-blue-100"
+                  title="Download your answers and progress as JSON">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden lg:inline">Export My Data</span>
+                </Button>
+                
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">
                     {Math.round(progressPercentage)}%
@@ -3698,10 +3964,12 @@ export default function DynamicModuleViewer({
 
         <Button
           onClick={goToNextSection}
-          disabled={currentSectionIndex === totalSections - 1 || !canNavigateToNext().allowed}
+          disabled={!canNavigateToNext().allowed}
           className={`flex items-center space-x-2 ${
             !canNavigateToNext().allowed 
               ? 'bg-gray-400 cursor-not-allowed' 
+              : currentSectionIndex === totalSections - 1
+              ? 'bg-green-600 hover:bg-green-700'
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
           title={!canNavigateToNext().allowed ? canNavigateToNext().reason : ''}
@@ -3724,6 +3992,31 @@ export default function DynamicModuleViewer({
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
         sectionProgress={sectionProgress}
+      />
+    )}
+
+    {/* 💾 SUBMISSION CONFIRMATION MODAL */}
+    {submissionModalData && (
+      <SubmissionConfirmationModal
+        isOpen={showSubmissionModal}
+        onClose={() => {
+          setShowSubmissionModal(false);
+          setSubmissionModalData(null);
+        }}
+        onContinue={() => {
+          setShowSubmissionModal(false);
+          setSubmissionModalData(null);
+          // Auto-navigate to next section
+          if (currentSectionIndex < totalSections - 1) {
+            setCurrentSectionIndex(currentSectionIndex + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        sectionTitle={submissionModalData.sectionTitle}
+        sectionType={submissionModalData.sectionType}
+        timeSpent={submissionModalData.timeSpent}
+        assessmentResult={submissionModalData.assessmentResult}
+        isLastSection={currentSectionIndex === totalSections - 1}
       />
     )}
 

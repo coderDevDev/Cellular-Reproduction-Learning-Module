@@ -59,7 +59,8 @@ import {
   Clock3,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -139,21 +140,25 @@ export default function StudentVARKModulesPage() {
 
       setModules(filteredModules);
 
+      // Load student's progress data (includes completed modules) - LOAD THIS FIRST
+      console.log('🔄 Loading student progress for user:', user!.id);
+      try {
+        const progressData = await varkAPI.getStudentProgress(user!.id);
+        console.log('✅ Student progress loaded:', progressData);
+        setProgress(progressData);
+      } catch (error) {
+        console.error('❌ Error loading progress:', error);
+        setProgress([]);
+      }
+
       // Load student's enrolled classes
       try {
         const classesData = await ClassesAPI.getStudentClasses(user!.id);
         setEnrolledClasses(classesData);
-        setLoading(false);
       } catch (error) {
         console.error('Error loading enrolled classes:', error);
         setEnrolledClasses([]);
-        setLoading(false);
       }
-
-      // Load progress data (placeholder - implement based on your progress tracking)
-      const progressData: VARKModuleProgress[] = [];
-      setProgress(progressData);
-      setLoading(false);
     } catch (error) {
       console.error('Error loading VARK modules data:', error);
       toast.error('Failed to load VARK modules data');
@@ -183,6 +188,11 @@ export default function StudentVARKModulesPage() {
   const getModuleStatus = (moduleId: string) => {
     const moduleProgress = progress.find(p => p.module_id === moduleId);
     if (!moduleProgress) return 'not_started';
+    
+    // Check status field first (set by getStudentProgress for completed modules)
+    if (moduleProgress.status === 'completed') return 'completed';
+    
+    // Fallback to progress percentage
     if (moduleProgress.progress_percentage === 100) return 'completed';
     if (moduleProgress.progress_percentage > 0) return 'in_progress';
     return 'not_started';
@@ -217,9 +227,9 @@ export default function StudentVARKModulesPage() {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'completed':
-        return 'Completed';
+        return 'View Results';
       case 'in_progress':
-        return 'In Progress';
+        return 'Continue Learning';
       case 'not_started':
         return 'Start Learning';
       default:
@@ -230,11 +240,24 @@ export default function StudentVARKModulesPage() {
   // Check if module is locked due to prerequisite
   const isModuleLocked = (module: VARKModule) => {
     const prerequisiteId = (module as any).prerequisite_module_id;
-    if (!prerequisiteId) return false;
+    if (!prerequisiteId) return false; // No prerequisite = unlocked
     
     // Check if prerequisite module is completed
     const prerequisiteProgress = progress.find(p => p.module_id === prerequisiteId);
-    return !prerequisiteProgress || prerequisiteProgress.progress_percentage < 100;
+    
+    if (!prerequisiteProgress) {
+      console.log(`🔒 Module "${module.title}" is LOCKED - prerequisite not started`);
+      return true; // Locked if no progress
+    }
+    
+    // Unlocked if prerequisite is completed (check both status and percentage)
+    const isPrerequisiteCompleted = 
+      prerequisiteProgress.status === 'completed' || 
+      prerequisiteProgress.progress_percentage === 100;
+    
+    console.log(`🔓 Module "${module.title}" - Prerequisite completed:`, isPrerequisiteCompleted, prerequisiteProgress);
+    
+    return !isPrerequisiteCompleted; // Locked if prerequisite NOT completed
   };
 
   // Get prerequisite module info
@@ -789,40 +812,65 @@ export default function StudentVARKModulesPage() {
                       </div>
                     )}
 
-                    {/* Action Button */}
-                    <div className="flex items-center justify-between">
-                      <Button
-                        onClick={() => {
-                          if (isModuleLocked(module)) {
-                            toast.error(
-                              `Please complete "${getPrerequisiteModule(module)?.title}" first`
-                            );
-                            return;
-                          }
-                          window.location.href = `/student/vark-modules/${module.id}`;
-                        }}
-                        disabled={isModuleLocked(module)}
-                        className={`w-full ${
-                          isModuleLocked(module)
-                            ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed'
-                            : moduleStatus === 'completed'
-                            ? 'bg-green-600 hover:bg-green-700'
-                            : moduleStatus === 'in_progress'
-                            ? 'bg-yellow-600 hover:bg-yellow-700'
-                            : 'bg-[#00af8f] hover:bg-[#00af90]'
-                        } text-white`}>
-                        {isModuleLocked(module) ? (
-                          <>
-                            <Lock className="w-4 h-4 mr-2" />
-                            Locked
-                          </>
-                        ) : (
-                          <>
-                            <StatusIcon className="w-4 h-4 mr-2" />
-                            {getStatusText(moduleStatus)}
-                          </>
-                        )}
-                      </Button>
+
+                    {/* Debug Info */}
+                    {console.log('Module:', module.title, '| Status:', moduleStatus, '| Progress:', progress.find(p => p.module_id === module.id))}
+                    
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      {/* For completed modules, show two buttons */}
+                      {moduleStatus === 'completed' && !isModuleLocked(module) ? (
+                        <>
+                          <Button
+                            onClick={() => {
+                              window.location.href = `/student/vark-modules/${module.id}`;
+                            }}
+                            variant="outline"
+                            className="w-full border-green-600 text-green-600 hover:bg-green-50">
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Review Module
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              window.location.href = `/student/vark-modules/${module.id}/results`;
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white">
+                            <BarChart3 className="w-4 h-4 mr-2" />
+                            View Results
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            if (isModuleLocked(module)) {
+                              toast.error(
+                                `Please complete "${getPrerequisiteModule(module)?.title}" first`
+                              );
+                              return;
+                            }
+                            window.location.href = `/student/vark-modules/${module.id}`;
+                          }}
+                          disabled={isModuleLocked(module)}
+                          className={`w-full ${
+                            isModuleLocked(module)
+                              ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed'
+                              : moduleStatus === 'in_progress'
+                              ? 'bg-yellow-600 hover:bg-yellow-700'
+                              : 'bg-[#00af8f] hover:bg-[#00af90]'
+                          } text-white`}>
+                          {isModuleLocked(module) ? (
+                            <>
+                              <Lock className="w-4 h-4 mr-2" />
+                              Locked
+                            </>
+                          ) : (
+                            <>
+                              <StatusIcon className="w-4 h-4 mr-2" />
+                              {getStatusText(moduleStatus)}
+                            </>
+                          )}
+                        </Button>
+                      )}
                     </div>
 
                     {/* Progress Status */}
@@ -844,7 +892,7 @@ export default function StudentVARKModulesPage() {
         )}
 
         {/* Learning Style Tips */}
-        <Card className="mt-8 border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5">
+        {/* <Card className="mt-8 border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5">
           <CardContent className="p-6">
             <div className="flex items-start space-x-4">
               <div className="w-12 h-12 bg-gradient-to-r from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center">
@@ -882,7 +930,7 @@ export default function StudentVARKModulesPage() {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );

@@ -567,6 +567,40 @@ export class VARKModulesAPI {
     return data;
   }
 
+  // Get ALL progress for a student (from module_completions table)
+  async getStudentProgress(studentId: string): Promise<VARKModuleProgress[]> {
+    try {
+      // Get completed modules from module_completions table
+      const { data: completionsData, error: completionsError } = await this.supabase
+        .from('module_completions')
+        .select('module_id, completion_date, final_score, time_spent_minutes')
+        .eq('student_id', studentId);
+
+      if (completionsError) {
+        console.error('Error fetching module completions:', completionsError);
+        return [];
+      }
+
+      // Convert completions to progress format
+      const progressData: VARKModuleProgress[] = (completionsData || []).map(completion => ({
+        student_id: studentId,
+        module_id: completion.module_id,
+        progress_percentage: 100,
+        status: 'completed' as const,
+        completed_at: completion.completion_date,
+        started_at: completion.completion_date,
+        last_accessed_at: completion.completion_date,
+        completed_sections: []
+      }));
+
+      console.log('✅ Loaded progress for', progressData.length, 'completed modules');
+      return progressData;
+    } catch (error) {
+      console.error('Error in getStudentProgress:', error);
+      return [];
+    }
+  }
+
   async updateModuleProgress(
     progressData: Partial<VARKModuleProgress>
   ): Promise<VARKModuleProgress> {
@@ -941,12 +975,20 @@ export class VARKModulesAPI {
     sections_completed: number;
     perfect_sections: number;
   }) {
+    console.log('🎯 [API] Saving module completion:', completionData);
+
     const { data, error } = await this.supabase
       .from('module_completions')
-      .insert({
-        ...completionData,
-        completion_date: new Date().toISOString()
-      })
+      .upsert(
+        {
+          ...completionData,
+          completion_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          onConflict: 'student_id,module_id'
+        }
+      )
       .select()
       .single();
 
@@ -980,6 +1022,197 @@ export class VARKModulesAPI {
     }
 
     return data;
+  }
+
+  // ==================== STUDENT SUBMISSIONS ====================
+
+  /**
+   * Save or update student's work for a specific section
+   * This is called automatically as students work through sections
+   */
+  async saveSubmission(submissionData: {
+    student_id: string;
+    module_id: string;
+    section_id: string;
+    section_title: string;
+    section_type: string; // NEW: track section type
+    submission_data: any; // answers, activity responses, etc.
+    assessment_results?: any; // scores if it's an assessment
+    time_spent_seconds?: number;
+    submission_status?: 'draft' | 'submitted' | 'reviewed';
+  }) {
+    console.log('💾 [API] Saving submission:', {
+      section: submissionData.section_title,
+      type: submissionData.section_type,
+      status: submissionData.submission_status,
+      hasAnswers: !!submissionData.submission_data?.answers,
+      hasAssessment: !!submissionData.assessment_results
+    });
+
+    const { data, error } = await this.supabase
+      .from('student_module_submissions')
+      .upsert(
+        {
+          ...submissionData,
+          updated_at: new Date().toISOString(),
+          submitted_at:
+            submissionData.submission_status === 'submitted'
+              ? new Date().toISOString()
+              : undefined
+        },
+        {
+          onConflict: 'student_id,module_id,section_id'
+        }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ [API] Error saving submission:', error);
+      console.error('❌ [API] Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Failed to save submission: ${error.message}`);
+    }
+
+    console.log('✅ [API] Submission saved successfully!');
+    return data;
+  }
+
+  /**
+   * Get all submissions for a student's module
+   */
+  async getStudentSubmissions(
+    studentId: string,
+    moduleId: string
+  ): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('student_module_submissions')
+      .select('*')
+      .eq('student_id', studentId)
+      .eq('module_id', moduleId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching submissions:', error);
+      throw new Error('Failed to fetch submissions');
+    }
+
+    return data || [];
+  }
+
+  /**
+   * Get all student submissions for a specific module (teacher view)
+   */
+  async getModuleSubmissions(moduleId: string): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('student_module_submissions')
+      .select(
+        `
+        *,
+        student:profiles!student_module_submissions_student_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email,
+          learning_style,
+          preferred_modules
+        )
+      `
+      )
+      .eq('module_id', moduleId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching module submissions:', error);
+      throw new Error('Failed to fetch module submissions');
+    }
+
+    return data || [];
+  }
+
+  /**
+   * Teacher reviews and provides feedback on submission
+   */
+  async reviewSubmission(
+    submissionId: string,
+    reviewData: {
+      teacher_feedback?: string;
+      teacher_score?: number;
+      submission_status: 'reviewed';
+    }
+  ) {
+    const { data, error } = await this.supabase
+      .from('student_module_submissions')
+      .update({
+        ...reviewData,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', submissionId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error reviewing submission:', error);
+      throw new Error('Failed to review submission');
+    }
+
+    return data;
+  }
+
+  /**
+   * Get submission statistics for a module
+   */
+  async getModuleSubmissionStats(moduleId: string): Promise<{
+    totalStudents: number;
+    submittedCount: number;
+    reviewedCount: number;
+    averageScore: number;
+    completionRate: number;
+  }> {
+    const { data, error } = await this.supabase
+      .from('student_module_submissions')
+      .select('submission_status, assessment_results')
+      .eq('module_id', moduleId);
+
+    if (error) {
+      console.error('Error fetching submission stats:', error);
+      throw new Error('Failed to fetch submission stats');
+    }
+
+    const submissions = data || [];
+    const uniqueStudents = new Set(
+      submissions.map((s: any) => s.student_id)
+    ).size;
+    const submittedCount = submissions.filter(
+      (s: any) => s.submission_status === 'submitted' || s.submission_status === 'reviewed'
+    ).length;
+    const reviewedCount = submissions.filter(
+      (s: any) => s.submission_status === 'reviewed'
+    ).length;
+
+    const scores = submissions
+      .filter((s: any) => s.assessment_results?.percentage)
+      .map((s: any) => s.assessment_results.percentage);
+    const averageScore =
+      scores.length > 0
+        ? scores.reduce((sum: number, score: number) => sum + score, 0) /
+          scores.length
+        : 0;
+
+    return {
+      totalStudents: uniqueStudents,
+      submittedCount,
+      reviewedCount,
+      averageScore: Math.round(averageScore),
+      completionRate:
+        uniqueStudents > 0
+          ? Math.round((submittedCount / uniqueStudents) * 100)
+          : 0
+    };
   }
 
   async notifyTeacher(notificationData: {

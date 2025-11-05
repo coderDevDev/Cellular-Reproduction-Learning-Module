@@ -250,7 +250,7 @@ export default function ModuleCompletionModal({
           )}
 
           {/* Badge Achievement */}
-          {badge && showBadge && (
+          {/* {badge && showBadge && (
             <div className={`p-6 bg-gradient-to-r ${rarityColors[badge.rarity]} rounded-xl shadow-2xl transform transition-all duration-500 scale-100`}>
               <div className="text-center space-y-3">
                 <div className="flex justify-center">
@@ -272,11 +272,11 @@ export default function ModuleCompletionModal({
                 </Badge>
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
           {onDownloadCertificate && (
             <Button
               onClick={onDownloadCertificate}
@@ -319,7 +319,7 @@ export default function ModuleCompletionModal({
             Back to Dashboard
             <ArrowRight className="w-4 h-4" />
           </Button>
-        </div>
+        </div> */}
       </DialogContent>
     </Dialog>
   );

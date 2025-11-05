@@ -48,7 +48,8 @@ import {
   Download,
   Upload,
   FileDown,
-  CheckCircle
+  CheckCircle,
+  BarChart3 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import VARKModuleBuilder from '@/components/vark-modules/vark-module-builder';
