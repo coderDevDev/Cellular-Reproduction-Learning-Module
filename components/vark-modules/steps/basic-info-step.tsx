@@ -30,13 +30,15 @@ interface BasicInfoStepProps {
   updateFormData: (updates: Partial<VARKModule>) => void;
   categories: VARKModuleCategory[];
   teacherClasses?: Class[];
+  availableModules?: VARKModule[];
 }
 
 export default function BasicInfoStep({
   formData,
   updateFormData,
   categories,
-  teacherClasses
+  teacherClasses,
+  availableModules = []
 }: BasicInfoStepProps) {
   const addLearningObjective = () => {
     const currentObjectives = formData.learning_objectives || [];
@@ -304,6 +306,44 @@ export default function BasicInfoStep({
               />
               <Clock className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             </div>
+          </div>
+
+          {/* Prerequisite Module Selector */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="prerequisite_module"
+              className="text-sm font-medium text-gray-700">
+              Prerequisite Module (Optional)
+            </Label>
+            <p className="text-xs text-gray-500 mb-2">
+              Select a module that students must complete before accessing this one
+            </p>
+            <Select
+              value={(formData as any).prerequisite_module_id || 'none'}
+              onValueChange={value =>
+                updateFormData({ prerequisite_module_id: value === 'none' ? null : value } as any)
+              }>
+              <SelectTrigger className="h-12">
+                <SelectValue placeholder="No prerequisite required" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">
+                  <div className="flex items-center space-x-2">
+                    <span>No prerequisite required</span>
+                  </div>
+                </SelectItem>
+                {availableModules
+                  ?.filter(m => m.id !== formData.id)
+                  .map(module => (
+                    <SelectItem key={module.id} value={module.id}>
+                      <div className="flex items-center space-x-2">
+                        <BookOpen className="w-4 h-4" />
+                        <span>{module.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

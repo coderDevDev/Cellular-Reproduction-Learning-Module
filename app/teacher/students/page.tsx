@@ -677,9 +677,7 @@ export default function TeacherStudentsPage() {
                     <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                       Grade
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                      Learning Style
-                    </th>
+                  
                     <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                       Preferred Modules
                     </th>
@@ -726,12 +724,7 @@ export default function TeacherStudentsPage() {
                         <td className={`px-6 ${getDensityPadding()} whitespace-nowrap`}>
                           <div className="text-sm text-gray-900">{student.grade_level}</div>
                         </td>
-                        <td className={`px-6 ${getDensityPadding()} whitespace-nowrap`}>
-                          <Badge variant="secondary" className={getLearningStyleColor(student.learning_style)}>
-                            <LearningStyleIcon className="w-3 h-3 mr-1" />
-                            {student.learning_style.replace('_', ' ')}
-                          </Badge>
-                        </td>
+                        
                         <td className={`px-6 ${getDensityPadding()}`}>
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {student.preferred_modules && student.preferred_modules.length > 0 ? (

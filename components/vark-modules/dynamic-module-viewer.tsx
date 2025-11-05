@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Table } from '../ui/table';
 import {
   Play,
   Pause,
@@ -848,25 +849,38 @@ export default function DynamicModuleViewer({
         );
 
       case 'assessment':
-        // Handle multiple assessment questions (Pre-Test/Post-Test)
-        if (
-          module.assessment_questions &&
-          module.assessment_questions.length > 0
-        ) {
-          // Filter questions based on section type
-          let assessmentQuestions = module.assessment_questions;
-
-          if (section.id === 'pre-test-section') {
-            // Show only Pre-Test questions (first 5)
+        // ✅ Use section-specific questions from content_data (PRIMARY)
+        // Each section has its own questions in section.content_data.questions
+        let assessmentQuestions = (section.content_data as any)?.questions || [];
+        
+        // 🔄 Fallback to global module.assessment_questions (BACKWARD COMPATIBILITY)
+        // Only if section doesn't have its own questions
+        if (assessmentQuestions.length === 0 && module.assessment_questions && module.assessment_questions.length > 0) {
+          console.warn(`⚠️ Section "${section.title}" has no questions in content_data, falling back to module.assessment_questions`);
+          
+          // Filter questions based on section ID for backward compatibility
+          if (section.id === 'pre-test-section' || section.id.includes('pre-test')) {
             assessmentQuestions = module.assessment_questions.filter(q =>
               q.id.startsWith('pre-test')
             );
-          } else if (section.id === 'post-test-section') {
-            // Show only Post-Test questions (last 10)
+          } else if (section.id === 'post-test-section' || section.id.includes('post-test')) {
             assessmentQuestions = module.assessment_questions.filter(q =>
               q.id.startsWith('post-test')
             );
+          } else {
+            // For other assessment sections, use all questions (old behavior)
+            assessmentQuestions = module.assessment_questions;
           }
+        }
+        
+        // 📊 Log for debugging
+        console.log(`📝 Assessment section "${section.title}":`, {
+          sectionId: section.id,
+          questionsInSection: assessmentQuestions.length,
+          source: (section.content_data as any)?.questions ? 'section.content_data.questions' : 'module.assessment_questions (fallback)'
+        });
+        
+        if (assessmentQuestions.length > 0) {
 
           const sectionAnswers = quizAnswers[section.id] || {};
           const showResults = showQuizResults[section.id];
@@ -1810,20 +1824,80 @@ export default function DynamicModuleViewer({
                             </tr>
                           </thead>
                           <tbody>
-                            {activity.matching_pairs.map((pair, index) => (
+                            {activity.matching_pairs.map((pair, index) => {
+                              const matchingAnswers = quizAnswers[section.id]?.matching_answers || {};
+                              const studentAnswer = matchingAnswers[index] || '';
+                              const isSubmitted = quizAnswers[section.id]?.matching_submitted || false;
+                              const isCorrect = isSubmitted && studentAnswer.toUpperCase() === pair.correct_answer?.toUpperCase();
+                              const isIncorrect = isSubmitted && studentAnswer && studentAnswer.toUpperCase() !== pair.correct_answer?.toUpperCase();
+                              
+                              return (
                               <tr key={index} className="hover:bg-gray-50">
                                 <td className="border border-gray-300 px-4 py-3">
                                   <input
                                     type="text"
-                                    className="w-full px-2 py-1 border border-gray-300 rounded text-center font-semibold focus:outline-none focus:border-green-500"
+                                    value={studentAnswer}
+                                    onChange={(e) => {
+                                      const value = e.target.value.toUpperCase();
+                                      if (value === '' || /^[A-Z]$/.test(value)) {
+                                        setQuizAnswers(prev => ({
+                                          ...prev,
+                                          [section.id]: {
+                                            ...prev[section.id],
+                                            matching_answers: {
+                                              ...prev[section.id]?.matching_answers,
+                                              [index]: value
+                                            }
+                                          }
+                                        }));
+                                      }
+                                    }}
+                                    disabled={isSubmitted}
+                                    className={`w-full px-2 py-1 border-2 rounded text-center font-semibold focus:outline-none ${
+                                      isCorrect ? 'border-green-500 bg-green-50 text-green-700' :
+                                      isIncorrect ? 'border-red-500 bg-red-50 text-red-700' :
+                                      'border-gray-300 focus:border-green-500'
+                                    }`}
                                     placeholder="?"
                                     maxLength={1}
                                   />
+                                  {isSubmitted && (
+                                    <div className="text-center mt-1">
+                                      {isCorrect ? (
+                                        <span className="text-xs text-green-600 font-semibold">✓</span>
+                                      ) : isIncorrect ? (
+                                        <span className="text-xs text-red-600 font-semibold">✗ {pair.correct_answer}</span>
+                                      ) : null}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
-                                  <span className="font-medium text-gray-800">
-                                    {index + 1}. {pair.description}
-                                  </span>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-bold text-gray-700">{index + 1}.</span>
+                                    {pair.has_image && pair.image_url ? (
+                                      <div className="flex-1">
+                                        <img 
+                                          src={pair.image_url} 
+                                          alt={pair.description || `Diagram ${index + 1}`}
+                                          className="max-w-full h-32 object-contain border border-gray-200 rounded p-2 bg-white"
+                                          onError={(e) => {
+                                            // Fallback to description if image fails to load
+                                            const parent = (e.target as HTMLElement).parentElement;
+                                            if (parent) {
+                                              parent.innerHTML = `<span class="text-gray-600 italic">${pair.description || 'Image not available'}</span>`;
+                                            }
+                                          }}
+                                        />
+                                        {pair.description && (
+                                          <p className="text-xs text-gray-500 mt-1 italic">{pair.description}</p>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="font-medium text-gray-800">
+                                        {pair.description}
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
                                   <div className="grid grid-cols-1 gap-2">
@@ -1843,29 +1917,100 @@ export default function DynamicModuleViewer({
                                   </div>
                                 </td>
                               </tr>
-                            ))}
+                            );
+                            })}
                           </tbody>
                         </table>
                       </div>
                     </div>
                   )}
 
-                {/* Expected Outcome */}
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h6 className="font-semibold text-green-800 mb-2 flex items-center">
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Expected Outcome:
-                  </h6>
-                  <p className="text-green-700">{activity.expected_outcome}</p>
-                </div>
+                {/* Score Display */}
+                {quizAnswers[section.id]?.matching_submitted && (
+                  <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
+                    <div className="text-center">
+                      <h6 className="text-2xl font-bold text-green-800 mb-2">
+                        Your Score: {quizAnswers[section.id]?.matching_score || 0} / {activity.matching_pairs?.length || 0}
+                      </h6>
+                      <p className="text-lg text-green-700">
+                        {Math.round(((quizAnswers[section.id]?.matching_score || 0) / (activity.matching_pairs?.length || 1)) * 100)}% Correct
+                      </p>
+                      <div className="mt-4 flex items-center justify-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-green-600 font-bold text-xl">✓</span>
+                          <span className="text-gray-700">{quizAnswers[section.id]?.matching_score || 0} Correct</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-red-600 font-bold text-xl">✗</span>
+                          <span className="text-gray-700">{(activity.matching_pairs?.length || 0) - (quizAnswers[section.id]?.matching_score || 0)} Incorrect</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                {/* Complete Button */}
-                <Button
-                  onClick={() => handleSectionComplete(section.id)}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Complete Matching Activity
-                </Button>
+                {/* Expected Outcome */}
+                {activity.expected_outcome && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h6 className="font-semibold text-green-800 mb-2 flex items-center">
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Expected Outcome:
+                    </h6>
+                    <p className="text-green-700">{activity.expected_outcome}</p>
+                  </div>
+                )}
+
+                {/* Submit/Complete Button */}
+                {!quizAnswers[section.id]?.matching_submitted ? (
+                  <Button
+                    onClick={() => {
+                      const matchingAnswers = quizAnswers[section.id]?.matching_answers || {};
+                      const totalQuestions = activity.matching_pairs?.length || 0;
+                      
+                      // Check if all answers are filled
+                      let allAnswered = true;
+                      for (let i = 0; i < totalQuestions; i++) {
+                        if (!matchingAnswers[i]) {
+                          allAnswered = false;
+                          break;
+                        }
+                      }
+                      
+                      if (!allAnswered) {
+                        alert('Please answer all questions before submitting.');
+                        return;
+                      }
+                      
+                      // Calculate score
+                      let score = 0;
+                      activity.matching_pairs?.forEach((pair, index) => {
+                        if (matchingAnswers[index]?.toUpperCase() === pair.correct_answer?.toUpperCase()) {
+                          score++;
+                        }
+                      });
+                      
+                      // Save score and mark as submitted
+                      setQuizAnswers(prev => ({
+                        ...prev,
+                        [section.id]: {
+                          ...prev[section.id],
+                          matching_submitted: true,
+                          matching_score: score
+                        }
+                      }));
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Submit Answers
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleSectionComplete(section.id)}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Complete Matching Activity
+                  </Button>
+                )}
               </div>
             );
           }
@@ -1939,9 +2084,18 @@ export default function DynamicModuleViewer({
                           {activity.statements.map((item, index) => {
                             const statementKey = `${section.id}_statement_${index}`;
                             const answerData = quizAnswers[section.id]?.statements?.[index] || {};
+                            const isSubmitted = quizAnswers[section.id]?.tf_correction_submitted;
+                            const correctAnswer = item.is_true ? 'true' : 'false';
+                            const isCorrect = answerData.answer === correctAnswer;
                             
                             return (
-                              <tr key={index} className="hover:bg-gray-50">
+                              <tr key={index} className={`hover:bg-gray-50 ${
+                                isSubmitted 
+                                  ? isCorrect 
+                                    ? 'bg-green-50' 
+                                    : 'bg-red-50'
+                                  : ''
+                              }`}>
                                 <td className="border border-gray-300 px-4 py-3 text-center font-semibold text-gray-700">
                                   {index + 1}
                                 </td>
@@ -1949,63 +2103,82 @@ export default function DynamicModuleViewer({
                                   <p className="text-gray-800">{item.statement}</p>
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
-                                  <div className="flex justify-center space-x-4">
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                      <input
-                                        type="radio"
-                                        name={statementKey}
-                                        value="true"
-                                        checked={answerData.answer === 'true'}
-                                        onChange={(e) => {
-                                          setQuizAnswers(prev => ({
-                                            ...prev,
-                                            [section.id]: {
-                                              ...prev[section.id],
-                                              statements: {
-                                                ...prev[section.id]?.statements,
-                                                [index]: {
-                                                  ...answerData,
-                                                  answer: 'true'
+                                  <div className="flex justify-center items-center space-x-4">
+                                    <div className="flex space-x-4">
+                                      <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name={statementKey}
+                                          value="true"
+                                          checked={answerData.answer === 'true'}
+                                          disabled={isSubmitted}
+                                          onChange={(e) => {
+                                            setQuizAnswers(prev => ({
+                                              ...prev,
+                                              [section.id]: {
+                                                ...prev[section.id],
+                                                statements: {
+                                                  ...prev[section.id]?.statements,
+                                                  [index]: {
+                                                    ...answerData,
+                                                    answer: 'true'
+                                                  }
                                                 }
                                               }
-                                            }
-                                          }));
-                                        }}
-                                        className="w-4 h-4 text-green-600"
-                                      />
-                                      <span className="text-sm font-medium text-green-700">True</span>
-                                    </label>
-                                    <label className="flex items-center space-x-2 cursor-pointer">
-                                      <input
-                                        type="radio"
-                                        name={statementKey}
-                                        value="false"
-                                        checked={answerData.answer === 'false'}
-                                        onChange={(e) => {
-                                          setQuizAnswers(prev => ({
-                                            ...prev,
-                                            [section.id]: {
-                                              ...prev[section.id],
-                                              statements: {
-                                                ...prev[section.id]?.statements,
-                                                [index]: {
-                                                  ...answerData,
-                                                  answer: 'false'
+                                            }));
+                                          }}
+                                          className="w-4 h-4 text-green-600"
+                                        />
+                                        <span className="text-sm font-medium text-green-700">True</span>
+                                      </label>
+                                      <label className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                          type="radio"
+                                          name={statementKey}
+                                          value="false"
+                                          checked={answerData.answer === 'false'}
+                                          disabled={isSubmitted}
+                                          onChange={(e) => {
+                                            setQuizAnswers(prev => ({
+                                              ...prev,
+                                              [section.id]: {
+                                                ...prev[section.id],
+                                                statements: {
+                                                  ...prev[section.id]?.statements,
+                                                  [index]: {
+                                                    ...answerData,
+                                                    answer: 'false'
+                                                  }
                                                 }
                                               }
-                                            }
-                                          }));
-                                        }}
-                                        className="w-4 h-4 text-red-600"
-                                      />
-                                      <span className="text-sm font-medium text-red-700">False</span>
-                                    </label>
+                                            }));
+                                          }}
+                                          className="w-4 h-4 text-red-600"
+                                        />
+                                        <span className="text-sm font-medium text-red-700">False</span>
+                                      </label>
+                                    </div>
+                                    {isSubmitted && (
+                                      <div className="flex items-center">
+                                        {isCorrect ? (
+                                          <span className="text-green-600 font-bold text-xl">✓</span>
+                                        ) : (
+                                          <div className="flex items-center space-x-1">
+                                            <span className="text-red-600 font-bold text-xl">✗</span>
+                                            <span className="text-xs text-gray-600">
+                                              ({item.is_true ? 'TRUE' : 'FALSE'})
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
                                   <Textarea
                                     placeholder="If false, write the correct statement here..."
                                     value={answerData.correction || ''}
+                                    disabled={isSubmitted}
                                     onChange={(e) => {
                                       setQuizAnswers(prev => ({
                                         ...prev,
@@ -2034,37 +2207,287 @@ export default function DynamicModuleViewer({
                   </div>
                 )}
 
-                {/* Complete Button */}
-                <Button
-                  onClick={() => {
-                    // Validate that all statements have been answered
-                    const statements = activity.statements || [];
-                    const answers = quizAnswers[section.id]?.statements || {};
-                    
-                    let allAnswered = true;
-                    for (let i = 0; i < statements.length; i++) {
-                      if (!answers[i]?.answer) {
-                        allAnswered = false;
-                        break;
+                {/* Score Display */}
+                {quizAnswers[section.id]?.tf_correction_submitted && (
+                  <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
+                    <div className="text-center">
+                      <h6 className="text-2xl font-bold text-green-800 mb-2">
+                        Your Score: {quizAnswers[section.id]?.tf_correction_score || 0} / {activity.statements?.length || 0}
+                      </h6>
+                      <p className="text-lg text-green-700">
+                        {Math.round(((quizAnswers[section.id]?.tf_correction_score || 0) / (activity.statements?.length || 1)) * 100)}% Correct (True/False)
+                      </p>
+                      <div className="mt-4 flex items-center justify-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-green-600 font-bold text-xl">✓</span>
+                          <span className="text-gray-700">{quizAnswers[section.id]?.tf_correction_score || 0} Correct</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-red-600 font-bold text-xl">✗</span>
+                          <span className="text-gray-700">{(activity.statements?.length || 0) - (quizAnswers[section.id]?.tf_correction_score || 0)} Incorrect</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-3 italic">
+                        Your corrections will be reviewed by your teacher
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit/Complete Button */}
+                {!quizAnswers[section.id]?.tf_correction_submitted ? (
+                  <Button
+                    onClick={() => {
+                      // Validate that all statements have been answered
+                      const statements = activity.statements || [];
+                      const answers = quizAnswers[section.id]?.statements || {};
+                      
+                      let allAnswered = true;
+                      for (let i = 0; i < statements.length; i++) {
+                        if (!answers[i]?.answer) {
+                          allAnswered = false;
+                          break;
+                        }
+                        // Check if false answer has correction
+                        if (answers[i]?.answer === 'false' && !answers[i]?.correction?.trim()) {
+                          alert(`Please provide a correction for statement ${i + 1}`);
+                          return;
+                        }
                       }
-                      // Check if false answer has correction
-                      if (answers[i]?.answer === 'false' && !answers[i]?.correction?.trim()) {
-                        alert(`Please provide a correction for statement ${i + 1}`);
+                      
+                      if (!allAnswered) {
+                        alert('Please answer all statements before continuing.');
                         return;
                       }
-                    }
-                    
-                    if (!allAnswered) {
-                      alert('Please answer all statements before continuing.');
-                      return;
-                    }
-                    
-                    handleSectionComplete(section.id);
-                  }}
-                  className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
-                  <CheckCircle className="w-5 h-5 mr-2" />
-                  Complete True/False Activity
-                </Button>
+                      
+                      // Calculate score (only for True/False part)
+                      let score = 0;
+                      statements.forEach((stmt, index) => {
+                        const correctAnswer = stmt.is_true ? 'true' : 'false';
+                        if (answers[index]?.answer === correctAnswer) {
+                          score++;
+                        }
+                      });
+                      
+                      // Save score and mark as submitted
+                      setQuizAnswers(prev => ({
+                        ...prev,
+                        [section.id]: {
+                          ...prev[section.id],
+                          tf_correction_submitted: true,
+                          tf_correction_score: score
+                        }
+                      }));
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Submit Answers
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleSectionComplete(section.id)}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Complete True/False Activity
+                  </Button>
+                )}
+              </div>
+            );
+          }
+
+          // Simple True/False Activity
+          if (activity.type === 'true_false_simple') {
+            return (
+              <div className="space-y-6">
+                {/* Activity Header */}
+                <div className="p-6 bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-indigo-500 rounded-lg">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-indigo-800">
+                        ✓✗ True or False
+                      </h4>
+                      <h5 className="text-lg font-semibold text-indigo-700">
+                        {activity.title}
+                      </h5>
+                    </div>
+                  </div>
+                  <p className="text-indigo-700">{activity.description}</p>
+                </div>
+
+                {/* Statements */}
+                {activity.statements && activity.statements.length > 0 && (
+                  <div className="space-y-4">
+                    {activity.statements.map((item, index) => {
+                      const studentAnswer = quizAnswers[section.id]?.simple_tf_answers?.[index];
+                      const isSubmitted = quizAnswers[section.id]?.simple_tf_submitted;
+                      const isCorrect = studentAnswer === (item.is_true ? 'true' : 'false');
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`p-4 border-2 rounded-lg ${
+                            isSubmitted 
+                              ? isCorrect 
+                                ? 'border-green-400 bg-green-50' 
+                                : 'border-red-400 bg-red-50'
+                              : 'border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <span className="font-bold text-gray-700 text-lg">{index + 1}.</span>
+                            <div className="flex-1 space-y-3">
+                              <p className="text-gray-800 font-medium">{item.statement}</p>
+                              
+                              <div className="flex items-center space-x-6">
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`simple_tf_${section.id}_${index}`}
+                                    value="true"
+                                    checked={studentAnswer === 'true'}
+                                    disabled={isSubmitted}
+                                    onChange={() => {
+                                      setQuizAnswers(prev => ({
+                                        ...prev,
+                                        [section.id]: {
+                                          ...prev[section.id],
+                                          simple_tf_answers: {
+                                            ...prev[section.id]?.simple_tf_answers,
+                                            [index]: 'true'
+                                          }
+                                        }
+                                      }));
+                                    }}
+                                    className="w-4 h-4 text-green-600"
+                                  />
+                                  <span className="text-sm font-semibold text-green-700">TRUE</span>
+                                </label>
+                                <label className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`simple_tf_${section.id}_${index}`}
+                                    value="false"
+                                    checked={studentAnswer === 'false'}
+                                    disabled={isSubmitted}
+                                    onChange={() => {
+                                      setQuizAnswers(prev => ({
+                                        ...prev,
+                                        [section.id]: {
+                                          ...prev[section.id],
+                                          simple_tf_answers: {
+                                            ...prev[section.id]?.simple_tf_answers,
+                                            [index]: 'false'
+                                          }
+                                        }
+                                      }));
+                                    }}
+                                    className="w-4 h-4 text-red-600"
+                                  />
+                                  <span className="text-sm font-semibold text-red-700">FALSE</span>
+                                </label>
+                                
+                                {isSubmitted && (
+                                  <div className="flex items-center space-x-2">
+                                    {isCorrect ? (
+                                      <span className="text-green-600 font-bold text-xl">✓</span>
+                                    ) : (
+                                      <>
+                                        <span className="text-red-600 font-bold text-xl">✗</span>
+                                        <span className="text-sm text-gray-600">
+                                          Correct: <span className="font-bold">{item.is_true ? 'TRUE' : 'FALSE'}</span>
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Score Display */}
+                {quizAnswers[section.id]?.simple_tf_submitted && (
+                  <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
+                    <div className="text-center">
+                      <h6 className="text-2xl font-bold text-green-800 mb-2">
+                        Your Score: {quizAnswers[section.id]?.simple_tf_score || 0} / {activity.statements?.length || 0}
+                      </h6>
+                      <p className="text-lg text-green-700">
+                        {Math.round(((quizAnswers[section.id]?.simple_tf_score || 0) / (activity.statements?.length || 1)) * 100)}% Correct
+                      </p>
+                      <div className="mt-4 flex items-center justify-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-green-600 font-bold text-xl">✓</span>
+                          <span className="text-gray-700">{quizAnswers[section.id]?.simple_tf_score || 0} Correct</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-red-600 font-bold text-xl">✗</span>
+                          <span className="text-gray-700">{(activity.statements?.length || 0) - (quizAnswers[section.id]?.simple_tf_score || 0)} Incorrect</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit/Complete Button */}
+                {!quizAnswers[section.id]?.simple_tf_submitted ? (
+                  <Button
+                    onClick={() => {
+                      const statements = activity.statements || [];
+                      const answers = quizAnswers[section.id]?.simple_tf_answers || {};
+                      
+                      // Check all answered
+                      let allAnswered = true;
+                      for (let i = 0; i < statements.length; i++) {
+                        if (!answers[i]) {
+                          allAnswered = false;
+                          break;
+                        }
+                      }
+                      
+                      if (!allAnswered) {
+                        alert('Please answer all statements before submitting.');
+                        return;
+                      }
+                      
+                      // Calculate score
+                      let score = 0;
+                      statements.forEach((stmt, index) => {
+                        const correctAnswer = stmt.is_true ? 'true' : 'false';
+                        if (answers[index] === correctAnswer) {
+                          score++;
+                        }
+                      });
+                      
+                      // Save score and mark as submitted
+                      setQuizAnswers(prev => ({
+                        ...prev,
+                        [section.id]: {
+                          ...prev[section.id],
+                          simple_tf_submitted: true,
+                          simple_tf_score: score
+                        }
+                      }));
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Submit Answers
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleSectionComplete(section.id)}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Complete True/False Activity
+                  </Button>
+                )}
               </div>
             );
           }
@@ -2274,6 +2697,297 @@ export default function DynamicModuleViewer({
                   <CheckCircle className="w-5 h-5 mr-2" />
                   Complete Activity
                 </Button>
+              </div>
+            );
+          }
+
+          // Table + Questions Activity
+          if (activity.type === 'table_and_questions') {
+            return (
+              <div className="space-y-6">
+                {/* Activity Header */}
+                <div className="p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Table className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-blue-800">
+                        📊 Table + Questions Activity
+                      </h4>
+                      <h5 className="text-lg font-semibold text-blue-700">
+                        {activity.title}
+                      </h5>
+                    </div>
+                  </div>
+                  <p className="text-blue-700">{activity.description}</p>
+                </div>
+
+                {/* Part A: Fill in the Table */}
+                {activity.part_a_title && activity.table && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h5 className="font-bold text-blue-800 text-lg">{activity.part_a_title}</h5>
+                      {activity.part_a_instruction && (
+                        <p className="text-sm text-blue-700 mt-1">
+                          {activity.part_a_instruction}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden shadow-lg">
+                        <thead className="bg-blue-100">
+                          <tr>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-blue-800">
+                              Features
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-blue-800">
+                              Sexual Reproduction
+                            </th>
+                            <th className="border border-gray-300 px-4 py-3 text-left font-bold text-blue-800">
+                              Asexual Reproduction
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activity.table.rows?.map((row, index) => {
+                            const rowAnswers = quizAnswers[section.id]?.table_rows?.[index] || {};
+                            
+                            return (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="border border-gray-300 px-4 py-3 font-semibold text-gray-800 bg-gray-50">
+                                  {row.feature}
+                                </td>
+                                <td className="border border-gray-300 px-4 py-3">
+                                  <Textarea
+                                    placeholder={row.sexual || 'Type your answer...'}
+                                    value={rowAnswers.sexual || ''}
+                                    onChange={(e) => {
+                                      setQuizAnswers(prev => ({
+                                        ...prev,
+                                        [section.id]: {
+                                          ...prev[section.id],
+                                          table_rows: {
+                                            ...prev[section.id]?.table_rows,
+                                            [index]: {
+                                              ...rowAnswers,
+                                              sexual: e.target.value
+                                            }
+                                          }
+                                        }
+                                      }));
+                                    }}
+                                    className="min-h-[60px] resize-y text-sm"
+                                  />
+                                </td>
+                                <td className="border border-gray-300 px-4 py-3">
+                                  <Textarea
+                                    placeholder={row.asexual || 'Type your answer...'}
+                                    value={rowAnswers.asexual || ''}
+                                    onChange={(e) => {
+                                      setQuizAnswers(prev => ({
+                                        ...prev,
+                                        [section.id]: {
+                                          ...prev[section.id],
+                                          table_rows: {
+                                            ...prev[section.id]?.table_rows,
+                                            [index]: {
+                                              ...rowAnswers,
+                                              asexual: e.target.value
+                                            }
+                                          }
+                                        }
+                                      }));
+                                    }}
+                                    className="min-h-[60px] resize-y text-sm"
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Part B: Generalization Questions */}
+                {activity.part_b_title && activity.questions && activity.questions.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h5 className="font-bold text-blue-800 text-lg">{activity.part_b_title}</h5>
+                      {activity.part_b_instruction && (
+                        <p className="text-sm text-blue-700 mt-1">
+                          {activity.part_b_instruction}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-4">
+                      {activity.questions.map((question, index) => {
+                        const questionText = typeof question === 'string' ? question : question.question || '';
+                        const questionPoints = typeof question === 'object' ? question.points || 5 : 5;
+                        const questionRubric = typeof question === 'object' ? question.rubric || '' : '';
+                        const answer = quizAnswers[section.id]?.generalization_answers?.[index] || '';
+                        
+                        return (
+                          <div key={index} className="p-4 bg-white border border-gray-300 rounded-lg">
+                            <div className="space-y-2">
+                              <div className="flex items-start justify-between">
+                                <p className="text-gray-800 font-medium flex-1">
+                                  <span className="font-bold">{index + 1}.</span> {questionText}
+                                </p>
+                                <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                  {questionPoints} pts
+                                </span>
+                              </div>
+                              {questionRubric && (
+                                <p className="text-xs text-gray-500 italic">
+                                  Rubric: {questionRubric}
+                                </p>
+                              )}
+                              <Textarea
+                                placeholder="Write your answer here..."
+                                value={answer}
+                                onChange={(e) => {
+                                  setQuizAnswers(prev => ({
+                                    ...prev,
+                                    [section.id]: {
+                                      ...prev[section.id],
+                                      generalization_answers: {
+                                        ...prev[section.id]?.generalization_answers,
+                                        [index]: e.target.value
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="min-h-[100px] resize-y"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Score Display */}
+                {quizAnswers[section.id]?.table_submitted && (
+                  <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
+                    <div className="text-center">
+                      <h6 className="text-2xl font-bold text-green-800 mb-4">
+                        🎯 Activity Results
+                      </h6>
+                      
+                      {/* Part A Score */}
+                      <div className="mb-4 p-4 bg-white rounded-lg">
+                        <h6 className="text-lg font-semibold text-gray-800 mb-2">Part A: Table Score</h6>
+                        <p className="text-3xl font-bold text-blue-600">
+                          {quizAnswers[section.id]?.table_score || 0} / {(activity.table?.rows?.length || 0) * 2}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {Math.round(((quizAnswers[section.id]?.table_score || 0) / ((activity.table?.rows?.length || 1) * 2)) * 100)}% Correct
+                        </p>
+                      </div>
+
+                      {/* Part B Info */}
+                      <div className="p-4 bg-white rounded-lg">
+                        <h6 className="text-lg font-semibold text-gray-800 mb-2">Part B: Generalization Questions</h6>
+                        <p className="text-sm text-gray-600">
+                          Total Points Available: <span className="font-bold text-blue-600">
+                            {activity.questions?.reduce((sum, q) => sum + (typeof q === 'object' ? q.points || 5 : 5), 0) || 0} points
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2 italic">
+                          Your answers will be reviewed by your teacher
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit/Complete Button */}
+                {!quizAnswers[section.id]?.table_submitted ? (
+                  <Button
+                    onClick={() => {
+                      // Validate that all table cells are filled
+                      const rows = activity.table?.rows || [];
+                      const tableAnswers = quizAnswers[section.id]?.table_rows || {};
+                      
+                      let allTableFilled = true;
+                      for (let i = 0; i < rows.length; i++) {
+                        if (!tableAnswers[i]?.sexual?.trim() || !tableAnswers[i]?.asexual?.trim()) {
+                          allTableFilled = false;
+                          break;
+                        }
+                      }
+                      
+                      if (!allTableFilled) {
+                        alert('Please fill in all table cells before continuing.');
+                        return;
+                      }
+                      
+                      // Validate that all questions are answered
+                      const questions = activity.questions || [];
+                      const generalizationAnswers = quizAnswers[section.id]?.generalization_answers || {};
+                      
+                      let allQuestionsAnswered = true;
+                      for (let i = 0; i < questions.length; i++) {
+                        if (!generalizationAnswers[i]?.trim()) {
+                          allQuestionsAnswered = false;
+                          break;
+                        }
+                      }
+                      
+                      if (!allQuestionsAnswered) {
+                        alert('Please answer all generalization questions before continuing.');
+                        return;
+                      }
+                      
+                      // Auto-grade Part A (Table)
+                      let tableScore = 0;
+                      rows.forEach((row, index) => {
+                        const studentSexual = tableAnswers[index]?.sexual?.toLowerCase().trim() || '';
+                        const studentAsexual = tableAnswers[index]?.asexual?.toLowerCase().trim() || '';
+                        const correctSexual = row.answer_sexual?.toLowerCase() || '';
+                        const correctAsexual = row.answer_asexual?.toLowerCase() || '';
+                        
+                        // Check if student answer contains key words from correct answer
+                        if (correctSexual && studentSexual.includes(correctSexual.toLowerCase())) {
+                          tableScore++;
+                        }
+                        if (correctAsexual) {
+                          // For multiple acceptable answers (e.g., "Budding, Binary fission")
+                          const acceptableAnswers = correctAsexual.split(',').map(a => a.trim().toLowerCase());
+                          if (acceptableAnswers.some(ans => studentAsexual.includes(ans))) {
+                            tableScore++;
+                          }
+                        }
+                      });
+                      
+                      // Save score and mark as submitted
+                      setQuizAnswers(prev => ({
+                        ...prev,
+                        [section.id]: {
+                          ...prev[section.id],
+                          table_submitted: true,
+                          table_score: tableScore
+                        }
+                      }));
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Submit Answers
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleSectionComplete(section.id)}
+                    className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Complete Activity
+                  </Button>
+                )}
               </div>
             );
           }

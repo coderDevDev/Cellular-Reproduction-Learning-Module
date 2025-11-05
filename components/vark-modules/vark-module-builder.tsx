@@ -75,6 +75,7 @@ interface VARKModuleBuilderProps {
   initialData?: Partial<VARKModule>;
   categories?: VARKModuleCategory[];
   teacherClasses?: Class[];
+  availableModules?: VARKModule[];
 }
 
 const learningStyleIcons = {
@@ -135,7 +136,8 @@ export default function VARKModuleBuilder({
   onCancel,
   initialData,
   categories = [],
-  teacherClasses = []
+  teacherClasses = [],
+  availableModules = []
 }: VARKModuleBuilderProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -287,9 +289,9 @@ export default function VARKModuleBuilder({
       ];
     }
     
-    // Update position numbers for all sections
+    // Update position numbers for all sections (deep clone to avoid shared references)
     updatedSections = updatedSections.map((section, index) => ({
-      ...section,
+      ...JSON.parse(JSON.stringify(section)),
       position: index + 1
     }));
     
@@ -306,7 +308,24 @@ export default function VARKModuleBuilder({
     updates: Partial<VARKModuleContentSection>
   ) => {
     const updatedSections = [...(formData.content_structure?.sections || [])];
-    updatedSections[index] = { ...updatedSections[index], ...updates };
+    // Deep clone the current section to avoid any shared references
+    const currentSection = JSON.parse(JSON.stringify(updatedSections[index]));
+    
+    // Deep merge function to handle nested objects
+    const deepMerge = (target: any, source: any): any => {
+      const output = { ...target };
+      for (const key in source) {
+        if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+          output[key] = deepMerge(target[key] || {}, source[key]);
+        } else {
+          output[key] = source[key];
+        }
+      }
+      return output;
+    };
+    
+    // Merge updates into the cloned section
+    updatedSections[index] = deepMerge(currentSection, updates);
     
     updateFormData({
       content_structure: {
@@ -1012,6 +1031,7 @@ export default function VARKModuleBuilder({
                 updateFormData={updateFormData}
                 categories={categories}
                 teacherClasses={teacherClasses}
+                availableModules={availableModules}
               />
             )}
 

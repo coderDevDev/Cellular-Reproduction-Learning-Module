@@ -94,7 +94,7 @@ export default function TeacherVARKModulesPage() {
   const [modules, setModules] = useState<VARKModule[]>([]);
   const [categories, setCategories] = useState<VARKModuleCategory[]>([]);
   const [teacherClasses, setTeacherClasses] = useState<Class[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [selectedLearningStyle, setSelectedLearningStyle] = useState('all');
@@ -665,7 +665,11 @@ export default function TeacherVARKModulesPage() {
     );
   }
 
-  return (
+  console.log("Dex")
+
+  console.log({filteredModules});
+
+  return  (
     <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-100">
@@ -761,6 +765,7 @@ export default function TeacherVARKModulesPage() {
             initialData={editingModule || undefined}
             categories={categories}
             teacherClasses={teacherClasses}
+            availableModules={modules}
           />
         </div>
       ) : (
@@ -1258,6 +1263,9 @@ export default function TeacherVARKModulesPage() {
 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Target Learning Styles
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Prerequisite
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Difficulty

@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+
 import {
   Dialog,
   DialogContent,
@@ -48,9 +49,12 @@ import {
   Target,
   BookOpen,
   Sparkles,
-  Code
+  Code,
+  List,
+  Copy
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
+import { toast } from 'sonner';
 
 // Dynamically import CKEditor to avoid SSR issues
 const CKEditorContentEditor = dynamic(
@@ -226,8 +230,177 @@ export default function ContentStructureStep({
   >(null);
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [multiSelectedIndices, setMultiSelectedIndices] = useState<Set<number>>(new Set());
   // ✅ Removed useEditorJS toggle - Editor.js is always embedded in the form
   const sections = formData.content_structure?.sections || [];
+
+  // Duplicate section function
+  const duplicateSection = (index: number) => {
+    const sectionToDuplicate = sections[index];
+    // Deep clone the section to avoid shared references
+    const duplicatedSection: VARKModuleContentSection = JSON.parse(JSON.stringify({
+      ...sectionToDuplicate,
+      id: crypto.randomUUID(), // Generate new ID
+      title: `${sectionToDuplicate.title || `Section ${index + 1}`} (Copy)`,
+      position: index + 2 // Will be adjusted below
+    }));
+
+    // Insert duplicated section right after the original
+    const updatedSections = [
+      ...sections.slice(0, index + 1),
+      duplicatedSection,
+      ...sections.slice(index + 1)
+    ];
+
+    // Update position numbers for all sections
+    const reorderedSections = updatedSections.map((section, idx) => ({
+      ...section,
+      position: idx + 1
+    }));
+
+    updateFormData({
+      content_structure: {
+        ...formData.content_structure,
+        sections: reorderedSections
+      } as any
+    });
+
+    // Select the newly duplicated section
+    setSelectedSectionIndex(index + 1);
+    toast.success('Section duplicated successfully!');
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Check if we're dragging multiple sections
+    const isDraggingMultiple = multiSelectedIndices.size > 0 && multiSelectedIndices.has(draggedIndex);
+    
+    if (isDraggingMultiple) {
+      // Multi-section drag
+      const indicesToMove = Array.from(multiSelectedIndices).sort((a, b) => a - b);
+      
+      // Don't allow dropping on a selected section
+      if (multiSelectedIndices.has(dropIndex)) {
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        return;
+      }
+      
+      const updatedSections = [...sections];
+      const sectionsToMove = indicesToMove.map(idx => updatedSections[idx]);
+      
+      // Remove all selected sections (in reverse order to maintain indices)
+      indicesToMove.reverse().forEach(idx => {
+        updatedSections.splice(idx, 1);
+      });
+      
+      // Calculate new drop index after removals
+      let adjustedDropIndex = dropIndex;
+      indicesToMove.forEach(idx => {
+        if (idx < dropIndex) adjustedDropIndex--;
+      });
+      
+      // Insert all sections at the new position
+      updatedSections.splice(adjustedDropIndex, 0, ...sectionsToMove);
+      
+      // Update position numbers
+      const reorderedSections = updatedSections.map((section, idx) => ({
+        ...section,
+        position: idx + 1
+      }));
+      
+      updateFormData({
+        content_structure: {
+          ...formData.content_structure,
+          sections: reorderedSections
+        } as any
+      });
+      
+      // Update multi-selection indices
+      const newIndices = new Set<number>();
+      sectionsToMove.forEach((_, i) => {
+        newIndices.add(adjustedDropIndex + i);
+      });
+      setMultiSelectedIndices(newIndices);
+      
+      // Update selected index
+      if (selectedSectionIndex !== null && indicesToMove.includes(selectedSectionIndex)) {
+        const posInMovedGroup = indicesToMove.indexOf(selectedSectionIndex);
+        setSelectedSectionIndex(adjustedDropIndex + posInMovedGroup);
+      }
+      
+      toast.success(`${sectionsToMove.length} sections moved successfully!`);
+    } else {
+      // Single section drag
+      if (draggedIndex === dropIndex) {
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        return;
+      }
+      
+      const updatedSections = [...sections];
+      const [draggedSection] = updatedSections.splice(draggedIndex, 1);
+      updatedSections.splice(dropIndex, 0, draggedSection);
+
+      // Update position numbers for all sections
+      const reorderedSections = updatedSections.map((section, idx) => ({
+        ...section,
+        position: idx + 1
+      }));
+
+      updateFormData({
+        content_structure: {
+          ...formData.content_structure,
+          sections: reorderedSections
+        } as any
+      });
+
+      // Update selected index if the selected section was moved
+      if (selectedSectionIndex === draggedIndex) {
+        setSelectedSectionIndex(dropIndex);
+      } else if (selectedSectionIndex !== null) {
+        // Adjust selected index if it was affected by the move
+        if (draggedIndex < selectedSectionIndex && dropIndex >= selectedSectionIndex) {
+          setSelectedSectionIndex(selectedSectionIndex - 1);
+        } else if (draggedIndex > selectedSectionIndex && dropIndex <= selectedSectionIndex) {
+          setSelectedSectionIndex(selectedSectionIndex + 1);
+        }
+      }
+
+      toast.success('Section moved successfully!');
+    }
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   // Get assessment questions from section's own content_data (not shared global array)
   const getSectionQuestions = (section: VARKModuleContentSection) => {
@@ -671,15 +844,104 @@ export default function ContentStructureStep({
               )}
             </div>
 
-            {/* Quick Populate Button */}
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Populate with sample assessment questions
-                  const sampleQuestions = [
+            {/* Quick Populate Buttons */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-3 flex items-center">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick Populate Sample Assessments
+              </h4>
+              <p className="text-xs text-blue-600 mb-3">
+                Choose a pre-made assessment to quickly populate questions
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {/* Pre-Test Lesson 2 */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const sampleQuestions = [
+                      {
+                        id: `${section.id}-q-${Date.now()}-1`,
+                        type: 'single_choice' as const,
+                        question: 'What is the main function of meiosis in sexual reproduction?',
+                        options: [
+                          'A. To reduce chromosome number by half',
+                          'B. To produce identical cells',
+                          'C. To repair damaged DNA',
+                          'D. To increase cell size'
+                        ],
+                        correct_answer: 'A. To reduce chromosome number by half',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-2`,
+                        type: 'single_choice' as const,
+                        question: 'Where does spermatogenesis occur in male animals?',
+                        options: [
+                          'A. Prostate gland',
+                          'B. Ovaries',
+                          'C. Seminal vesicles',
+                          'D. Testes'
+                        ],
+                        correct_answer: 'D. Testes',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-3`,
+                        type: 'single_choice' as const,
+                        question: 'How many chromosomes are found in a human sperm cell?',
+                        options: [
+                          'A. 44',
+                          'B. 46',
+                          'C. 23',
+                          'D. 22'
+                        ],
+                        correct_answer: 'C. 23',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-4`,
+                        type: 'single_choice' as const,
+                        question: 'What ensures genetic variation during meiosis?',
+                        options: [
+                          'A. Mitosis',
+                          'B. Cytokinesis',
+                          'C. DNA replication',
+                          'D. Crossing over and independent assortment'
+                        ],
+                        correct_answer: 'D. Crossing over and independent assortment',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-5`,
+                        type: 'single_choice' as const,
+                        question: 'What is the result of Meiosis II in spermatogenesis?',
+                        options: [
+                          'A. Four haploid cells',
+                          'B. Two diploid cells',
+                          'C. One egg cell and three polar bodies',
+                          'D. Two haploid cells'
+                        ],
+                        correct_answer: 'A. Four haploid cells',
+                        points: 1
+                      }
+                    ];
+                    updateSectionQuestions(index, sampleQuestions);
+                    toast.success('Pre-Test Lesson 2 populated (5 questions)!');
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                  📝 Pre-Test Lesson 2
+                </Button>
+
+                {/* Post-Test Lesson 2 */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const sampleQuestions = [
                     {
                       id: `${section.id}-q-${Date.now()}-1`,
                       type: 'single_choice' as const,
@@ -813,15 +1075,237 @@ export default function ContentStructureStep({
                   ];
 
                   updateSectionQuestions(index, sampleQuestions);
-                  toast.success('10 sample assessment questions populated!');
+                  toast.success('Post-Test Lesson 2 populated (10 questions)!');
                 }}
-                className="border-blue-300 text-blue-700 hover:bg-blue-100">
-                <Sparkles className="w-4 h-4 mr-2" />
-                Quick Populate Sample Questions
+                className="border-green-300 text-green-700 hover:bg-green-100">
+                📊 Post-Test Lesson 2
               </Button>
-              <p className="text-xs text-blue-600 mt-2">
-                Click to populate with 10 sample meiosis questions
-              </p>
+
+                {/* Pre-Test Lesson 3 */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const sampleQuestions = [
+                      {
+                        id: `${section.id}-q-${Date.now()}-1`,
+                        type: 'single_choice' as const,
+                        question: 'Which type of reproduction involves only one parent and produces genetically identical offspring?',
+                        options: [
+                          'A. Internal fertilization',
+                          'B. Sexual reproduction',
+                          'C. External fertilization',
+                          'D. Asexual reproduction'
+                        ],
+                        correct_answer: 'D. Asexual reproduction',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-2`,
+                        type: 'single_choice' as const,
+                        question: 'What is the term for the union of sperm and egg cells?',
+                        options: [
+                          'A. Fission',
+                          'B. Meiosis',
+                          'C. Regeneration',
+                          'D. Fertilization'
+                        ],
+                        correct_answer: 'D. Fertilization',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-3`,
+                        type: 'single_choice' as const,
+                        question: 'Which reproductive strategy involves eggs developing inside the mother and receiving nourishment from the yolk?',
+                        options: [
+                          'A. Vegetative propagation',
+                          'B. Viviparous',
+                          'C. Ovoviviparous',
+                          'D. Oviparous'
+                        ],
+                        correct_answer: 'C. Ovoviviparous',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-4`,
+                        type: 'single_choice' as const,
+                        question: 'Which part of a flowering plant produces gametes for reproduction?',
+                        options: [
+                          'A. Root',
+                          'B. Leaf',
+                          'C. Stem',
+                          'D. Flower'
+                        ],
+                        correct_answer: 'D. Flower',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-5`,
+                        type: 'single_choice' as const,
+                        question: 'Which mode of asexual reproduction involves an organism dividing into two equal parts?',
+                        options: [
+                          'A. Fission',
+                          'B. Spore formation',
+                          'C. Budding',
+                          'D. Fragmentation'
+                        ],
+                        correct_answer: 'A. Fission',
+                        points: 1
+                      }
+                    ];
+                    updateSectionQuestions(index, sampleQuestions);
+                    toast.success('Pre-Test Lesson 3 populated (5 questions)!');
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                  📝 Pre-Test Lesson 3
+                </Button>
+
+                {/* Post-Test Lesson 3 */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const sampleQuestions = [
+                      {
+                        id: `${section.id}-q-${Date.now()}-1`,
+                        type: 'single_choice' as const,
+                        question: 'What is the process in which living organisms form a new life or offspring?',
+                        options: [
+                          'A. Fertilization',
+                          'B. Photosynthesis',
+                          'C. Reproduction',
+                          'D. Circulation'
+                        ],
+                        correct_answer: 'C. Reproduction',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-2`,
+                        type: 'single_choice' as const,
+                        question: 'What will happen to life on Earth if reproduction does not occur?',
+                        options: [
+                          'A. Organisms will grow taller',
+                          'B. All species would disappear',
+                          'C. Plants will stop making food',
+                          'D. Humans will live forever'
+                        ],
+                        correct_answer: 'B. All species would disappear',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-3`,
+                        type: 'single_choice' as const,
+                        question: 'Which type of reproduction involves two parents?',
+                        options: [
+                          'A. Asexual reproduction',
+                          'B. Sexual reproduction',
+                          'C. Budding',
+                          'D. Binary fission'
+                        ],
+                        correct_answer: 'B. Sexual reproduction',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-4`,
+                        type: 'single_choice' as const,
+                        question: 'Which type of reproduction needs only one parent?',
+                        options: [
+                          'A. Sexual reproduction',
+                          'B. Asexual reproduction',
+                          'C. Fertilization',
+                          'D. Variation'
+                        ],
+                        correct_answer: 'B. Asexual reproduction',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-5`,
+                        type: 'single_choice' as const,
+                        question: 'What are the special cells provided by each parent in sexual reproduction?',
+                        options: [
+                          'A. Blood cells',
+                          'B. Skin cells',
+                          'C. Gametes (egg and sperm)',
+                          'D. Bone cells'
+                        ],
+                        correct_answer: 'C. Gametes (egg and sperm)',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-6`,
+                        type: 'single_choice' as const,
+                        question: 'When an egg cell and sperm cell combine during fertilization, what is formed?',
+                        options: [
+                          'A. A zygote or offspring',
+                          'B. A chromosome',
+                          'C. A bud',
+                          'D. A tuber'
+                        ],
+                        correct_answer: 'A. A zygote or offspring',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-7`,
+                        type: 'single_choice' as const,
+                        question: 'Which of the following is an example of asexual reproduction?',
+                        options: [
+                          'A. A dog giving birth to puppies',
+                          'B. A hydra forming a bud',
+                          'C. A man and woman having a child',
+                          'D. Two plants cross-pollinating'
+                        ],
+                        correct_answer: 'B. A hydra forming a bud',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-8`,
+                        type: 'single_choice' as const,
+                        question: 'Which is an advantage of sexual reproduction?',
+                        options: [
+                          'A. Produces many offspring quickly',
+                          'B. Produces variation for adaptation',
+                          'C. Needs only one parent',
+                          'D. Makes identical offspring'
+                        ],
+                        correct_answer: 'B. Produces variation for adaptation',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-9`,
+                        type: 'single_choice' as const,
+                        question: 'Which is a disadvantage of asexual reproduction?',
+                        options: [
+                          'A. Requires two parents',
+                          'B. Takes a long time to complete',
+                          'C. Produces little or no variation',
+                          'D. Produces only a few offspring'
+                        ],
+                        correct_answer: 'C. Produces little or no variation',
+                        points: 1
+                      },
+                      {
+                        id: `${section.id}-q-${Date.now()}-10`,
+                        type: 'single_choice' as const,
+                        question: 'Why is reproduction important in the survival of species?',
+                        options: [
+                          'A. It allows life to continue from one generation to the next',
+                          'B. It helps organisms breathe better',
+                          'C. It makes plants grow taller',
+                          'D. It gives energy for movement'
+                        ],
+                        correct_answer: 'A. It allows life to continue from one generation to the next',
+                        points: 1
+                      }
+                    ];
+                    updateSectionQuestions(index, sampleQuestions);
+                    toast.success('Post-Test Lesson 3 populated (10 questions)!');
+                  }}
+                  className="border-green-300 text-green-700 hover:bg-green-100">
+                  📊 Post-Test Lesson 3
+                </Button>
+              </div>
             </div>
 
             {/* Multiple Questions Support */}
@@ -1806,13 +2290,303 @@ export default function ContentStructureStep({
                   <SelectItem value="discussion">Fill-in-the-Blanks</SelectItem>
                   <SelectItem value="matching">Matching</SelectItem>
                   <SelectItem value="true_false_correction">True or False with Correction</SelectItem>
+                  <SelectItem value="true_false_simple">True or False (Simple)</SelectItem>
                   <SelectItem value="think_write_understand">Think, Write, Understand</SelectItem>
+                  <SelectItem value="table_and_questions">Table + Questions</SelectItem>
                   {/* <SelectItem value="labeling">Labeling</SelectItem>
                   <SelectItem value="drag_drop">Drag & Drop</SelectItem>
                   <SelectItem value="simulation">Simulation</SelectItem> */}
                   <SelectItem value="experiment">Experiment</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Quick Populate Buttons for Activities */}
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <h4 className="font-semibold text-purple-800 mb-3 flex items-center">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Quick Populate Sample Activities
+              </h4>
+              <p className="text-xs text-purple-600 mb-3">
+                Choose a pre-made activity based on your selected Activity Type
+              </p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {/* Fill-in-the-Box Activity */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          type: 'table_and_questions',
+                          title: 'Fill in the Box',
+                          description: 'Complete the table and answer the generalization questions.',
+                          part_a_title: 'A. Fill in the Box',
+                          part_a_instruction: 'Complete the table below by filling in the boxes under Sexual Reproduction and Asexual Reproduction based on the feature listed in the first column.',
+                          table: {
+                            headers: ['Features', 'Sexual Reproduction', 'Asexual Reproduction'],
+                            rows: [
+                              { feature: 'Number of Parent/s involved', sexual: '', asexual: '' },
+                              { feature: 'Genetic Identity', sexual: '', asexual: '' },
+                              { feature: 'Common Method (Provide at least one (1) method)', sexual: '(e.g., fertilization)', asexual: '' }
+                            ]
+                          },
+                          part_b_title: 'B. Generalization',
+                          part_b_instruction: 'Read each question carefully and write your answers in the space provided.',
+                          questions: [
+                            'In your own words, compare and contrast sexual and asexual reproduction.',
+                            'Why do you think both sexual and asexual reproduction are important for living organisms? Explain your answer.',
+                            'Give at least two modes of asexual reproduction and explain how each mode occurs.'
+                          ]
+                        }
+                      }
+                    });
+                    toast.success('Table + Questions activity populated!');
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                  📋 Fill in the Box
+                </Button>
+
+                {/* Matching Activity */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          type: 'matching',
+                          title: 'Match it up!',
+                          description: 'Look at each diagram in Column A and match it to the correct term in column B that describes how each organism reproduces.',
+                          instructions: [
+                            'Look at each diagram in Column A',
+                            'Match it to the correct term in Column B',
+                            'Write the letter of your answer on the space provided'
+                          ],
+                          matching_pairs: [
+                            { 
+                              description: 'Flower with labeled parts (stamen, pistil, petal, sepal)',
+                              image_url: '',
+                              term: 'A. Sexual Reproduction',
+                              has_image: true,
+                              correct_answer: 'A'
+                            },
+                            { 
+                              description: 'Hydra budding process diagram',
+                              image_url: '',
+                              term: 'B. Budding',
+                              has_image: true,
+                              correct_answer: 'B'
+                            },
+                            { 
+                              description: 'Binary fission cell division',
+                              image_url: '',
+                              term: 'C. Vegetative Propagation',
+                              has_image: true,
+                              correct_answer: 'C'
+                            },
+                            { 
+                              description: 'Regeneration stages (planaria/starfish)',
+                              image_url: '',
+                              term: 'D. Regeneration',
+                              has_image: true,
+                              correct_answer: 'D'
+                            },
+                            { 
+                              description: 'Starfish external fertilization process',
+                              image_url: '',
+                              term: 'E. External Fertilization',
+                              has_image: true,
+                              correct_answer: 'E'
+                            }
+                          ]
+                        }
+                      }
+                    });
+                    toast.success('Matching activity populated!');
+                  }}
+                  className="border-green-300 text-green-700 hover:bg-green-100">
+                  🔗 Matching Activity
+                </Button>
+
+                {/* True or False Activity */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          type: 'true_false_correction',
+                          title: 'True or False',
+                          description: 'Write TRUE if the statement is correct and FALSE if the statement is wrong.',
+                          instructions: [
+                            'Read each statement carefully',
+                            'Write TRUE if the statement is correct',
+                            'Write FALSE if the statement is wrong'
+                          ],
+                          statements: [
+                            {
+                              statement: 'Sexual Reproduction involves only single parents to reproduce.',
+                              is_true: false,
+                              correction: 'Sexual reproduction involves two parents'
+                            },
+                            {
+                              statement: 'Internal Fertilization occurs inside the female\'s body.',
+                              is_true: true,
+                              correction: ''
+                            },
+                            {
+                              statement: 'Fragmentation is a mode of sexual reproduction where an organism replaces or repairs a lost or damaged part of its body.',
+                              is_true: false,
+                              correction: 'Fragmentation is a mode of asexual reproduction'
+                            },
+                            {
+                              statement: 'Budding is where a new organism or offspring and eventually separate to become a new individual.',
+                              is_true: true,
+                              correction: ''
+                            },
+                            {
+                              statement: 'Vegetative propagation is a type of sexual reproduction in plants, where a new plant can develop from the root, stem or leaf of an already existing plant.',
+                              is_true: false,
+                              correction: 'Vegetative propagation is a type of asexual reproduction'
+                            }
+                          ]
+                        }
+                      }
+                    });
+                    toast.success('True or False activity populated!');
+                  }}
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                  ✓✗ True or False
+                </Button>
+
+                {/* Table + Questions Activity */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          type: 'table_and_questions',
+                          title: 'Fill in the Box',
+                          description: 'Complete the table and answer the generalization questions.',
+                          part_a_title: 'A. Fill in the Box',
+                          part_a_instruction: 'Complete the table below by filling in the boxes under Sexual Reproduction and Asexual Reproduction based on the feature listed in the first column.',
+                          table: {
+                            headers: ['Features', 'Sexual Reproduction', 'Asexual Reproduction'],
+                            rows: [
+                              { 
+                                feature: 'Number of Parent/s involved', 
+                                sexual: '', 
+                                asexual: '',
+                                answer_sexual: 'Two parents',
+                                answer_asexual: 'One parent'
+                              },
+                              { 
+                                feature: 'Genetic Identity', 
+                                sexual: '', 
+                                asexual: '',
+                                answer_sexual: 'Genetically different from parents',
+                                answer_asexual: 'Genetically identical to parent'
+                              },
+                              { 
+                                feature: 'Common Method (Provide at least one (1) method)', 
+                                sexual: '(e.g., fertilization)', 
+                                asexual: '',
+                                answer_sexual: 'Fertilization',
+                                answer_asexual: 'Budding, Binary fission, Fragmentation, Vegetative propagation'
+                              }
+                            ]
+                          },
+                          part_b_title: 'B. Generalization',
+                          part_b_instruction: 'Read each question carefully and write your answers in the space provided.',
+                          questions: [
+                            {
+                              question: 'In your own words, compare and contrast sexual and asexual reproduction.',
+                              points: 5,
+                              rubric: 'Student clearly compares and contrasts both types of reproduction'
+                            },
+                            {
+                              question: 'Why do you think both sexual and asexual reproduction are important for living organisms? Explain your answer.',
+                              points: 5,
+                              rubric: 'Student explains the importance of both types with valid reasoning'
+                            },
+                            {
+                              question: 'Give at least two modes of asexual reproduction and explain how each mode occurs.',
+                              points: 5,
+                              rubric: 'Student provides at least 2 modes with accurate explanations'
+                            }
+                          ]
+                        }
+                      }
+                    });
+                    toast.success('Table + Questions activity populated!');
+                  }}
+                  className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                  📊 Table + Questions
+                </Button>
+
+                {/* Simple True or False Activity */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    updateContentSection(index, {
+                      content_data: {
+                        ...section.content_data,
+                        activity_data: {
+                          ...section.content_data?.activity_data,
+                          type: 'true_false_simple',
+                          title: 'True or False',
+                          description: 'Write TRUE if the statement is correct and FALSE if the statement is wrong.',
+                          statements: [
+                            {
+                              statement: 'Sexual Reproduction involves only single parents to reproduce.',
+                              is_true: false
+                            },
+                            {
+                              statement: 'Internal Fertilization occurs inside the female\'s body.',
+                              is_true: true
+                            },
+                            {
+                              statement: 'Fragmentation is a mode of sexual reproduction where an organism replaces or repairs a lost damaged part of the body.',
+                              is_true: false
+                            },
+                            {
+                              statement: 'Budding is where a new organism or offspring and eventually separate to become a new individual.',
+                              is_true: true
+                            },
+                            {
+                              statement: 'Vegetative propagation is a type of sexual reproduction in plants, where a new plant can develop from the root, stem or leaf of an already existing plant.',
+                              is_true: false
+                            }
+                          ]
+                        }
+                      }
+                    });
+                    toast.success('Simple True or False activity populated!');
+                  }}
+                  className="border-indigo-300 text-indigo-700 hover:bg-indigo-100">
+                  ✓✗ True/False (Simple)
+                </Button>
+              </div>
             </div>
 
             {/* Fill-in-the-Blanks Activity */}
@@ -2093,13 +2867,13 @@ export default function ContentStructureStep({
                     ).map((pair, pairIndex) => (
                       <Card key={pairIndex} className="border border-gray-200">
                         <CardContent className="p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-3">
                             <div>
                               <Label className="text-sm font-medium text-gray-700">
-                                Column A (Description)
+                                Column A (Description/Image)
                               </Label>
                               <Textarea
-                                placeholder="Enter description..."
+                                placeholder="Enter description (e.g., Flower with labeled parts)..."
                                 value={pair.description || ''}
                                 onChange={e => {
                                   const currentPairs = section.content_data
@@ -2121,9 +2895,79 @@ export default function ContentStructureStep({
                                     }
                                   });
                                 }}
-                                className="min-h-[80px] resize-none"
+                                className="min-h-[60px] resize-none"
                               />
                             </div>
+
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={pair.has_image || false}
+                                onCheckedChange={(checked) => {
+                                  const currentPairs = section.content_data
+                                    ?.activity_data?.matching_pairs || [];
+                                  const newPairs = [...currentPairs];
+                                  newPairs[pairIndex] = {
+                                    ...newPairs[pairIndex],
+                                    has_image: checked as boolean
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        matching_pairs: newPairs
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                              <Label className="text-sm text-gray-600">
+                                Use image for Column A
+                              </Label>
+                            </div>
+
+                            {pair.has_image && (
+                              <div>
+                                <Label className="text-sm font-medium text-gray-700">
+                                  Image URL
+                                </Label>
+                                <Input
+                                  placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                                  value={pair.image_url || ''}
+                                  onChange={e => {
+                                    const currentPairs = section.content_data
+                                      ?.activity_data?.matching_pairs || [];
+                                    const newPairs = [...currentPairs];
+                                    newPairs[pairIndex] = {
+                                      ...newPairs[pairIndex],
+                                      image_url: e.target.value
+                                    };
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          matching_pairs: newPairs
+                                        }
+                                      }
+                                    });
+                                  }}
+                                />
+                                {pair.image_url && (
+                                  <div className="mt-2 p-2 border border-gray-200 rounded">
+                                    <img 
+                                      src={pair.image_url} 
+                                      alt="Preview" 
+                                      className="max-w-full h-32 object-contain"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <div>
                               <Label className="text-sm font-medium text-gray-700">
                                 Column B (Term)
@@ -2152,6 +2996,47 @@ export default function ContentStructureStep({
                                   });
                                 }}
                               />
+                            </div>
+
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">
+                                Correct Answer (Letter)
+                              </Label>
+                              <Select
+                                value={pair.correct_answer || ''}
+                                onValueChange={(value) => {
+                                  const currentPairs = section.content_data
+                                    ?.activity_data?.matching_pairs || [];
+                                  const newPairs = [...currentPairs];
+                                  newPairs[pairIndex] = {
+                                    ...newPairs[pairIndex],
+                                    correct_answer: value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        matching_pairs: newPairs
+                                      }
+                                    }
+                                  });
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select correct answer..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(section.content_data?.activity_data?.matching_pairs || []).map((_, idx) => (
+                                    <SelectItem key={idx} value={String.fromCharCode(65 + idx)}>
+                                      {String.fromCharCode(65 + idx)} - {section.content_data?.activity_data?.matching_pairs?.[idx]?.term || `Option ${idx + 1}`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Select which letter in Column B is the correct match for this item
+                              </p>
                             </div>
                           </div>
                           <div className="flex justify-end mt-3">
@@ -2533,6 +3418,175 @@ export default function ContentStructureStep({
                                 ...currentStatements,
                                 { statement: '', is_true: true, correction: '' }
                               ]
+                            }
+                          }
+                        });
+                      }}
+                      className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Statement
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Simple True/False Activity */}
+            {section.content_data?.activity_data?.type === 'true_false_simple' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <h4 className="font-semibold text-indigo-800 mb-2 flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Simple True or False Activity
+                  </h4>
+                  <p className="text-sm text-indigo-700">
+                    Create True/False statements with simple TRUE/FALSE answers
+                  </p>
+                </div>
+
+                {/* Statements */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <List className="w-4 h-4 mr-2" />
+                    Statements
+                  </Label>
+                  <div className="space-y-3">
+                    {(
+                      section.content_data?.activity_data?.statements || [{ statement: '', is_true: true }]
+                    ).map((stmt, stmtIndex) => (
+                      <Card key={stmtIndex} className="border border-gray-200">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-semibold text-gray-700">
+                              Statement {stmtIndex + 1}
+                            </Label>
+                            {(section.content_data?.activity_data?.statements || []).length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const currentStatements = section.content_data
+                                    ?.activity_data?.statements || [];
+                                  const newStatements = currentStatements.filter(
+                                    (_, i) => i !== stmtIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        statements: newStatements
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <Textarea
+                            placeholder="Enter the statement"
+                            value={stmt.statement}
+                            onChange={e => {
+                              const currentStatements = section.content_data
+                                ?.activity_data?.statements || [];
+                              const newStatements = [...currentStatements];
+                              newStatements[stmtIndex] = {
+                                ...newStatements[stmtIndex],
+                                statement: e.target.value
+                              };
+                              updateContentSection(index, {
+                                content_data: {
+                                  ...section.content_data,
+                                  activity_data: {
+                                    ...section.content_data?.activity_data,
+                                    statements: newStatements
+                                  }
+                                }
+                              });
+                            }}
+                            className="min-h-[60px] resize-none"
+                          />
+
+                          <div className="flex items-center space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <Label className="text-sm font-semibold text-yellow-800">
+                              🔑 Correct Answer:
+                            </Label>
+                            <div className="flex items-center space-x-4">
+                              <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`statement-${index}-${stmtIndex}`}
+                                  checked={stmt.is_true === true}
+                                  onChange={() => {
+                                    const currentStatements = section.content_data
+                                      ?.activity_data?.statements || [];
+                                    const newStatements = [...currentStatements];
+                                    newStatements[stmtIndex] = {
+                                      ...newStatements[stmtIndex],
+                                      is_true: true
+                                    };
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          statements: newStatements
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm font-medium text-green-700">TRUE</span>
+                              </label>
+                              <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`statement-${index}-${stmtIndex}`}
+                                  checked={stmt.is_true === false}
+                                  onChange={() => {
+                                    const currentStatements = section.content_data
+                                      ?.activity_data?.statements || [];
+                                    const newStatements = [...currentStatements];
+                                    newStatements[stmtIndex] = {
+                                      ...newStatements[stmtIndex],
+                                      is_true: false
+                                    };
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          statements: newStatements
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm font-medium text-red-700">FALSE</span>
+                              </label>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const currentStatements = section.content_data
+                          ?.activity_data?.statements || [];
+                        updateContentSection(index, {
+                          content_data: {
+                            ...section.content_data,
+                            activity_data: {
+                              ...section.content_data?.activity_data,
+                              statements: [...currentStatements, { statement: '', is_true: true }]
                             }
                           }
                         });
@@ -3109,6 +4163,417 @@ export default function ContentStructureStep({
                       <Plus className="w-4 h-4 mr-2" />
                       Add Rubric Criteria
                     </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Table + Questions Activity */}
+            {section.content_data?.activity_data?.type === 'table_and_questions' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
+                    <Table className="w-4 h-4 mr-2" />
+                    Table + Questions Activity
+                  </h4>
+                  <p className="text-sm text-blue-700">
+                    Create a table for students to fill in, followed by open-ended questions
+                  </p>
+                </div>
+
+                {/* Part A: Table Section */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h5 className="font-semibold text-gray-800 mb-3">Part A: Fill in the Table</h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part A Title</Label>
+                      <Input
+                        placeholder="e.g., A. Fill in the Box"
+                        value={section.content_data?.activity_data?.part_a_title || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part_a_title: e.target.value
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part A Instruction</Label>
+                      <Textarea
+                        placeholder="Instructions for the table..."
+                        value={section.content_data?.activity_data?.part_a_instruction || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part_a_instruction: e.target.value
+                              }
+                            }
+                          })
+                        }
+                        className="min-h-[60px]"
+                      />
+                    </div>
+
+                    {/* Table Configuration */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Table (3 columns: Feature, Sexual, Asexual)</Label>
+                      <div className="space-y-2">
+                        {(
+                          section.content_data?.activity_data?.table?.rows || [
+                            { feature: '', sexual: '', asexual: '' }
+                          ]
+                        ).map((row, rowIndex) => (
+                          <Card key={rowIndex} className="border border-gray-200">
+                            <CardContent className="p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs font-semibold text-gray-700">
+                                  Row {rowIndex + 1}
+                                </Label>
+                                {(section.content_data?.activity_data?.table?.rows || []).length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const currentRows = section.content_data
+                                        ?.activity_data?.table?.rows || [];
+                                      const newRows = currentRows.filter(
+                                        (_, i) => i !== rowIndex
+                                      );
+                                      updateContentSection(index, {
+                                        content_data: {
+                                          ...section.content_data,
+                                          activity_data: {
+                                            ...section.content_data?.activity_data,
+                                            table: {
+                                              ...section.content_data?.activity_data?.table,
+                                              rows: newRows
+                                            }
+                                          }
+                                        }
+                                      });
+                                    }}
+                                    className="text-red-600 hover:text-red-700">
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <Input
+                                placeholder="Feature (e.g., Number of Parent/s involved)"
+                                value={row.feature}
+                                onChange={e => {
+                                  const currentRows = section.content_data
+                                    ?.activity_data?.table?.rows || [];
+                                  const newRows = [...currentRows];
+                                  newRows[rowIndex] = {
+                                    ...newRows[rowIndex],
+                                    feature: e.target.value
+                                  };
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        table: {
+                                          ...section.content_data?.activity_data?.table,
+                                          rows: newRows
+                                        }
+                                      }
+                                    }
+                                  });
+                                }}
+                              />
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input
+                                  placeholder="Sexual (optional hint)"
+                                  value={row.sexual}
+                                  onChange={e => {
+                                    const currentRows = section.content_data
+                                      ?.activity_data?.table?.rows || [];
+                                    const newRows = [...currentRows];
+                                    newRows[rowIndex] = {
+                                      ...newRows[rowIndex],
+                                      sexual: e.target.value
+                                    };
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          table: {
+                                            ...section.content_data?.activity_data?.table,
+                                            rows: newRows
+                                          }
+                                        }
+                                      }
+                                    });
+                                  }}
+                                />
+                                <Input
+                                  placeholder="Asexual (optional hint)"
+                                  value={row.asexual}
+                                  onChange={e => {
+                                    const currentRows = section.content_data
+                                      ?.activity_data?.table?.rows || [];
+                                    const newRows = [...currentRows];
+                                    newRows[rowIndex] = {
+                                      ...newRows[rowIndex],
+                                      asexual: e.target.value
+                                    };
+                                    updateContentSection(index, {
+                                      content_data: {
+                                        ...section.content_data,
+                                        activity_data: {
+                                          ...section.content_data?.activity_data,
+                                          table: {
+                                            ...section.content_data?.activity_data?.table,
+                                            rows: newRows
+                                          }
+                                        }
+                                      }
+                                    });
+                                  }}
+                                />
+                              </div>
+
+                              {/* Answer Keys for Auto-Grading */}
+                              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                <Label className="text-xs font-semibold text-yellow-800 mb-2 block">
+                                  🔑 Answer Keys (for auto-grading Part A)
+                                </Label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs text-gray-600">Sexual Answer</Label>
+                                    <Input
+                                      placeholder="Correct answer for Sexual column"
+                                      value={row.answer_sexual || ''}
+                                      onChange={e => {
+                                        const currentRows = section.content_data
+                                          ?.activity_data?.table?.rows || [];
+                                        const newRows = [...currentRows];
+                                        newRows[rowIndex] = {
+                                          ...newRows[rowIndex],
+                                          answer_sexual: e.target.value
+                                        };
+                                        updateContentSection(index, {
+                                          content_data: {
+                                            ...section.content_data,
+                                            activity_data: {
+                                              ...section.content_data?.activity_data,
+                                              table: {
+                                                ...section.content_data?.activity_data?.table,
+                                                rows: newRows
+                                              }
+                                            }
+                                          }
+                                        });
+                                      }}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs text-gray-600">Asexual Answer</Label>
+                                    <Input
+                                      placeholder="Correct answer for Asexual column"
+                                      value={row.answer_asexual || ''}
+                                      onChange={e => {
+                                        const currentRows = section.content_data
+                                          ?.activity_data?.table?.rows || [];
+                                        const newRows = [...currentRows];
+                                        newRows[rowIndex] = {
+                                          ...newRows[rowIndex],
+                                          answer_asexual: e.target.value
+                                        };
+                                        updateContentSection(index, {
+                                          content_data: {
+                                            ...section.content_data,
+                                            activity_data: {
+                                              ...section.content_data?.activity_data,
+                                              table: {
+                                                ...section.content_data?.activity_data?.table,
+                                                rows: newRows
+                                              }
+                                            }
+                                          }
+                                        });
+                                      }}
+                                      className="text-sm"
+                                    />
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  💡 System will check if student answer contains these keywords
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const currentRows = section.content_data
+                              ?.activity_data?.table?.rows || [];
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  table: {
+                                    ...section.content_data?.activity_data?.table,
+                                    rows: [
+                                      ...currentRows,
+                                      { feature: '', sexual: '', asexual: '', answer_sexual: '', answer_asexual: '' }
+                                    ]
+                                  }
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Table Row
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Part B: Questions Section */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h5 className="font-semibold text-gray-800 mb-3">Part B: Generalization Questions</h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part B Title</Label>
+                      <Input
+                        placeholder="e.g., B. Generalization"
+                        value={section.content_data?.activity_data?.part_b_title || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part_b_title: e.target.value
+                              }
+                            }
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Part B Instruction</Label>
+                      <Textarea
+                        placeholder="Instructions for the questions..."
+                        value={section.content_data?.activity_data?.part_b_instruction || ''}
+                        onChange={e =>
+                          updateContentSection(index, {
+                            content_data: {
+                              ...section.content_data,
+                              activity_data: {
+                                ...section.content_data?.activity_data,
+                                part_b_instruction: e.target.value
+                              }
+                            }
+                          })
+                        }
+                        className="min-h-[60px]"
+                      />
+                    </div>
+
+                    {/* Questions */}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-700">Questions</Label>
+                      <div className="space-y-2">
+                        {(
+                          section.content_data?.activity_data?.questions || ['']
+                        ).map((question, qIndex) => (
+                          <div key={qIndex} className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-gray-600 w-8">
+                              {qIndex + 1}.
+                            </span>
+                            <Textarea
+                              placeholder={`Question ${qIndex + 1}`}
+                              value={question}
+                              onChange={e => {
+                                const currentQuestions = section.content_data
+                                  ?.activity_data?.questions || [''];
+                                const newQuestions = [...currentQuestions];
+                                newQuestions[qIndex] = e.target.value;
+                                updateContentSection(index, {
+                                  content_data: {
+                                    ...section.content_data,
+                                    activity_data: {
+                                      ...section.content_data?.activity_data,
+                                      questions: newQuestions
+                                    }
+                                  }
+                                });
+                              }}
+                              className="flex-1 min-h-[60px] resize-none"
+                            />
+                            {(section.content_data?.activity_data?.questions || []).length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const currentQuestions = section.content_data
+                                    ?.activity_data?.questions || [''];
+                                  const newQuestions = currentQuestions.filter(
+                                    (_, i) => i !== qIndex
+                                  );
+                                  updateContentSection(index, {
+                                    content_data: {
+                                      ...section.content_data,
+                                      activity_data: {
+                                        ...section.content_data?.activity_data,
+                                        questions: newQuestions
+                                      }
+                                    }
+                                  });
+                                }}
+                                className="text-red-600 hover:text-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const currentQuestions = section.content_data
+                              ?.activity_data?.questions || [];
+                            updateContentSection(index, {
+                              content_data: {
+                                ...section.content_data,
+                                activity_data: {
+                                  ...section.content_data?.activity_data,
+                                  questions: [...currentQuestions, { question: '', points: 5, rubric: '' }]
+                                }
+                              }
+                            });
+                          }}
+                          className="w-full border-dashed border-2 border-gray-300 hover:border-gray-400">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Question
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4349,6 +5814,7 @@ export default function ContentStructureStep({
               <Label>Content to Read Aloud *</Label>
               <div className="mt-2">
                 <CKEditorContentEditor
+                  key={`read-aloud-${section.id}`}
                   data={section.content_data?.read_aloud_data?.content || ''}
                   onChange={(data) =>
                     updateContentSection(index, {
@@ -4953,46 +6419,91 @@ export default function ContentStructureStep({
           <Card className="border-0 shadow-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Content Sections</CardTitle>
-                <Button
-                  onClick={() => {
-                    if (sections.length === 0) {
-                      // If no sections exist, add directly
-                      addContentSection();
-                    } else {
-                      // Show placement modal
-                      setShowPlacementModal(true);
-                    }
-                  }}
-                  size="sm"
-                  className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Section
-                </Button>
+                <div className="flex items-center gap-3">
+                  <CardTitle className="text-lg">Content Sections</CardTitle>
+                  {multiSelectedIndices.size > 0 && (
+                    <Badge className="bg-purple-500 text-white">
+                      {multiSelectedIndices.size} selected
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {multiSelectedIndices.size > 0 && (
+                    <Button
+                      onClick={() => setMultiSelectedIndices(new Set())}
+                      size="sm"
+                      variant="outline"
+                      className="text-gray-600 hover:text-gray-800">
+                      Clear Selection
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => {
+                      if (sections.length === 0) {
+                        // If no sections exist, add directly
+                        addContentSection();
+                      } else {
+                        // Show placement modal
+                        setShowPlacementModal(true);
+                      }
+                    }}
+                    size="sm"
+                    className="bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Section
+                  </Button>
+                </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="max-h-[600px] overflow-y-auto">
               <div className="space-y-2">
                 {sections.map((section, index) => (
                   <div
                     key={section.id}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                      selectedSectionIndex === index
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`p-4 rounded-xl border-2 cursor-move transition-all duration-200 hover:shadow-md ${
+                      draggedIndex === index
+                        ? 'opacity-50 scale-95'
+                        : dragOverIndex === index
+                        ? 'border-blue-500 bg-blue-50 scale-105 shadow-xl'
+                        : multiSelectedIndices.has(index)
+                        ? 'border-purple-500 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg ring-2 ring-purple-300'
+                        : selectedSectionIndex === index
                         ? 'border-teal-500 bg-gradient-to-r from-teal-50 to-emerald-50 shadow-lg'
                         : 'border-gray-200 hover:border-teal-300 hover:bg-teal-50/30'
-                    }`}
-                    onClick={() => {
-                      console.log(`📂 Loading Section ${index + 1}:`, {
-                        sectionId: section.id,
-                        title: section.title || `Section ${index + 1}`,
-                        hasText: !!section.content_data?.text,
-                        textLength: section.content_data?.text?.length || 0,
-                        textPreview: section.content_data?.text?.substring(0, 100) || '(empty)'
-                      });
-                      setSelectedSectionIndex(index);
-                    }}>
+                    }`}>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1"
+                        onClick={() => {
+                          console.log(`📂 Loading Section ${index + 1}:`, {
+                            sectionId: section.id,
+                            title: section.title || `Section ${index + 1}`,
+                            hasText: !!section.content_data?.text,
+                            textLength: section.content_data?.text?.length || 0,
+                            textPreview: section.content_data?.text?.substring(0, 100) || '(empty)'
+                          });
+                          setSelectedSectionIndex(index);
+                        }}>
+                        {/* Checkbox for multi-selection */}
+                        <Checkbox
+                          checked={multiSelectedIndices.has(index)}
+                          onCheckedChange={(checked) => {
+                            const newSelection = new Set(multiSelectedIndices);
+                            if (checked) {
+                              newSelection.add(index);
+                            } else {
+                              newSelection.delete(index);
+                            }
+                            setMultiSelectedIndices(newSelection);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="border-2"
+                        />
                         {/* Section Number Badge */}
                         <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${
                           selectedSectionIndex === index
@@ -5008,19 +6519,33 @@ export default function ContentStructureStep({
                           </span>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={e => {
-                          e.stopPropagation();
-                          removeContentSection(index);
-                          if (selectedSectionIndex === index) {
-                            setSelectedSectionIndex(null);
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-700 p-1">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            duplicateSection(index);
+                          }}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1"
+                          title="Duplicate section">
+                          <Copy className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => {
+                            e.stopPropagation();
+                            removeContentSection(index);
+                            if (selectedSectionIndex === index) {
+                              setSelectedSectionIndex(null);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1"
+                          title="Delete section">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-2 flex items-center space-x-2 ml-11">
                       <Badge variant="outline" className="text-xs">

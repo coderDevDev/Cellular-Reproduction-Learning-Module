@@ -72,6 +72,7 @@ const varkModuleSchema = z.object({
     .number()
     .min(1, 'Duration must be at least 1 minute')
     .max(480, 'Duration cannot exceed 8 hours'),
+  prerequisite_module_id: z.string().nullable().optional(),
   prerequisites: z.array(z.string()),
   multimedia_content: z.object({
     videos: z.array(z.string().url('Must be a valid URL')),
@@ -127,6 +128,7 @@ interface VARKModuleFormModalProps {
   ) => Promise<void>;
   moduleData?: VARKModule | null;
   categories: VARKModuleCategory[];
+  availableModules?: VARKModule[];
   mode: 'create' | 'edit';
 }
 
@@ -229,6 +231,7 @@ export default function VARKModuleFormModal({
         'estimated_duration_minutes',
         moduleData.estimated_duration_minutes
       );
+      setValue('prerequisite_module_id', (moduleData as any).prerequisite_module_id || null);
       setValue('prerequisites', moduleData.prerequisites);
       setValue('multimedia_content', moduleData.multimedia_content);
       setValue('interactive_elements', moduleData.interactive_elements);
@@ -510,6 +513,42 @@ export default function VARKModuleFormModal({
                   {errors.estimated_duration_minutes.message}
                 </p>
               )}
+            </div>
+
+            {/* Prerequisite Module Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="prerequisite_module">
+                Prerequisite Module (Optional)
+              </Label>
+              <p className="text-sm text-gray-500">
+                Select a module that students must complete before accessing this one
+              </p>
+              <Select
+                value={watch('prerequisite_module_id') || 'none'}
+                onValueChange={value =>
+                  setValue('prerequisite_module_id', value === 'none' ? null : value)
+                }>
+                <SelectTrigger>
+                  <SelectValue placeholder="No prerequisite required" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <div className="flex items-center space-x-2">
+                      <span>No prerequisite required</span>
+                    </div>
+                  </SelectItem>
+                  {availableModules
+                    .filter(m => m.id !== moduleData?.id) // Don't show current module
+                    .map(module => (
+                      <SelectItem key={module.id} value={module.id}>
+                        <div className="flex items-center space-x-2">
+                          <BookOpen className="w-4 h-4" />
+                          <span>{module.title}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

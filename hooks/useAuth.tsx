@@ -67,37 +67,122 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log({session})
         if (session?.user) {
-          // Build user object from session metadata (no database call needed)
-          const metadata = session.user.user_metadata;
-          const user = {
-            id: session.user.id,
-            email: session.user.email || '',
-            role: metadata.role || 'student',
-            firstName: metadata.first_name,
-            middleName: metadata.middle_name,
-            lastName: metadata.last_name,
-            fullName: `${metadata.first_name || ''} ${metadata.middle_name || ''} ${metadata.last_name || ''}`.trim() || undefined,
-            profilePhoto: undefined,
-            learningStyle: undefined,
-            gradeLevel: metadata.grade_level,
-            onboardingCompleted: false, // Will be updated by auth listener if needed
-            createdAt: session.user.created_at,
-            updatedAt: session.user.updated_at
-          };
+          // Fetch full profile data from database to get learning_style
+          console.log('🔄 Fetching profile data from database...');
           
-          console.log('✅ Session found, user:', { id: user.id, email: user.email, role: user.role });
-          console.log('✅ User authenticated:', {
-            id: user.id,
-            email: user.email,
-            role: user.role
-          });
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('id, email, role, first_name, middle_name, last_name, full_name, profile_photo, learning_style, preferred_modules, grade_level, onboarding_completed, created_at, updated_at')
+              .eq('id', session.user.id)
+              .single();
+            
+            // 🔍 DEBUG: Log raw profile data
+            console.log('🔍 Raw profile data from DB:', profileData);
+            console.log('🔍 Profile error:', profileError);
+            console.log('🔍 preferred_modules value:', profileData?.preferred_modules);
+            console.log('🔍 preferred_modules type:', typeof profileData?.preferred_modules);
+            console.log('🔍 preferred_modules is array?:', Array.isArray(profileData?.preferred_modules));
+            
+            if (profileError || !profileData) {
+              console.warn('⚠️ Profile fetch failed, using session metadata as fallback:', profileError);
+              // Fallback to session metadata
+              const metadata = session.user.user_metadata;
+              const user = {
+                id: session.user.id,
+                email: session.user.email || '',
+                role: metadata.role || 'student',
+                firstName: metadata.first_name,
+                middleName: metadata.middle_name,
+                lastName: metadata.last_name,
+                fullName: `${metadata.first_name || ''} ${metadata.middle_name || ''} ${metadata.last_name || ''}`.trim() || undefined,
+                profilePhoto: undefined,
+                preferredModules: undefined,
+                learningStyle: undefined,
+                gradeLevel: metadata.grade_level,
+                onboardingCompleted: false,
+                createdAt: session.user.created_at,
+                updatedAt: session.user.updated_at
+              };
+              
+              setAuthState({
+                user: user as CustomUser,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null
+              });
+            } else {
+              // 🔍 DEBUG: Log raw profile data
+              console.log('🔍 Raw profile data from DB:', profileData);
+              console.log('🔍 Profile error:', profileError);
+              console.log('🔍 learning_style value:', profileData?.learning_style);
+              console.log('🔍 learning_style type:', typeof profileData?.learning_style);
+              console.log('🔍 preferred_modules value:', profileData?.preferred_modules);
+              console.log('🔍 preferred_modules type:', typeof profileData?.preferred_modules);
+              console.log('🔍 preferred_modules is array?:', Array.isArray(profileData?.preferred_modules));
 
-          setAuthState({
-            user: user as CustomUser,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          });
+              // Use profile data from database
+              const user = {
+                id: profileData.id,
+                email: profileData.email || '',
+                role: profileData.role,
+                firstName: profileData.first_name ?? undefined,
+                middleName: profileData.middle_name ?? undefined,
+                lastName: profileData.last_name ?? undefined,
+                fullName: profileData.full_name ?? undefined,
+                profilePhoto: profileData.profile_photo ?? undefined,
+                // Prioritize preferred_modules (supports multiple styles) over learning_style (single value)
+                preferredModules: profileData.preferred_modules ?? undefined,
+                learningStyle: profileData.learning_style ?? undefined, // Keep for backward compatibility
+                gradeLevel: profileData.grade_level ?? undefined,
+                onboardingCompleted: profileData.onboarding_completed ?? undefined,
+                createdAt: profileData.created_at,
+                updatedAt: profileData.updated_at
+              };
+              
+              console.log('✅ Profile data loaded:', { 
+                id: user.id, 
+                email: user.email, 
+                role: user.role,
+                preferredModules: user.preferredModules,
+                learningStyle: user.learningStyle
+              });
+
+              setAuthState({
+                user: user as CustomUser,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null
+              });
+            }
+          } catch (fetchError) {
+            console.error('❌ Error fetching profile:', fetchError);
+            // Fallback to session metadata
+            const metadata = session.user.user_metadata;
+            const user = {
+              id: session.user.id,
+              email: session.user.email || '',
+              role: metadata.role || 'student',
+              firstName: metadata.first_name,
+              middleName: metadata.middle_name,
+              lastName: metadata.last_name,
+              fullName: `${metadata.first_name || ''} ${metadata.middle_name || ''} ${metadata.last_name || ''}`.trim() || undefined,
+              profilePhoto: undefined,
+              preferredModules: undefined,
+              learningStyle: undefined,
+              gradeLevel: metadata.grade_level,
+              onboardingCompleted: false,
+              createdAt: session.user.created_at,
+              updatedAt: session.user.updated_at
+            };
+            
+            setAuthState({
+              user: user as CustomUser,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null
+            });
+          }
         } else {
           console.log('❌ No authenticated user found');
           setAuthState({
@@ -129,29 +214,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkCurrentUser();
 
     // Set up session refresh interval
-    const refreshInterval = setInterval(async () => {
-      try {
-        const { user, session } = await AuthAPI.getCurrentUser();
-        if (user && session) {
-          setAuthState(prev => ({
-            ...prev,
-            user: user as CustomUser,
-            isAuthenticated: true,
-            error: null
-          }));
-        } else {
-          // Session expired, clear auth state
-          setAuthState({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null
-          });
-        }
-      } catch (error) {
-        console.error('Session refresh error:', error);
-      }
-    }, 5 * 60 * 1000); // Refresh every 5 minutes
+    // const refreshInterval = setInterval(async () => {
+    //   try {
+    //     const { user, session } = await AuthAPI.getCurrentUser();
+    //     if (user && session) {
+    //       setAuthState(prev => ({
+    //         ...prev,
+    //         user: user as CustomUser,
+    //         isAuthenticated: true,
+    //         error: null
+    //       }));
+    //     } else {
+    //       // Session expired, clear auth state
+    //       setAuthState({
+    //         user: null,
+    //         isAuthenticated: false,
+    //         isLoading: false,
+    //         error: null
+    //       });
+    //     }
+    //   } catch (error) {
+    //     console.error('Session refresh error:', error);
+    //   }
+    // }, 5 * 60 * 1000); // Refresh every 5 minutes
 
     // Listen for auth state changes
     const {

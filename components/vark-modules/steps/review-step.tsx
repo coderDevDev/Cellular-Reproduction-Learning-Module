@@ -117,7 +117,9 @@ export default function ReviewStep({ formData, onSave }: ReviewStepProps) {
         section.content_data?.highlight_data ||
         section.content_data?.diagram_data ||
         section.content_data?.interactive_data ||
-        section.content_data?.read_aloud_data;
+        section.content_data?.read_aloud_data ||
+        (section.content_data?.prompt &&
+          section.content_data.prompt.trim().length > 0);
 
       if (!hasContent) {
         issues.push(`Section ${index + 1} content is required`);

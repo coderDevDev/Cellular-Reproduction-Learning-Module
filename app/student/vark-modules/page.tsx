@@ -227,6 +227,23 @@ export default function StudentVARKModulesPage() {
     }
   };
 
+  // Check if module is locked due to prerequisite
+  const isModuleLocked = (module: VARKModule) => {
+    const prerequisiteId = (module as any).prerequisite_module_id;
+    if (!prerequisiteId) return false;
+    
+    // Check if prerequisite module is completed
+    const prerequisiteProgress = progress.find(p => p.module_id === prerequisiteId);
+    return !prerequisiteProgress || prerequisiteProgress.progress_percentage < 100;
+  };
+
+  // Get prerequisite module info
+  const getPrerequisiteModule = (module: VARKModule) => {
+    const prerequisiteId = (module as any).prerequisite_module_id;
+    if (!prerequisiteId) return null;
+    return modules.find(m => m.id === prerequisiteId);
+  };
+
   const filteredModules = modules.filter(module => {
     const matchesSearch =
       module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -451,7 +468,7 @@ export default function StudentVARKModulesPage() {
             </div>
 
             {/* Learning Style Filter */}
-            <div>
+            {/* <div>
               <Select
                 value={selectedLearningStyle}
                 onValueChange={setSelectedLearningStyle}>
@@ -471,10 +488,10 @@ export default function StudentVARKModulesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
 
             {/* Difficulty Filter */}
-            <div>
+            {/* <div>
               <Select
                 value={selectedDifficulty}
                 onValueChange={setSelectedDifficulty}>
@@ -490,7 +507,7 @@ export default function StudentVARKModulesPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
           </div>
 
           {/* Active Filters Display */}
@@ -649,6 +666,16 @@ export default function StudentVARKModulesPage() {
                       </div>
                     )}
 
+                    {/* Locked Badge */}
+                    {isModuleLocked(module) && (
+                      <div className="absolute top-2 right-2">
+                        <Badge className="bg-gray-500 text-white text-xs">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Locked
+                        </Badge>
+                      </div>
+                    )}
+
                     {/* Progress Bar */}
                     {moduleProgress > 0 && (
                       <div className="absolute bottom-0 left-0 right-0">
@@ -699,7 +726,7 @@ export default function StudentVARKModulesPage() {
                       </div>
 
                       {/* Difficulty */}
-                      <div className="flex items-center space-x-2">
+                      {/* <div className="flex items-center space-x-2">
                         <DifficultyIcon className="w-4 h-4 text-gray-400" />
                         <Badge
                           className={`text-xs ${
@@ -710,10 +737,10 @@ export default function StudentVARKModulesPage() {
                           {module.difficulty_level.charAt(0).toUpperCase() +
                             module.difficulty_level.slice(1)}
                         </Badge>
-                      </div>
+                      </div> */}
 
                       {/* Learning Styles */}
-                      {module.target_learning_styles &&
+                      {/* {module.target_learning_styles &&
                         module.target_learning_styles.length > 0 && (
                           <div className="flex items-center space-x-2">
                             <Target className="w-4 h-4 text-gray-400" />
@@ -738,24 +765,63 @@ export default function StudentVARKModulesPage() {
                               )}
                             </div>
                           </div>
-                        )}
+                        )} */}
                     </div>
+
+                    {/* Prerequisite Warning */}
+                    {isModuleLocked(module) && (
+                      <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <Lock className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-orange-800 mb-1">
+                              Prerequisite Required
+                            </p>
+                            <p className="text-xs text-orange-700">
+                              Complete{' '}
+                              <span className="font-semibold">
+                                {getPrerequisiteModule(module)?.title || 'previous module'}
+                              </span>{' '}
+                              first
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Action Button */}
                     <div className="flex items-center justify-between">
                       <Button
-                        onClick={() =>
-                          (window.location.href = `/student/vark-modules/${module.id}`)
-                        }
+                        onClick={() => {
+                          if (isModuleLocked(module)) {
+                            toast.error(
+                              `Please complete "${getPrerequisiteModule(module)?.title}" first`
+                            );
+                            return;
+                          }
+                          window.location.href = `/student/vark-modules/${module.id}`;
+                        }}
+                        disabled={isModuleLocked(module)}
                         className={`w-full ${
-                          moduleStatus === 'completed'
+                          isModuleLocked(module)
+                            ? 'bg-gray-400 hover:bg-gray-400 cursor-not-allowed'
+                            : moduleStatus === 'completed'
                             ? 'bg-green-600 hover:bg-green-700'
                             : moduleStatus === 'in_progress'
                             ? 'bg-yellow-600 hover:bg-yellow-700'
                             : 'bg-[#00af8f] hover:bg-[#00af90]'
                         } text-white`}>
-                        <StatusIcon className="w-4 h-4 mr-2" />
-                        {getStatusText(moduleStatus)}
+                        {isModuleLocked(module) ? (
+                          <>
+                            <Lock className="w-4 h-4 mr-2" />
+                            Locked
+                          </>
+                        ) : (
+                          <>
+                            <StatusIcon className="w-4 h-4 mr-2" />
+                            {getStatusText(moduleStatus)}
+                          </>
+                        )}
                       </Button>
                     </div>
 

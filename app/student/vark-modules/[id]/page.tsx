@@ -107,37 +107,118 @@ export default function StudentVARKModulePage() {
         return;
       }
 
-      // ✨ NEW: Apply personalized content filtering based on student's learning preferences
-      // Uses AND matching by default - section must have ALL student preferences
-      if (moduleData.content_structure?.sections) {
-        const studentPreferredModules = user?.preferredModules || [];
-        const originalSectionCount = moduleData.content_structure.sections.length;
-        
-        // Filter sections using the learning style matcher utility
-        // Default mode: 'AND' - section must contain ALL of student's preferences
-        const filteredSections = filterSectionsByPreferences(
-          moduleData.content_structure.sections,
-          studentPreferredModules
-          // matchMode: 'AND' (default) - strict matching
-          // To use OR matching, add: 'OR' as third parameter
-        );
+      // 🔍 DEBUG: Log user object to verify learning style is loaded
+      console.log('🔍 === USER DEBUG ===');
+      console.log('User object:', user);
+      console.log('User learning style:', user?.learningStyle);
+      console.log('User preferred modules:', (user as any)?.preferredModules);
+      console.log('🔍 === END USER DEBUG ===');
 
-        // Update module with personalized sections
+      // ✨ Map preferred_modules to learning style tags format
+      // "Visual" → "visual", "Aural" → "auditory", "Read/Write" → "reading_writing", "Kinesthetic" → "kinesthetic"
+      const learningStyleMap: Record<string, string> = {
+        'Visual': 'visual',
+        'Aural': 'auditory',
+        'Read/Write': 'reading_writing',
+        'Kinesthetic': 'kinesthetic',
+        'General Module': 'everyone' // General module students see everything
+      };
+
+      // Get student's preferred learning styles (supports multiple styles)
+      const preferredModules = (user as any)?.preferredModules || [];
+      const studentLearningStyles = preferredModules
+        .map((module: string) => learningStyleMap[module])
+        .filter((style: string | undefined) => style !== undefined);
+
+      console.log('🎯 Mapped learning styles:', studentLearningStyles);
+
+      // ✨ Apply MULTI-STYLE personalized content filtering
+      // Show sections that match ANY of the student's preferred learning styles
+      if (moduleData.content_structure?.sections && studentLearningStyles.length > 0) {
+        const originalSectionCount = moduleData.content_structure.sections.length;
+
+        console.log('🔍 === CONTENT FILTERING START ===');
+        console.log('👤 Student Preferred Modules:', preferredModules);
+        console.log('👤 Student Learning Styles:', studentLearningStyles);
+        console.log('📦 Total sections in module:', originalSectionCount);
+
+        // STRICT MULTI-STYLE FILTERING: Show section if:
+        // 1. Section has "everyone" tag (universal content), OR
+        // 2. Section has no tags (universal content), OR
+        // 3. Section has ALL of the student's preferred learning styles (STRICT MATCH)
+        const filteredSections = moduleData.content_structure.sections.filter((section, index) => {
+          const tags = section.learning_style_tags || [];
+
+          // Rule 1: If section has "everyone" tag, ALWAYS show it
+          if (tags.includes('everyone')) {
+            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (has "everyone" tag)`);
+            return true;
+          }
+
+          // Rule 2: If section has no tags, show it (universal content)
+          if (tags.length === 0) {
+            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (no tags = universal)`);
+            return true;
+          }
+
+          // Rule 3: EXACT MATCH - Section tags must be a subset of student's learning styles
+          // This means: ALL section tags must be in the student's preferred styles
+          // Example: Student has ['visual', 'auditory'], Section has ['visual'] → SHOW ✅
+          // Example: Student has ['visual'], Section has ['visual', 'auditory'] → HIDE ❌
+          const sectionMatchesStudent = tags.every((tag: string) => studentLearningStyles.includes(tag));
+          
+          if (sectionMatchesStudent) {
+            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (section tags ${JSON.stringify(tags)} are subset of student styles ${JSON.stringify(studentLearningStyles)})`);
+            return true;
+          }
+
+          // Otherwise, HIDE the section
+          console.log(`❌ Section ${index + 1}: "${section.title}" - EXCLUDED (section has tags not in student's preferred styles)`, { sectionTags: tags, studentStyles: studentLearningStyles });
+          return false;
+        });
+
+        // Update module with filtered sections
         moduleData.content_structure.sections = filteredSections;
 
-        // Log personalization stats (helpful for debugging)
+        // Calculate statistics
         const filteredCount = filteredSections.length;
+        const hiddenCount = originalSectionCount - filteredCount;
         const percentageShown = Math.round((filteredCount / originalSectionCount) * 100);
-        console.log(`📚 Personalized Module: Showing ${filteredCount} of ${originalSectionCount} sections (${percentageShown}%)`);
-        console.log(`👤 Student preferences:`, studentPreferredModules);
+
+        console.log('📊 === FILTERING RESULTS ===');
+        console.log(`✅ Sections shown: ${filteredCount}`);
+        console.log(`❌ Sections hidden: ${hiddenCount}`);
+        console.log(`📈 Percentage shown: ${percentageShown}%`);
+        console.log('🔍 === CONTENT FILTERING END ===');
 
         // Show toast notification about personalization
-        if (studentPreferredModules.length > 0 && !studentPreferredModules.includes('General Module')) {
+        const learningStyleLabels = {
+          'visual': 'Visual',
+          'auditory': 'Auditory',
+          'reading_writing': 'Reading/Writing',
+          'kinesthetic': 'Kinesthetic'
+        };
+
+        if (hiddenCount > 0) {
+          const styleNames = preferredModules.join(' + ');
           toast.success(
-            `Personalized for you: ${filteredCount} of ${originalSectionCount} sections match your learning style`,
+            `📚 Personalized for ${styleNames}: Showing ${filteredCount} of ${originalSectionCount} sections`,
+            { duration: 4000 }
+          );
+        } else {
+          toast.info(
+            `📚 All ${originalSectionCount} sections match your learning styles!`,
             { duration: 3000 }
           );
         }
+      } else if (moduleData.content_structure?.sections) {
+        // No learning style set - show all sections
+        const totalSections = moduleData.content_structure.sections.length;
+        console.log(`ℹ️ No learning style set for student, showing all ${totalSections} sections`);
+        toast.info(
+          `Showing all ${totalSections} sections (no learning style preference set)`,
+          { duration: 3000 }
+        );
       }
 
       setModule(moduleData);
@@ -260,6 +341,10 @@ export default function StudentVARKModulePage() {
   const DifficultyIcon =
     difficultyIcons[module.difficulty_level as keyof typeof difficultyIcons];
 
+
+    console.log({userLearningStyle})
+
+    console.log({module})
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
       {/* Header */}
