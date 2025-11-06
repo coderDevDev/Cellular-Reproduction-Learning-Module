@@ -42,7 +42,7 @@ const navigationItems = [
   // { icon: BookOpen, label: 'Lessons', href: '/teacher/lessons' },
   // { icon: GraduationCap, label: 'Classes', href: '/teacher/classes' },
   { icon: Target, label: 'VARK Modules', href: '/teacher/vark-modules' },
-
+  { icon: FileText, label: 'Student Submissions', href: '/teacher/submissions' },
   { icon: Users, label: 'Students', href: '/teacher/students' },
   // { icon: FileText, label: 'Quizzes', href: '/teacher/quizzes' },
   // { icon: Activity, label: 'Activities', href: '/teacher/activities' },

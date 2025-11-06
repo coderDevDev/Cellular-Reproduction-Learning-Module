@@ -1173,45 +1173,53 @@ export class VARKModulesAPI {
     averageScore: number;
     completionRate: number;
   }> {
-    const { data, error } = await this.supabase
-      .from('student_module_submissions')
-      .select('submission_status, assessment_results')
-      .eq('module_id', moduleId);
+    // Get total number of students from profiles table
+    const { data: studentsData, error: studentsError } = await this.supabase
+      .from('profiles')
+      .select('id')
+      .eq('role', 'student');
 
-    if (error) {
-      console.error('Error fetching submission stats:', error);
-      throw new Error('Failed to fetch submission stats');
+    if (studentsError) {
+      console.error('Error fetching students:', studentsError);
+      throw new Error('Failed to fetch students');
     }
 
-    const submissions = data || [];
-    const uniqueStudents = new Set(
-      submissions.map((s: any) => s.student_id)
-    ).size;
-    const submittedCount = submissions.filter(
-      (s: any) => s.submission_status === 'submitted' || s.submission_status === 'reviewed'
-    ).length;
-    const reviewedCount = submissions.filter(
-      (s: any) => s.submission_status === 'reviewed'
-    ).length;
+    const totalStudents = studentsData?.length || 0;
 
-    const scores = submissions
-      .filter((s: any) => s.assessment_results?.percentage)
-      .map((s: any) => s.assessment_results.percentage);
+    // Get module completions
+    const { data: completionsData, error: completionsError } = await this.supabase
+      .from('module_completions')
+      .select('student_id, final_score')
+      .eq('module_id', moduleId);
+
+    if (completionsError) {
+      console.error('Error fetching module completions:', completionsError);
+      throw new Error('Failed to fetch module completions');
+    }
+
+    const completions = completionsData || [];
+    const submittedCount = completions.length;
+
+    // Calculate average score from final_score field
+    const scores = completions
+      .filter((c: any) => c.final_score !== null && c.final_score !== undefined)
+      .map((c: any) => c.final_score);
+    
     const averageScore =
       scores.length > 0
-        ? scores.reduce((sum: number, score: number) => sum + score, 0) /
-          scores.length
+        ? scores.reduce((sum: number, score: number) => sum + score, 0) / scores.length
         : 0;
 
+    const completionRate = totalStudents > 0
+      ? Math.round((submittedCount / totalStudents) * 100)
+      : 0;
+
     return {
-      totalStudents: uniqueStudents,
+      totalStudents,
       submittedCount,
-      reviewedCount,
+      reviewedCount: 0, // Not applicable for module completions
       averageScore: Math.round(averageScore),
-      completionRate:
-        uniqueStudents > 0
-          ? Math.round((submittedCount / uniqueStudents) * 100)
-          : 0
+      completionRate
     };
   }
 
@@ -1318,5 +1326,28 @@ export class VARKModulesAPI {
     }
 
     return data || null;
+  }
+
+  async getModuleCompletions(moduleId: string) {
+    const { data, error } = await this.supabase
+      .from('module_completions')
+      .select(`
+        *,
+        profiles!module_completions_student_id_fkey(
+          id,
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .eq('module_id', moduleId)
+      .order('completion_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching module completions:', error);
+      throw new Error('Failed to fetch module completions');
+    }
+
+    return data || [];
   }
 }
