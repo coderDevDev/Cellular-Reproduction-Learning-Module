@@ -2,9 +2,9 @@ import { supabase } from '@/lib/supabase';
 
 export interface TeacherDashboardStats {
   totalStudents: number;
-  activeLessons: number;
-  quizzesCreated: number;
-  pendingGrades: number;
+  publishedModules: number;
+  totalModules: number;
+  completedModules: number;
 }
 
 export interface LearningStyleDistribution {
@@ -14,21 +14,22 @@ export interface LearningStyleDistribution {
   kinesthetic: number;
 }
 
-export interface RecentSubmission {
-  id: string;
-  title: string;
-  studentName: string;
-  type: 'activity' | 'quiz';
-  submittedAt: string;
-  status: 'pending' | 'graded';
-  score?: number;
+export interface LearningTypeDistribution {
+  unimodal: number;
+  bimodal: number;
+  trimodal: number;
+  multimodal: number;
+  not_set: number;
 }
 
-export interface QuickAccessData {
-  totalClasses: number;
-  totalLessons: number;
-  totalQuizzes: number;
-  totalActivities: number;
+export interface RecentCompletion {
+  id: string;
+  moduleTitle: string;
+  studentName: string;
+  completionDate: string;
+  finalScore: number;
+  timeSpentMinutes: number;
+  perfectSections: number;
 }
 
 export class TeacherDashboardAPI {
@@ -36,55 +37,49 @@ export class TeacherDashboardAPI {
     teacherId: string
   ): Promise<TeacherDashboardStats> {
     try {
-      // Get total students (students enrolled in classes created by this teacher)
+      // Get total students (all students with role='student')
       const { data: students, error: studentsError } = await supabase
-        .from('class_students')
-        .select(
-          `
-          student_id,
-          classes!inner(created_by)
-        `
-        )
-        .eq('classes.created_by', teacherId);
+        .from('profiles')
+        .select('id')
+        .eq('role', 'student');
 
       if (studentsError) throw studentsError;
 
-      // Get active lessons (published lessons created by this teacher)
-      const { data: lessons, error: lessonsError } = await supabase
-        .from('lessons')
-        .select('id, is_published')
+      // Get published VARK modules created by this teacher
+      const { data: publishedModules, error: publishedError } = await supabase
+        .from('vark_modules')
+        .select('id')
         .eq('created_by', teacherId)
         .eq('is_published', true);
 
-      if (lessonsError) throw lessonsError;
+      if (publishedError) throw publishedError;
 
-      // Get quizzes created by this teacher
-      const { data: quizzes, error: quizzesError } = await supabase
-        .from('quizzes')
+      // Get total VARK modules created by this teacher
+      const { data: totalModules, error: totalError } = await supabase
+        .from('vark_modules')
         .select('id')
         .eq('created_by', teacherId);
 
-      if (quizzesError) throw quizzesError;
+      if (totalError) throw totalError;
 
-      // Get pending grades (submissions that haven't been graded yet)
-      const { data: submissions, error: submissionsError } = await supabase
-        .from('submissions')
+      // Get completed modules count
+      const { data: completions, error: completionsError } = await supabase
+        .from('module_completions')
         .select(
           `
           id,
-          activities!inner(assigned_by)
+          vark_modules!inner(created_by)
         `
         )
-        .eq('activities.assigned_by', teacherId)
-        .is('score', null);
+        .eq('vark_modules.created_by', teacherId);
 
-      if (submissionsError) throw submissionsError;
+      if (completionsError) throw completionsError;
 
       return {
         totalStudents: students?.length || 0,
-        activeLessons: lessons?.length || 0,
-        quizzesCreated: quizzes?.length || 0,
-        pendingGrades: submissions?.length || 0
+        publishedModules: publishedModules?.length || 0,
+        totalModules: totalModules?.length || 0,
+        completedModules: completions?.length || 0
       };
     } catch (error) {
       console.error('Error fetching teacher dashboard stats:', error);
@@ -96,17 +91,11 @@ export class TeacherDashboardAPI {
     teacherId: string
   ): Promise<LearningStyleDistribution> {
     try {
-      // Get students enrolled in classes created by this teacher
+      // Get all students with their learning styles
       const { data: students, error: studentsError } = await supabase
-        .from('class_students')
-        .select(
-          `
-          student_id,
-          classes!inner(created_by),
-          profiles!inner(learning_style)
-        `
-        )
-        .eq('classes.created_by', teacherId);
+        .from('profiles')
+        .select('id, learning_style')
+        .eq('role', 'student');
 
       if (studentsError) throw studentsError;
 
@@ -119,7 +108,7 @@ export class TeacherDashboardAPI {
       };
 
       students?.forEach(student => {
-        const learningStyle = student.profiles?.learning_style;
+        const learningStyle = student.learning_style;
         if (learningStyle && learningStyle in distribution) {
           distribution[learningStyle as keyof LearningStyleDistribution]++;
         }
@@ -132,172 +121,103 @@ export class TeacherDashboardAPI {
     }
   }
 
-  static async getRecentSubmissions(
+  static async getLearningTypeDistribution(
     teacherId: string
-  ): Promise<RecentSubmission[]> {
+  ): Promise<LearningTypeDistribution> {
     try {
-      // Get recent activity submissions with student names
-      const { data: activitySubmissions, error: activityError } = await supabase
-        .from('submissions')
-        .select(
-          `
-          id,
-          submitted_at,
-          score,
-          student_id,
-          activities!inner(
-            id,
-            title,
-            assigned_by
-          )
-        `
-        )
-        .eq('activities.assigned_by', teacherId)
-        .order('submitted_at', { ascending: false })
-        .limit(10);
-
-      if (activityError) throw activityError;
-
-      // Get recent quiz results with student names
-      const { data: quizResults, error: quizError } = await supabase
-        .from('quiz_results')
-        .select(
-          `
-          id,
-          submitted_at,
-          score,
-          total_points,
-          student_id,
-          quizzes!inner(
-            id,
-            title,
-            created_by
-          )
-        `
-        )
-        .eq('quizzes.created_by', teacherId)
-        .order('submitted_at', { ascending: false })
-        .limit(10);
-
-      if (quizError) throw quizError;
-
-      // Get student names for all submissions
-      const studentIds = new Set<string>();
-      activitySubmissions?.forEach(sub => studentIds.add(sub.student_id));
-      quizResults?.forEach(result => studentIds.add(result.student_id));
-
-      // Fetch student profiles in a single query
-      const { data: studentProfiles, error: profilesError } = await supabase
+      // Get all students with their learning types
+      const { data: students, error: studentsError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, full_name')
-        .in('id', Array.from(studentIds));
+        .select('id, learning_type')
+        .eq('role', 'student');
 
-      if (profilesError) throw profilesError;
+      if (studentsError) throw studentsError;
 
-      // Create a map for quick lookup
-      const studentProfilesMap = new Map(
-        studentProfiles?.map(profile => [profile.id, profile]) || []
-      );
+      // Count learning types
+      const distribution = {
+        unimodal: 0,
+        bimodal: 0,
+        trimodal: 0,
+        multimodal: 0,
+        not_set: 0
+      };
 
-      // Combine and format submissions
-      const submissions: RecentSubmission[] = [];
-
-      // Add activity submissions
-      activitySubmissions?.forEach(submission => {
-        const studentProfile = studentProfilesMap.get(submission.student_id);
-        const studentName =
-          studentProfile?.full_name ||
-          `${studentProfile?.first_name || ''} ${
-            studentProfile?.last_name || ''
-          }`.trim();
-
-        submissions.push({
-          id: submission.id,
-          title: submission.activities?.title || 'Unknown Activity',
-          studentName,
-          type: 'activity',
-          submittedAt: submission.submitted_at,
-          status: submission.score !== null ? 'graded' : 'pending',
-          score: submission.score || undefined
-        });
+      students?.forEach(student => {
+        const learningType = student.learning_type?.toLowerCase();
+        if (learningType && learningType in distribution) {
+          distribution[learningType as keyof Omit<LearningTypeDistribution, 'not_set'>]++;
+        } else {
+          distribution.not_set++;
+        }
       });
 
-      // Add quiz results
-      quizResults?.forEach(result => {
-        const studentProfile = studentProfilesMap.get(result.student_id);
-        const studentName =
-          studentProfile?.full_name ||
-          `${studentProfile?.first_name || ''} ${
-            studentProfile?.last_name || ''
-          }`.trim();
-
-        submissions.push({
-          id: result.id,
-          title: result.quizzes?.title || 'Unknown Quiz',
-          studentName,
-          type: 'quiz',
-          submittedAt: result.submitted_at,
-          status: 'graded',
-          score: result.score
-        });
-      });
-
-      // Sort by submission date and return top 10
-      return submissions
-        .sort(
-          (a, b) =>
-            new Date(b.submittedAt).getTime() -
-            new Date(a.submittedAt).getTime()
-        )
-        .slice(0, 10);
+      return distribution;
     } catch (error) {
-      console.error('Error fetching recent submissions:', error);
+      console.error('Error fetching learning type distribution:', error);
       throw error;
     }
   }
 
-  static async getQuickAccessData(teacherId: string): Promise<QuickAccessData> {
+  static async getRecentCompletions(
+    teacherId: string
+  ): Promise<RecentCompletion[]> {
     try {
-      // Get total classes
-      const { data: classes, error: classesError } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('created_by', teacherId);
+      // Get recent module completions for modules created by this teacher
+      const { data: completions, error: completionsError } = await supabase
+        .from('module_completions')
+        .select(
+          `
+          id,
+          student_id,
+          module_id,
+          completion_date,
+          final_score,
+          time_spent_minutes,
+          perfect_sections,
+          vark_modules!inner(
+            id,
+            title,
+            created_by
+          ),
+          profiles!inner(
+            id,
+            first_name,
+            last_name,
+            full_name
+          )
+        `
+        )
+        .eq('vark_modules.created_by', teacherId)
+        .order('completion_date', { ascending: false })
+        .limit(10);
 
-      if (classesError) throw classesError;
+      if (completionsError) throw completionsError;
 
-      // Get total lessons
-      const { data: lessons, error: lessonsError } = await supabase
-        .from('lessons')
-        .select('id')
-        .eq('created_by', teacherId);
+      // Format completions
+      const recentCompletions: RecentCompletion[] = (completions || []).map(
+        (completion: any) => {
+          const studentName =
+            completion.profiles?.full_name ||
+            `${completion.profiles?.first_name || ''} ${
+              completion.profiles?.last_name || ''
+            }`.trim() ||
+            'Unknown Student';
 
-      if (lessonsError) throw lessonsError;
+          return {
+            id: completion.id,
+            moduleTitle: completion.vark_modules?.title || 'Unknown Module',
+            studentName,
+            completionDate: completion.completion_date,
+            finalScore: completion.final_score || 0,
+            timeSpentMinutes: completion.time_spent_minutes || 0,
+            perfectSections: completion.perfect_sections || 0
+          };
+        }
+      );
 
-      // Get total quizzes
-      const { data: quizzes, error: quizzesError } = await supabase
-        .from('quizzes')
-        .select('id')
-        .eq('created_by', teacherId);
-
-      if (quizzesError) throw quizzesError;
-
-      // Get total activities
-      const { data: activities, error: activitiesError } = await supabase
-        .from('activities')
-        .select('id')
-        .eq('assigned_by', teacherId);
-
-      if (activitiesError) throw activitiesError;
-
-      return {
-        totalClasses: classes?.length || 0,
-        totalLessons: lessons?.length || 0,
-        totalQuizzes: quizzes?.length || 0,
-        totalActivities: activities?.length || 0
-      };
+      return recentCompletions;
     } catch (error) {
-      console.error('Error fetching quick access data:', error);
+      console.error('Error fetching recent completions:', error);
       throw error;
     }
   }
