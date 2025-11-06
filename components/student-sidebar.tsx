@@ -44,7 +44,7 @@ interface StudentSidebarProps {
 const navigationItems = [
   { icon: Home, label: 'Dashboard', href: '/student/dashboard' },
   { icon: Target, label: 'VARK Modules', href: '/student/vark-modules' },
-  { icon: BookOpen, label: 'My Classes', href: '/student/classes' },
+  // { icon: BookOpen, label: 'My Classes', href: '/student/classes' },
   // { icon: Activity, label: 'Activities', href: '/student/activities' },
   // { icon: FileText, label: 'Quizzes', href: '/student/quizzes' },
   // { icon: TrendingUp, label: 'Progress', href: '/student/progress' },

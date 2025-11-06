@@ -327,7 +327,7 @@ export default function StudentDashboard() {
               </div>
               <div className="text-right">
                 <div className="text-3xl font-bold text-[#00af8f]">
-                  {stats?.lessonsCompleted || 0}
+                  {stats?.modulesCompleted || 0}
                 </div>
                 <div className="text-sm text-gray-500">Modules Completed</div>
               </div>
@@ -524,7 +524,7 @@ export default function StudentDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {recentActivities.slice(0, 5).map(activity => {
-                      const StatusIcon = getStatusIcon(activity.status);
+                      const StatusIcon = activity.status === 'completed' ? CheckCircle : Clock;
                       return (
                         <div
                           key={activity.id}
@@ -537,14 +537,26 @@ export default function StudentDashboard() {
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {activity.title}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {formatTimestamp(activity.timestamp)}
-                            </p>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-xs text-gray-500">
+                                {formatTimestamp(activity.timestamp)}
+                              </p>
+                              {activity.score !== undefined && (
+                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                  {activity.score.toFixed(1)}%
+                                </Badge>
+                              )}
+                              {activity.progress !== undefined && (
+                                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                  {activity.progress.toFixed(0)}% done
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <Badge
-                            className={getStatusColor(activity.status)}
+                            className={activity.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}
                             variant="secondary">
-                            {getStatusText(activity.status)}
+                            {activity.status === 'completed' ? 'Done' : 'In Progress'}
                           </Badge>
                         </div>
                       );

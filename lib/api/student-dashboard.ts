@@ -2,28 +2,31 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@/types/auth';
 
 export interface DashboardStats {
-  lessonsCompleted: number;
-  totalLessons: number;
-  quizAverage: number;
-  activitiesSubmitted: number;
-  totalActivities: number;
-  totalTimeSpent: number; // in hours
+  modulesCompleted: number;
+  modulesInProgress: number;
+  averageScore: number;
+  totalTimeSpent: number; // in minutes
+  perfectSections: number;
+  totalModulesAvailable: number;
 }
 
 export interface RecentActivity {
   id: string;
-  type: 'lesson' | 'quiz' | 'activity';
+  type: 'module_completion' | 'module_progress';
   title: string;
-  status: 'completed' | 'in_progress' | 'pending' | 'urgent';
+  status: 'completed' | 'in_progress';
   timestamp: string;
   icon: string;
   color: string;
+  score?: number;
+  progress?: number;
 }
 
 export interface ProgressData {
-  lessons: { completed: number; total: number; percentage: number };
-  quizzes: { average: number; totalTaken: number };
-  activities: { submitted: number; total: number; percentage: number };
+  modules: { completed: number; inProgress: number; total: number; percentage: number };
+  averageScore: number;
+  totalTimeSpent: number;
+  perfectSections: number;
 }
 
 export class StudentDashboardAPI {
@@ -32,80 +35,71 @@ export class StudentDashboardAPI {
    */
   static async getDashboardStats(userId: string): Promise<DashboardStats> {
     try {
-      // Get lessons progress
-      const { data: lessonProgress, error: lessonError } = await supabase
-        .from('lesson_progress')
-        .select('*')
+      // Get completed modules
+      const { data: completions, error: completionsError } = await supabase
+        .from('module_completions')
+        .select('final_score, time_spent_minutes, perfect_sections')
         .eq('student_id', userId);
 
-      if (lessonError) {
-        console.error('Error fetching lesson progress:', lessonError);
+      if (completionsError) {
+        console.error('Error fetching module completions:', completionsError);
       }
 
-      // Get quiz results
-      const { data: quizResults, error: quizError } = await supabase
-        .from('quiz_results')
-        .select('score, total_points')
-        .eq('student_id', userId);
+      // Get modules in progress
+      const { data: progress, error: progressError } = await supabase
+        .from('vark_module_progress')
+        .select('id, progress_percentage')
+        .eq('student_id', userId)
+        .lt('progress_percentage', 100);
 
-      if (quizError) {
-        console.error('Error fetching quiz results:', quizError);
+      if (progressError) {
+        console.error('Error fetching module progress:', progressError);
       }
 
-      // Get activities and submissions
-      const { data: activities, error: activityError } = await supabase
-        .from('activities')
-        .select(
-          `
-          id,
-          submissions!inner(student_id, submitted_at)
-        `
-        )
-        .eq('submissions.student_id', userId);
+      // Get total available modules
+      const { data: allModules, error: modulesError } = await supabase
+        .from('vark_modules')
+        .select('id')
+        .eq('is_published', true);
 
-      if (activityError) {
-        console.error('Error fetching activities:', activityError);
+      if (modulesError) {
+        console.error('Error fetching available modules:', modulesError);
       }
 
       // Calculate statistics
-      const lessonsCompleted =
-        lessonProgress?.filter(p => p.status === 'completed').length || 0;
-      const totalLessons = lessonProgress?.length || 0;
+      const modulesCompleted = completions?.length || 0;
+      const modulesInProgress = progress?.length || 0;
+      const totalModulesAvailable = allModules?.length || 0;
 
-      const quizScores =
-        quizResults?.map(q => (q.score / q.total_points) * 100) || [];
-      const quizAverage =
-        quizScores.length > 0
-          ? Math.round(
-              quizScores.reduce((a, b) => a + b, 0) / quizScores.length
-            )
+      const scores = completions?.map(c => c.final_score) || [];
+      const averageScore =
+        scores.length > 0
+          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
           : 0;
 
-      const activitiesSubmitted = activities?.length || 0;
-      const totalActivities = activities?.length || 0; // This should be total assigned activities
+      const totalTimeSpent =
+        completions?.reduce((sum, c) => sum + (c.time_spent_minutes || 0), 0) || 0;
 
-      // Calculate total time spent (placeholder - you can implement actual time tracking)
-      const totalTimeSpent = Math.round(
-        lessonsCompleted * 0.5 + quizScores.length * 0.25
-      );
+      const perfectSections =
+        completions?.reduce((sum, c) => sum + (c.perfect_sections || 0), 0) || 0;
 
       return {
-        lessonsCompleted,
-        totalLessons,
-        quizAverage,
-        activitiesSubmitted,
-        totalActivities,
-        totalTimeSpent
+        modulesCompleted,
+        modulesInProgress,
+        averageScore,
+        totalTimeSpent,
+        perfectSections,
+        totalModulesAvailable
       };
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       return {
-        lessonsCompleted: 0,
-        totalLessons: 0,
-        quizAverage: 0,
-        activitiesSubmitted: 0,
-        totalActivities: 0,
-        totalTimeSpent: 0
+        modulesCompleted: 0,
+        modulesInProgress: 0,
+        averageScore: 0,
+        totalTimeSpent: 0,
+        perfectSections: 0,
+        totalModulesAvailable: 0
       };
     }
   }
@@ -117,94 +111,63 @@ export class StudentDashboardAPI {
     try {
       const activities: RecentActivity[] = [];
 
-      // Get recent lesson progress
-      const { data: lessonProgress, error: lessonError } = await supabase
-        .from('lesson_progress')
+      // Get recent module completions
+      const { data: completions, error: completionsError } = await supabase
+        .from('module_completions')
         .select(
           `
           id,
-          status,
-          updated_at,
-          lessons!inner(title)
+          completion_date,
+          final_score,
+          vark_modules!inner(title)
         `
         )
         .eq('student_id', userId)
+        .order('completion_date', { ascending: false })
+        .limit(3);
+
+      if (!completionsError && completions) {
+        completions.forEach(completion => {
+          activities.push({
+            id: completion.id,
+            type: 'module_completion',
+            title: completion.vark_modules?.title || 'Unknown Module',
+            status: 'completed',
+            timestamp: completion.completion_date,
+            icon: 'CheckCircle',
+            color: 'bg-gradient-to-r from-green-500 to-green-600',
+            score: completion.final_score
+          });
+        });
+      }
+
+      // Get recent module progress (in progress modules)
+      const { data: progress, error: progressError } = await supabase
+        .from('vark_module_progress')
+        .select(
+          `
+          id,
+          updated_at,
+          progress_percentage,
+          vark_modules!inner(title)
+        `
+        )
+        .eq('student_id', userId)
+        .lt('progress_percentage', 100)
         .order('updated_at', { ascending: false })
         .limit(3);
 
-      if (!lessonError && lessonProgress) {
-        lessonProgress.forEach(progress => {
+      if (!progressError && progress) {
+        progress.forEach(prog => {
           activities.push({
-            id: progress.id,
-            type: 'lesson',
-            title: progress.lessons?.title || 'Unknown Lesson',
-            status:
-              progress.status === 'completed' ? 'completed' : 'in_progress',
-            timestamp: progress.updated_at,
-            icon: 'BookOpen',
-            color: progress.status === 'completed' ? 'blue' : 'yellow'
-          });
-        });
-      }
-
-      // Get recent quiz results
-      const { data: quizResults, error: quizError } = await supabase
-        .from('quiz_results')
-        .select(
-          `
-          id,
-          submitted_at,
-          quizzes!inner(title)
-        `
-        )
-        .eq('student_id', userId)
-        .order('submitted_at', { ascending: false })
-        .limit(2);
-
-      if (!quizError && quizResults) {
-        quizResults.forEach(result => {
-          activities.push({
-            id: result.id,
-            type: 'quiz',
-            title: result.quizzes?.title || 'Unknown Quiz',
-            status: 'completed',
-            timestamp: result.submitted_at,
-            icon: 'FileText',
-            color: 'green'
-          });
-        });
-      }
-
-      // Get recent activity submissions
-      const { data: submissions, error: submissionError } = await supabase
-        .from('submissions')
-        .select(
-          `
-          id,
-          submitted_at,
-          activities!inner(title, deadline)
-        `
-        )
-        .eq('student_id', userId)
-        .order('submitted_at', { ascending: false })
-        .limit(2);
-
-      if (!submissionError && submissions) {
-        submissions.forEach(submission => {
-          const deadline = new Date(submission.activities?.deadline || '');
-          const now = new Date();
-          const isUrgent =
-            deadline < now &&
-            deadline.getTime() > now.getTime() - 24 * 60 * 60 * 1000; // Due within 24 hours
-
-          activities.push({
-            id: submission.id,
-            type: 'activity',
-            title: submission.activities?.title || 'Unknown Activity',
-            status: isUrgent ? 'urgent' : 'completed',
-            timestamp: submission.submitted_at,
-            icon: 'Activity',
-            color: isUrgent ? 'red' : 'purple'
+            id: prog.id,
+            type: 'module_progress',
+            title: prog.vark_modules?.title || 'Unknown Module',
+            status: 'in_progress',
+            timestamp: prog.updated_at,
+            icon: 'Clock',
+            color: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            progress: prog.progress_percentage
           });
         });
       }
@@ -227,73 +190,62 @@ export class StudentDashboardAPI {
    */
   static async getProgressData(userId: string): Promise<ProgressData> {
     try {
-      // Get lessons progress
-      const { data: lessonProgress, error: lessonError } = await supabase
-        .from('lesson_progress')
-        .select('status')
+      // Get completed modules
+      const { data: completions, error: completionsError } = await supabase
+        .from('module_completions')
+        .select('final_score, time_spent_minutes, perfect_sections')
         .eq('student_id', userId);
 
-      const lessonsCompleted =
-        lessonProgress?.filter(p => p.status === 'completed').length || 0;
-      const totalLessons = lessonProgress?.length || 0;
+      // Get modules in progress
+      const { data: progress, error: progressError } = await supabase
+        .from('vark_module_progress')
+        .select('id')
+        .eq('student_id', userId)
+        .lt('progress_percentage', 100);
 
-      // Get quiz results
-      const { data: quizResults, error: quizError } = await supabase
-        .from('quiz_results')
-        .select('score, total_points')
-        .eq('student_id', userId);
+      // Get total available modules
+      const { data: allModules, error: modulesError } = await supabase
+        .from('vark_modules')
+        .select('id')
+        .eq('is_published', true);
 
-      const quizScores =
-        quizResults?.map(q => (q.score / q.total_points) * 100) || [];
-      const quizAverage =
-        quizScores.length > 0
-          ? Math.round(
-              quizScores.reduce((a, b) => a + b, 0) / quizScores.length
-            )
+      const modulesCompleted = completions?.length || 0;
+      const modulesInProgress = progress?.length || 0;
+      const totalModules = allModules?.length || 0;
+
+      const scores = completions?.map(c => c.final_score) || [];
+      const averageScore =
+        scores.length > 0
+          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
           : 0;
 
-      // Get activities progress
-      const { data: activities, error: activityError } = await supabase
-        .from('activities')
-        .select(
-          `
-          id,
-          submissions!inner(student_id)
-        `
-        )
-        .eq('submissions.student_id', userId);
+      const totalTimeSpent =
+        completions?.reduce((sum, c) => sum + (c.time_spent_minutes || 0), 0) || 0;
 
-      const activitiesSubmitted = activities?.length || 0;
-      const totalActivities = activities?.length || 0;
+      const perfectSections =
+        completions?.reduce((sum, c) => sum + (c.perfect_sections || 0), 0) || 0;
 
       return {
-        lessons: {
-          completed: lessonsCompleted,
-          total: totalLessons,
+        modules: {
+          completed: modulesCompleted,
+          inProgress: modulesInProgress,
+          total: totalModules,
           percentage:
-            totalLessons > 0
-              ? Math.round((lessonsCompleted / totalLessons) * 100)
+            totalModules > 0
+              ? Math.round((modulesCompleted / totalModules) * 100)
               : 0
         },
-        quizzes: {
-          average: quizAverage,
-          totalTaken: quizScores.length
-        },
-        activities: {
-          submitted: activitiesSubmitted,
-          total: totalActivities,
-          percentage:
-            totalActivities > 0
-              ? Math.round((activitiesSubmitted / totalActivities) * 100)
-              : 0
-        }
+        averageScore,
+        totalTimeSpent,
+        perfectSections
       };
     } catch (error) {
       console.error('Error fetching progress data:', error);
       return {
-        lessons: { completed: 0, total: 0, percentage: 0 },
-        quizzes: { average: 0, totalTaken: 0 },
-        activities: { submitted: 0, total: 0, percentage: 0 }
+        modules: { completed: 0, inProgress: 0, total: 0, percentage: 0 },
+        averageScore: 0,
+        totalTimeSpent: 0,
+        perfectSections: 0
       };
     }
   }
