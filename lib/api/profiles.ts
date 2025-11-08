@@ -9,6 +9,8 @@ export interface ProfileUpdateData {
   gradeLevel?: string;
   profilePhoto?: string;
   learningStyle?: string;
+  preferredModules?: string[];
+  learningType?: string;
   onboardingCompleted?: boolean;
 }
 
@@ -28,16 +30,39 @@ export class ProfileAPI {
     try {
       console.log('ProfileAPI.updateProfile called with:', updates);
 
-      // Get current user ID from auth
+      // Get current user ID from auth - try both getUser and getSession
+      console.log('Getting auth user...');
       const {
-        data: { user: authUser }
+        data: { user: authUser },
+        error: userError
       } = await supabase.auth.getUser();
 
+      console.log('getUser result:', { authUser: authUser?.id, userError });
+
       if (!authUser) {
-        return {
-          success: false,
-          message: 'User not authenticated'
-        };
+        // Fallback to getSession
+        console.log('getUser failed, trying getSession...');
+        const {
+          data: { session },
+          error: sessionError
+        } = await supabase.auth.getSession();
+        
+        console.log('getSession result:', { session: session?.user?.id, sessionError });
+
+        if (!session?.user) {
+          console.error('No authenticated user found via getUser or getSession');
+          return {
+            success: false,
+            message: 'User not authenticated. Please log in again.'
+          };
+        }
+
+        // Use session user
+        const sessionUser = session.user;
+        console.log('Using session user:', sessionUser.id);
+        
+        // Continue with session user ID
+        return await this.updateProfileWithUserId(sessionUser.id, updates);
       }
 
       // Extract the fields that should be updated in the profiles table
@@ -57,17 +82,68 @@ export class ProfileAPI {
         profileUpdates.profile_photo = updates.profilePhoto;
       if (updates.learningStyle !== undefined)
         profileUpdates.learning_style = updates.learningStyle;
+      if (updates.preferredModules !== undefined)
+        profileUpdates.preferred_modules = updates.preferredModules;
+      if (updates.learningType !== undefined)
+        profileUpdates.learning_type = updates.learningType;
       if (updates.onboardingCompleted !== undefined)
         profileUpdates.onboarding_completed = updates.onboardingCompleted;
 
       console.log('Profile updates to apply:', profileUpdates);
 
-      console.log('Updating profile with ID:', authUser.id);
+      return await this.updateProfileWithUserId(authUser.id, updates, profileUpdates);
+    } catch (error) {
+      console.error('Profile update exception:', error);
+      return {
+        success: false,
+        message:
+          error instanceof Error ? error.message : 'Failed to update profile'
+      };
+    }
+  }
+
+  /**
+   * Internal method to update profile with a specific user ID
+   */
+  private static async updateProfileWithUserId(
+    userId: string,
+    updates: ProfileUpdateData,
+    profileUpdates?: any
+  ): Promise<ProfileUpdateResult> {
+    try {
+      // If profileUpdates not provided, build it
+      if (!profileUpdates) {
+        profileUpdates = {};
+        if (updates.firstName !== undefined)
+          profileUpdates.first_name = updates.firstName;
+        if (updates.middleName !== undefined)
+          profileUpdates.middle_name = updates.middleName;
+        if (updates.lastName !== undefined)
+          profileUpdates.last_name = updates.lastName;
+        if (updates.fullName !== undefined)
+          profileUpdates.full_name = updates.fullName;
+        if (updates.gradeLevel !== undefined)
+          profileUpdates.grade_level = updates.gradeLevel;
+        if (updates.profilePhoto !== undefined)
+          profileUpdates.profile_photo = updates.profilePhoto;
+        if (updates.learningStyle !== undefined)
+          profileUpdates.learning_style = updates.learningStyle;
+        if (updates.preferredModules !== undefined)
+          profileUpdates.preferred_modules = updates.preferredModules;
+        if (updates.learningType !== undefined)
+          profileUpdates.learning_type = updates.learningType;
+        if (updates.onboardingCompleted !== undefined)
+          profileUpdates.onboarding_completed = updates.onboardingCompleted;
+      }
+
+      console.log('Updating profile with ID:', userId);
+      console.log('Profile updates:', profileUpdates);
+      
       // Use regular client for profile updates (RLS should allow users to update their own profiles)
       const { data, error } = await supabase
         .from('profiles')
         .update(profileUpdates)
-        .eq('id', authUser.id)
+        .eq('id', userId)
         .select('*')
         .single();
 
@@ -100,6 +176,8 @@ export class ProfileAPI {
         gradeLevel: data.grade_level,
         profilePhoto: data.profile_photo,
         learningStyle: data.learning_style,
+        preferredModules: data.preferred_modules,
+        learningType: data.learning_type,
         onboardingCompleted: data.onboarding_completed,
         createdAt: data.created_at,
         updatedAt: data.updated_at
@@ -158,6 +236,8 @@ export class ProfileAPI {
         gradeLevel: data.grade_level,
         profilePhoto: data.profile_photo,
         learningStyle: data.learning_style,
+        preferredModules: data.preferred_modules,
+        learningType: data.learning_type,
         onboardingCompleted: data.onboarding_completed,
         createdAt: data.created_at,
         updatedAt: data.updated_at

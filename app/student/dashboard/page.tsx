@@ -285,43 +285,59 @@ export default function StudentDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div
-                  className={`w-16 h-16 bg-gradient-to-r ${
-                    learningStyleColors[
-                      userLearningStyle as keyof typeof learningStyleColors
-                    ]
-                  } rounded-full flex items-center justify-center shadow-lg`}>
-                  <LearningStyleIcon className="w-8 h-8 text-white" />
-                </div>
+                {user?.preferredModules && user.preferredModules.length > 1 ? (
+                  <div className="flex -space-x-2">
+                    {user.preferredModules.slice(0, 4).map((module: string, idx: number) => {
+                      const moduleToKeyMap: Record<string, keyof typeof learningStyleIcons> = {
+                        'Visual': 'visual',
+                        'Aural': 'auditory',
+                        'Read/Write': 'reading_writing',
+                        'Kinesthetic': 'kinesthetic'
+                      };
+                      
+                      const styleKey = moduleToKeyMap[module] || 'visual';
+                      const Icon = learningStyleIcons[styleKey] || Eye;
+                      const colorClass = learningStyleColors[styleKey] || 'from-blue-500 to-blue-600';
+                      
+                      return (
+                        <div
+                          key={idx}
+                          className={`w-12 h-12 bg-gradient-to-r ${colorClass} rounded-full flex items-center justify-center shadow-lg border-2 border-white`}>
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    className={`w-16 h-16 bg-gradient-to-r ${
+                      learningStyleColors[
+                        userLearningStyle as keyof typeof learningStyleColors
+                      ]
+                    } rounded-full flex items-center justify-center shadow-lg`}>
+                    <LearningStyleIcon className="w-8 h-8 text-white" />
+                  </div>
+                )}
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {user?.learningType && user.learningType}
-                    <span className="text-gray-600 ml-4"> Learner</span>
+                    {user?.learningType || 'Unimodal'}
+                    <span className="text-gray-600"> Learner</span>
                   </h3>
                   <p className="text-gray-600">
-                    Your learning style is optimized for
-                    {user?.preferredModules &&
-                      user.preferredModules.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {user.preferredModules
-                            .slice(0, 4)
-                            .map((module: string, idx: number) => (
-                              <Badge
-                                key={idx}
-                                variant="outline"
-                                className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
-                                {module}
-                              </Badge>
-                            ))}
-                          {user.preferredModules.length > 4 && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1.5 py-0 bg-gray-100 text-gray-600">
-                              +{user.preferredModules.length - 4}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
+                    {user?.preferredModules && user.preferredModules.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {user.preferredModules.map((module: string, idx: number) => (
+                          <Badge
+                            key={idx}
+                            variant="outline"
+                            className="text-xs px-2 py-0.5 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                            {module}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span>Your learning style is optimized for {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels]}</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -417,7 +433,7 @@ export default function StudentDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recommended Modules */}
-          <div className="lg:col-span-2">
+          {/* <div className="lg:col-span-2">
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -498,7 +514,7 @@ export default function StudentDashboard() {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </div> */}
 
           {/* Recent Activities */}
           <div>

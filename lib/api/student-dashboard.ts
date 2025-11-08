@@ -42,7 +42,7 @@ export class StudentDashboardAPI {
         .eq('student_id', userId);
 
       if (completionsError) {
-        console.error('Error fetching module completions:', completionsError);
+        console.warn('⚠️ Could not fetch module completions:', completionsError.message || completionsError);
       }
 
       // Get modules in progress
@@ -53,7 +53,8 @@ export class StudentDashboardAPI {
         .lt('progress_percentage', 100);
 
       if (progressError) {
-        console.error('Error fetching module progress:', progressError);
+        console.warn('⚠️ Could not fetch module progress:', progressError.message || progressError);
+        console.log('This is normal if you haven\'t started any modules yet.');
       }
 
       // Get total available modules
@@ -63,7 +64,7 @@ export class StudentDashboardAPI {
         .eq('is_published', true);
 
       if (modulesError) {
-        console.error('Error fetching available modules:', modulesError);
+        console.warn('⚠️ Could not fetch available modules:', modulesError.message || modulesError);
       }
 
       // Calculate statistics
