@@ -21,18 +21,54 @@ export class VARKModulesAPI {
     moduleId: string
   ): Promise<string> {
     try {
-      console.log('🖼️ Processing images in HTML content...');
+      const htmlSize = (new Blob([html]).size / (1024 * 1024)).toFixed(2);
+      // console.log(`🖼️ Processing images in HTML content (${htmlSize} MB)...`);
 
-      // Find all base64 images in HTML
+      // Find all base64 images in HTML - more flexible regex
+      // Matches: src="data:image/...", src='data:image/...', src=data:image/...
       const base64ImageRegex =
-        /<img[^>]+src="data:image\/([^;]+);base64,([^"]+)"/g;
+        /src=["']?(data:image\/[^;]+;base64,[^"'\s>]+)["']?/gi;
       let match;
       let processedHtml = html;
       let imageCount = 0;
+      let successCount = 0;
+      
+      // Count total images first
+      const matches = html.match(base64ImageRegex);
+      const totalImages = matches ? matches.length : 0;
+      
+
+      if(totalImages>0){
+    console.log({html,totalImages})
+      }
+
+      // console.log({html,totalImages})
+      if (totalImages === 0) {
+        // Debug: Show a sample of the HTML to help diagnose
+        const htmlSample = html.substring(0, 500);
+        console.log('ℹ️ No base64 images found in this content');
+        if (html.includes('data:image')) {
+          console.warn('⚠️ HTML contains "data:image" but regex did not match!');
+          console.warn('Sample:', htmlSample);
+        }
+        return html;
+      }
+      
+      console.log(`🔍 Found ${totalImages} base64 images to extract`);
+      const startTime = Date.now();
 
       while ((match = base64ImageRegex.exec(html)) !== null) {
-        const [fullMatch, imageType, base64Data] = match;
+        const [fullMatch, dataUrl] = match;
         imageCount++;
+        
+        // Extract image type and base64 data from the data URL
+        const dataUrlMatch = dataUrl.match(/data:image\/([^;]+);base64,(.+)/);
+        if (!dataUrlMatch) {
+          console.warn(`⚠️ Could not parse data URL for image ${imageCount}`);
+          continue;
+        }
+        
+        const [, imageType, base64Data] = dataUrlMatch;
 
         try {
           // Convert base64 to blob
@@ -50,37 +86,57 @@ export class VARKModulesAPI {
           const filename = `module-${moduleId}-image-${timestamp}-${imageCount}.${imageType}`;
           const filepath = `module-images/${filename}`;
 
-          // Upload to storage
+          // Upload to storage (use module-images bucket)
           const { error } = await this.supabase.storage
-            .from('module-backups')
+            .from('module-images')
             .upload(filepath, blob, {
               contentType: `image/${imageType}`,
-              upsert: false
+              upsert: true
             });
 
           if (!error) {
             // Get public URL
             const { data: urlData } = this.supabase.storage
-              .from('module-backups')
+              .from('module-images')
               .getPublicUrl(filepath);
 
-            // Replace base64 with URL in HTML
+            // Replace base64 with URL in HTML (replace the full data URL)
             processedHtml = processedHtml.replace(
-              `data:image/${imageType};base64,${base64Data}`,
+              dataUrl,
               urlData.publicUrl
             );
 
-            console.log(
-              `✅ Image ${imageCount} uploaded and replaced with URL`
-            );
+            successCount++;
+            
+            // Log progress every 10 images
+            if (imageCount % 10 === 0 || imageCount === totalImages) {
+              console.log(`✅ Image ${imageCount}/${totalImages} uploaded and replaced with URL`);
+            }
+          } else {
+            console.error(`❌ Image ${imageCount} upload FAILED:`, error.message);
+            console.error('Bucket: module-images, Path:', filepath);
           }
         } catch (imgError) {
-          console.warn(`⚠️ Failed to process image ${imageCount}:`, imgError);
+          console.error(`❌ Failed to process image ${imageCount}:`, imgError);
         }
       }
 
       if (imageCount > 0) {
-        console.log(`✅ Processed ${imageCount} images in HTML`);
+        const endTime = Date.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(1);
+        const originalSize = new Blob([html]).size / (1024 * 1024);
+        const processedSize = new Blob([processedHtml]).size / (1024 * 1024);
+        const reduction = originalSize - processedSize;
+        const reductionPercent = ((reduction / originalSize) * 100).toFixed(1);
+        
+        console.log(`✅ Processed ${successCount}/${imageCount} images successfully in ${duration}s`);
+        
+        if (successCount > 0) {
+          console.log(`📊 Size reduction: ${originalSize.toFixed(2)} MB → ${processedSize.toFixed(2)} MB (-${reduction.toFixed(2)} MB, ${reductionPercent}% smaller)`);
+        } else {
+          console.error(`❌❌❌ NO IMAGES WERE EXTRACTED! Size unchanged: ${originalSize.toFixed(2)} MB`);
+          console.error('Check if "module-images" bucket exists and is PUBLIC');
+        }
       }
 
       return processedHtml;
@@ -90,13 +146,13 @@ export class VARKModulesAPI {
     }
   }
 
-  // Upload JSON backup to Supabase Storage
-  private async uploadModuleBackup(
+  // Upload full module JSON to Supabase Storage
+  private async uploadModuleJSON(
     moduleData: any,
     moduleId: string
   ): Promise<string | null> {
     try {
-      console.log('📤 Uploading JSON backup to storage...');
+      console.log('📤 Uploading module JSON to storage...');
 
       // Create JSON blob
       const jsonString = JSON.stringify(moduleData, null, 2);
@@ -104,46 +160,89 @@ export class VARKModulesAPI {
 
       // Check size limit (Supabase free tier: 50MB per file)
       const sizeInMB = blob.size / (1024 * 1024);
-      console.log(`📊 Backup size: ${sizeInMB.toFixed(2)} MB`);
+      console.log(`📊 Module JSON size: ${sizeInMB.toFixed(2)} MB`);
 
-      if (sizeInMB > 45) {
-        console.warn('⚠️ Backup too large, skipping upload');
-        return null;
-      }
+      // if (sizeInMB > 45) {
+      //   throw new Error(`Module JSON too large: ${sizeInMB.toFixed(2)} MB (max 45 MB)`);
+      // }
 
-      // Generate filename with timestamp
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, '-')
-        .slice(0, -5);
-      const filename = `module-backup-${moduleId}-${timestamp}.json`;
+      // Use consistent filename (no timestamp) for easy retrieval
+      const filename = `module-${moduleId}.json`;
       const filepath = `vark-modules/${filename}`;
 
-      // Upload to Supabase Storage
+      // Upload to Supabase Storage (upsert to allow updates)
+
+      console.log({here:true})
       const { data, error } = await this.supabase.storage
-        .from('module-backups') // Storage bucket name
+        .from('module-content') // Dedicated bucket for module content
         .upload(filepath, blob, {
           contentType: 'application/json',
-          upsert: false
+          upsert: true // Allow overwriting on updates
         });
 
+              console.log({here:true})
       if (error) {
-        console.error('❌ Failed to upload JSON backup:', error);
-        console.error('Error details:', error.message);
-        return null;
+        console.error('❌ Failed to upload module JSON:', error);
+        throw new Error(`Storage upload failed: ${error.message}`);
       }
 
       // Get public URL
       const { data: urlData } = this.supabase.storage
-        .from('module-backups')
+        .from('module-content')
         .getPublicUrl(filepath);
 
-      console.log('✅ JSON backup uploaded:', urlData.publicUrl);
+      console.log('✅ Module JSON uploaded:', urlData.publicUrl);
       return urlData.publicUrl;
     } catch (error) {
-      console.error('❌ Error uploading JSON backup:', error);
-      return null;
+      console.error('❌ Error uploading module JSON:', error);
+      throw error;
     }
+  }
+
+  // Delete module JSON from storage (cleanup on failure)
+  private async deleteModuleJSON(moduleId: string): Promise<void> {
+    try {
+      const filename = `module-${moduleId}.json`;
+      const filepath = `vark-modules/${filename}`;
+
+      await this.supabase.storage
+        .from('module-content')
+        .remove([filepath]);
+
+      console.log('🗑️ Cleaned up module JSON:', filepath);
+    } catch (error) {
+      console.warn('⚠️ Failed to cleanup module JSON:', error);
+    }
+  }
+
+  // Fetch full module content from storage URL
+  async fetchModuleContent(jsonUrl: string): Promise<any> {
+    try {
+      console.log('📥 Fetching module content from:', jsonUrl);
+
+      const response = await fetch(jsonUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+
+      const content = await response.json();
+      console.log('✅ Module content fetched successfully');
+      
+      return content;
+    } catch (error) {
+      console.error('❌ Error fetching module content:', error);
+      throw new Error('Failed to load module content');
+    }
+  }
+
+  // Legacy method for backward compatibility (backup uploads)
+  private async uploadModuleBackup(
+    moduleData: any,
+    moduleId: string
+  ): Promise<string | null> {
+    // Just use the new uploadModuleJSON method
+    return this.uploadModuleJSON(moduleData, moduleId);
   }
 
   // VARK Module Categories
@@ -151,11 +250,27 @@ export class VARKModulesAPI {
 
   // VARK Modules
   async getModules(filters?: VARKModuleFilters): Promise<VARKModule[]> {
-    console.log('Fetching VARK modules...');
+    console.log('Fetching VARK modules (lightweight listing)...');
 
+    // Fetch ONLY fields needed for listing (exclude heavy content)
     let query = this.supabase.from('vark_modules').select(
       `
-        *,
+        id,
+        title,
+        description,
+        category_id,
+        difficulty_level,
+        estimated_duration_minutes,
+        is_published,
+        created_by,
+        created_at,
+        updated_at,
+        target_learning_styles,
+        target_class_id,
+        learning_objectives,
+        json_content_url,
+        content_summary,
+        prerequisite_module_id,
         profiles:created_by (
           first_name,
           last_name
@@ -224,12 +339,44 @@ export class VARKModulesAPI {
     }
 
     if (data) {
-      return {
+      const module: VARKModule = {
         ...data,
         teacher_name: data.profiles
           ? `${data.profiles.first_name} ${data.profiles.last_name}`
           : 'Unknown Teacher'
       };
+
+      // If module has json_content_url, fetch and merge the full content
+      if (data.json_content_url) {
+        try {
+          console.log('📥 Fetching full module data from storage...');
+          const fullModuleData = await this.fetchModuleContent(data.json_content_url);
+          
+          // Merge ALL fields from storage (content is source of truth)
+          // But preserve DB-only metadata fields (DB is source of truth for these)
+          Object.assign(module, {
+            ...fullModuleData,
+            // Preserve DB-only fields (these are NOT stored in JSON)
+            id: data.id,
+            created_at: data.created_at,
+            created_by: data.created_by,
+            updated_at: data.updated_at,
+            json_content_url: data.json_content_url,
+            is_published: data.is_published, // DB is source of truth for publish status
+            teacher_name: module.teacher_name
+          });
+          
+          console.log('✅ Full module data merged from storage');
+          console.log('📊 Total size:', JSON.stringify(fullModuleData).length, 'bytes');
+        } catch (error) {
+          console.warn('⚠️ Failed to fetch module content from storage:', error);
+          console.log('Using database fallback (if available)');
+          // If fetching fails, the module will use whatever is in the database
+          // This provides backward compatibility for old modules
+        }
+      }
+
+      return module;
     }
 
     return null;
@@ -281,12 +428,14 @@ export class VARKModulesAPI {
       // Generate temporary ID for image processing
       const tempId = crypto.randomUUID();
 
-      // Process images in content sections to reduce payload size
+      // Process images in content sections
       if (cleanModuleData.content_structure?.sections) {
+        const totalSections = cleanModuleData.content_structure.sections.length;
         console.log(
-          '🖼️ Processing images in sections before database insert...'
+          `🖼️ Processing images in ${totalSections} sections...`
         );
 
+        let sectionsProcessed = 0;
         for (
           let i = 0;
           i < cleanModuleData.content_structure.sections.length;
@@ -294,26 +443,81 @@ export class VARKModulesAPI {
         ) {
           const section = cleanModuleData.content_structure.sections[i];
 
-          if (section.content_type === 'text' && section.content_data?.text) {
+          // Check multiple possible locations for HTML content
+          let htmlContent: string | null = null;
+          let contentPath: string = '';
+
+          if (section.content_data?.text) {
+            htmlContent = section.content_data.text;
+            contentPath = 'content_data.text';
+          } else if (section.content_data?.read_aloud_data?.content) {
+            htmlContent = section.content_data.read_aloud_data.content;
+            contentPath = 'content_data.read_aloud_data.content';
+          }
+
+          if (htmlContent) {
+            console.log(`Processing section ${i + 1}/${totalSections}: "${section.title}" (type: ${section.content_type}, path: ${contentPath})`);
+            
             // Extract base64 images and upload to storage
             const processedHtml = await this.extractAndUploadImages(
-              section.content_data.text,
+              htmlContent,
               tempId
             );
 
-            // Update section with processed HTML
-            cleanModuleData.content_structure.sections[i].content_data.text =
-              processedHtml;
+            // Update section with processed HTML at the correct location
+            if (contentPath === 'content_data.text') {
+              cleanModuleData.content_structure.sections[i].content_data.text = processedHtml;
+            } else if (contentPath === 'content_data.read_aloud_data.content') {
+              cleanModuleData.content_structure.sections[i].content_data.read_aloud_data.content = processedHtml;
+            }
+              
+            sectionsProcessed++;
           }
         }
 
-        console.log('✅ All images processed, payload size reduced');
+        console.log(`✅ Processed ${sectionsProcessed}/${totalSections} sections with HTML content`);
       }
 
-      // First, insert the module to get the ID
+      // Upload full module JSON to storage FIRST (before database insert)
+      console.log('📤 Uploading full module JSON to storage...');
+      const jsonUrl = await this.uploadModuleJSON(cleanModuleData, tempId);
+      
+      if (!jsonUrl) {
+        throw new Error('Failed to upload module JSON to storage');
+      }
+      
+      console.log('✅ Module JSON uploaded:', jsonUrl);
+
+      // Prepare lightweight metadata for database (WITHOUT heavy content)
+      const dbMetadata = {
+        id: tempId,
+        category_id: cleanModuleData.category_id,
+        title: cleanModuleData.title,
+        description: cleanModuleData.description,
+        learning_objectives: cleanModuleData.learning_objectives,
+        difficulty_level: cleanModuleData.difficulty_level,
+        estimated_duration_minutes: cleanModuleData.estimated_duration_minutes,
+        prerequisites: cleanModuleData.prerequisites,
+        is_published: cleanModuleData.is_published,
+        created_by: cleanModuleData.created_by,
+        target_class_id: cleanModuleData.target_class_id,
+        target_learning_styles: cleanModuleData.target_learning_styles,
+        json_content_url: jsonUrl,
+        // Store only summary, not full content
+        content_summary: {
+          sections_count: cleanModuleData.content_structure?.sections?.length || 0,
+          assessment_count: cleanModuleData.assessment_questions?.length || 0,
+          has_multimedia: Object.values(cleanModuleData.multimedia_content || {}).some(
+            v => v && (Array.isArray(v) ? v.length > 0 : true)
+          )
+        }
+      };
+
+      // Insert lightweight metadata into database
+      console.log('💾 Inserting module metadata into database...');
       const { data, error } = await this.supabase
         .from('vark_modules')
-        .insert(cleanModuleData)
+        .insert(dbMetadata)
         .select()
         .single();
 
@@ -325,30 +529,19 @@ export class VARKModulesAPI {
           details: error.details,
           hint: error.hint
         });
+        
+        // Clean up uploaded JSON if database insert fails
+        await this.deleteModuleJSON(tempId);
+        
         throw new Error(`Failed to create VARK module: ${error.message}`);
       }
 
       console.log('✅ Successfully created VARK module:', data);
       console.log('Module ID:', data.id);
       console.log('Module Title:', data.title);
-
-      // Upload JSON backup to storage
-      const backupUrl = await this.uploadModuleBackup(data, data.id);
-
-      // Update module with backup URL if upload was successful
-      if (backupUrl) {
-        const { error: updateError } = await this.supabase
-          .from('vark_modules')
-          .update({ json_backup_url: backupUrl })
-          .eq('id', data.id);
-
-        if (updateError) {
-          console.warn('⚠️ Failed to save backup URL to module:', updateError);
-        } else {
-          console.log('✅ JSON backup URL saved to module');
-          data.json_backup_url = backupUrl;
-        }
-      }
+      console.log('JSON URL:', data.json_content_url);
+      console.log('📊 Database payload size: ~', JSON.stringify(dbMetadata).length, 'bytes');
+      console.log('📊 Full content in storage: ~', JSON.stringify(cleanModuleData).length, 'bytes');
 
       return data;
     } catch (error) {
@@ -415,8 +608,12 @@ export class VARKModulesAPI {
     try {
       // Process images in content sections to reduce payload size
       if (cleanModuleData.content_structure?.sections) {
-        console.log('🖼️ Processing images in sections before update...');
+        const totalSections = cleanModuleData.content_structure.sections.length;
+        console.log(
+          `🖼️ Processing images in ${totalSections} sections before update...`
+        );
 
+        let sectionsProcessed = 0;
         for (
           let i = 0;
           i < cleanModuleData.content_structure.sections.length;
@@ -424,54 +621,88 @@ export class VARKModulesAPI {
         ) {
           const section = cleanModuleData.content_structure.sections[i];
 
-          if (section.content_type === 'text' && section.content_data?.text) {
+          // Check multiple possible locations for HTML content
+          let htmlContent: string | null = null;
+          let contentPath: string = '';
+
+          if (section.content_data?.text) {
+            htmlContent = section.content_data.text;
+            contentPath = 'content_data.text';
+          } else if (section.content_data?.read_aloud_data?.content) {
+            htmlContent = section.content_data.read_aloud_data.content;
+            contentPath = 'content_data.read_aloud_data.content';
+          }
+
+          if (htmlContent) {
+            console.log(`Processing section ${i + 1}/${totalSections}: "${section.title}" (type: ${section.content_type}, path: ${contentPath})`);
+            
             // Extract base64 images and upload to storage
             const processedHtml = await this.extractAndUploadImages(
-              section.content_data.text,
+              htmlContent,
               id
             );
 
-            // Update section with processed HTML
-            cleanModuleData.content_structure.sections[i].content_data.text =
-              processedHtml;
+            // Update section with processed HTML at the correct location
+            if (contentPath === 'content_data.text') {
+              cleanModuleData.content_structure.sections[i].content_data.text = processedHtml;
+            } else if (contentPath === 'content_data.read_aloud_data.content') {
+              cleanModuleData.content_structure.sections[i].content_data.read_aloud_data.content = processedHtml;
+            }
+              
+            sectionsProcessed++;
           }
         }
 
-        console.log('✅ All images processed, payload size reduced');
+        console.log(`✅ Processed ${sectionsProcessed}/${totalSections} sections with HTML content`);
       }
 
-      // Upload JSON backup (optional, with timeout - don't block update)
-      console.log('📦 Attempting JSON backup to storage...');
-      try {
-        const tempModuleData = {
-          id,
-          ...cleanModuleData
-        };
+      // Upload full module JSON to storage
+      console.log('� Uploading updated module JSON to storage...');
+      const fullModuleData = {
+        id,
+        ...cleanModuleData
+      };
+      
+      const jsonUrl = await this.uploadModuleJSON(fullModuleData, id);
+      
+      if (!jsonUrl) {
+        throw new Error('Failed to upload module JSON to storage');
+      }
+      
+      console.log('✅ Module JSON uploaded:', jsonUrl);
 
-        // Add 5-second timeout for backup upload
-        const backupPromise = this.uploadModuleBackup(tempModuleData, id);
-        const timeoutPromise = new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Backup timeout')), 5000)
-        );
-
-        const backupUrl = await Promise.race([backupPromise, timeoutPromise]);
-
-        if (backupUrl) {
-          console.log('✅ JSON backup uploaded:', backupUrl);
-          cleanModuleData.json_backup_url = backupUrl;
+      // Prepare lightweight metadata for database (WITHOUT heavy content)
+      const dbMetadata: any = {
+        category_id: cleanModuleData.category_id,
+        title: cleanModuleData.title,
+        description: cleanModuleData.description,
+        learning_objectives: cleanModuleData.learning_objectives,
+        difficulty_level: cleanModuleData.difficulty_level,
+        estimated_duration_minutes: cleanModuleData.estimated_duration_minutes,
+        prerequisites: cleanModuleData.prerequisites,
+        is_published: cleanModuleData.is_published,
+        target_class_id: cleanModuleData.target_class_id,
+        target_learning_styles: cleanModuleData.target_learning_styles,
+        json_content_url: jsonUrl,
+        updated_at: cleanModuleData.updated_at,
+        // Update content summary
+        content_summary: {
+          sections_count: cleanModuleData.content_structure?.sections?.length || 0,
+          assessment_count: cleanModuleData.assessment_questions?.length || 0,
+          has_multimedia: Object.values(cleanModuleData.multimedia_content || {}).some(
+            v => v && (Array.isArray(v) ? v.length > 0 : true)
+          )
         }
-      } catch (backupError) {
-        console.warn('⚠️ JSON backup failed (non-critical):', backupError);
-        // Continue with update even if backup fails
-      }
+      };
 
-      console.log('Attempting to update vark_modules table...');
-      console.log({ cleanModuleData, id });
+      console.log('💾 Updating module metadata in database...');
+      console.log('📊 Database payload size: ~', JSON.stringify(dbMetadata).length, 'bytes');
+      console.log('📊 Full content in storage: ~', JSON.stringify(fullModuleData).length, 'bytes');
 
-      // Single database update with all data including backup URL
+      // Update only metadata in database
       const { data, error } = await this.supabase
         .from('vark_modules')
-        .update(cleanModuleData)
+        .update(dbMetadata)
         .eq('id', id)
         .select()
         .single();
@@ -487,7 +718,7 @@ export class VARKModulesAPI {
         throw new Error(`Failed to update VARK module: ${error.message}`);
       }
 
-      console.log('✅ Successfully updated VARK module with backup URL:', data);
+      console.log('✅ Successfully updated VARK module:', data);
 
       return data;
     } catch (error) {
@@ -577,7 +808,12 @@ export class VARKModulesAPI {
         .eq('student_id', studentId);
 
       if (completionsError) {
-        console.error('Error fetching module completions:', completionsError);
+        // If table doesn't exist (406) or other errors, silently return empty array
+        if (completionsError.code === 'PGRST116' || completionsError.message.includes('does not exist')) {
+          console.log('ℹ️ module_completions table not found, returning empty progress');
+        } else {
+          console.warn('⚠️ Error fetching module completions:', completionsError.message);
+        }
         return [];
       }
 
@@ -1320,9 +1556,13 @@ export class VARKModulesAPI {
       .eq('module_id', moduleId)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching student module completion:', error);
-      throw new Error('Failed to fetch student module completion');
+    if (error) {
+      // Silently handle missing table or no data found
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        return null;
+      }
+      console.warn('⚠️ Error fetching student module completion:', error.message);
+      return null; // Return null instead of throwing
     }
 
     return data || null;
@@ -1344,8 +1584,12 @@ export class VARKModulesAPI {
       .order('completion_date', { ascending: false });
 
     if (error) {
-      console.error('Error fetching module completions:', error);
-      throw new Error('Failed to fetch module completions');
+      // Silently handle missing table
+      if (error.code === 'PGRST116' || error.message.includes('does not exist')) {
+        return [];
+      }
+      console.warn('⚠️ Error fetching module completions:', error.message);
+      return []; // Return empty array instead of throwing
     }
 
     return data || [];

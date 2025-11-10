@@ -560,7 +560,7 @@ export default function TeacherVARKModulesPage() {
             const newModule = await varkAPI.createModule({
               ...moduleData,
               created_by: user.id,
-              is_published: false // Import as draft (unpublished) by default
+              is_published: true // Publish immediately so students can access
             });
             imported.push(newModule);
           } catch (error) {
@@ -583,7 +583,7 @@ export default function TeacherVARKModulesPage() {
         const newModule = await varkAPI.createModule({
           ...importPreview.module,
           created_by: user.id,
-          is_published: false // Import as draft (unpublished) by default
+          is_published: true // Publish immediately so students can access
         });
 
         setModules(prev => [newModule, ...prev]);
@@ -1062,7 +1062,7 @@ export default function TeacherVARKModulesPage() {
           </div>
 
           {/* Editor.js Feature Banner */}
-          <Card className="mb-8 border-2 border-teal-200 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50">
+          {/* <Card className="mb-8 border-2 border-teal-200 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50">
             <CardContent className="p-6">
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 p-3 bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl">
@@ -1128,7 +1128,7 @@ export default function TeacherVARKModulesPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Modules Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1269,13 +1269,6 @@ export default function TeacherVARKModulesPage() {
                         Prerequisite
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Difficulty
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -1388,27 +1381,28 @@ export default function TeacherVARKModulesPage() {
                             })()}
                           </td>
 
+                          {/* Prerequisite Column */}
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge
-                              className={
-                                difficultyColors[
-                                  module.difficulty_level as keyof typeof difficultyColors
-                                ]
-                              }>
-                              {module.difficulty_level.charAt(0).toUpperCase() +
-                                module.difficulty_level.slice(1)}
-                            </Badge>
-                          </td>
-
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge
-                              className={
-                                module.is_published
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }>
-                              {module.is_published ? 'Published' : 'Draft'}
-                            </Badge>
+                            {(() => {
+                              console.log(`Module: ${module.title}, Prerequisite ID:`, module.prerequisite_module_id);
+                              
+                              if (module.prerequisite_module_id) {
+                                const prereqModule = modules.find(
+                                  m => m.id === module.prerequisite_module_id
+                                );
+                                console.log('Found prerequisite module:', prereqModule?.title);
+                                
+                                return (
+                                  <div className="text-sm">
+                                    <Badge variant="outline" className="text-xs">
+                                      {prereqModule?.title || 'Unknown Module'}
+                                    </Badge>
+                                  </div>
+                                );
+                              }
+                              
+                              return <span className="text-xs text-gray-400">None</span>;
+                            })()}
                           </td>
 
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -1418,7 +1412,7 @@ export default function TeacherVARKModulesPage() {
                                 variant="ghost"
                                 size="sm"
                                 title="Edit module"
-                                onClick={() => handleEditModule(module)}
+                                onClick={() => window.open(`/teacher/vark-modules/edit/${module.id}`, '_blank')}
                                 className="text-blue-600 hover:text-blue-800 hover:bg-blue-50">
                                 <Edit className="w-4 h-4" />
                               </Button>

@@ -28,7 +28,11 @@ import {
   AlertCircle,
   Edit3,
   Target,
-  Trophy
+  Trophy,
+  Eye,
+  Headphones,
+  PenTool,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -231,6 +235,88 @@ export default function StudentProfilePage() {
           </p>
         </div>
 
+        {/* Learning Style Profile */}
+        {user && (
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5 mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  {(user as any)?.preferredModules && (user as any).preferredModules.length > 1 ? (
+                    <div className="flex -space-x-2">
+                      {(user as any).preferredModules.slice(0, 4).map((module: string, idx: number) => {
+                        const moduleToKeyMap: Record<string, 'visual' | 'auditory' | 'reading_writing' | 'kinesthetic'> = {
+                          'Visual': 'visual',
+                          'Aural': 'auditory',
+                          'Read/Write': 'reading_writing',
+                          'Kinesthetic': 'kinesthetic'
+                        };
+                        
+                        const learningStyleIcons = {
+                          visual: Eye,
+                          auditory: Headphones,
+                          reading_writing: PenTool,
+                          kinesthetic: Zap
+                        };
+                        
+                        const learningStyleColors = {
+                          visual: 'from-blue-500 to-blue-600',
+                          auditory: 'from-green-500 to-green-600',
+                          reading_writing: 'from-purple-500 to-purple-600',
+                          kinesthetic: 'from-orange-500 to-orange-600'
+                        };
+                        
+                        const styleKey = moduleToKeyMap[module] || 'visual';
+                        const Icon = learningStyleIcons[styleKey] || Eye;
+                        const colorClass = learningStyleColors[styleKey] || 'from-blue-500 to-blue-600';
+                        
+                        return (
+                          <div
+                            key={idx}
+                            className={`w-12 h-12 bg-gradient-to-r ${colorClass} rounded-full flex items-center justify-center shadow-lg border-2 border-white`}>
+                            <Icon className="w-6 h-6 text-white" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 bg-gradient-to-r from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center shadow-lg">
+                      <Target className="w-8 h-8 text-white" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      {(user as any)?.learningType || 'Unimodal'}
+                      <span className="text-gray-600"> Learner</span>
+                    </h3>
+                    <p className="text-gray-600">
+                      {(user as any)?.preferredModules && (user as any).preferredModules.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(user as any).preferredModules.map((module: string, idx: number) => (
+                            <Badge
+                              key={idx}
+                              variant="outline"
+                              className="text-xs px-2 py-0.5 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                              {module}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span>Your unique learning profile</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-[#00af8f]">
+                    <Trophy className="w-8 h-8 mx-auto mb-1" />
+                  </div>
+                  <div className="text-xs text-gray-500">Learning Profile</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Overview Card */}
           <div className="lg:col-span-1">
@@ -418,87 +504,9 @@ export default function StudentProfilePage() {
 
                 {/* Learning Information */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <Target className="w-5 h-5 mr-2 text-[#00af8f]" />
-                    Learning Information
-                  </h3>
+                
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Grade Level */}
-                    <div>
-                      <Label
-                        htmlFor="gradeLevel"
-                        className="text-sm font-medium text-gray-700">
-                        Grade Level
-                      </Label>
-                      <Select
-                        value={profileData.gradeLevel}
-                        onValueChange={value =>
-                          handleInputChange('gradeLevel', value)
-                        }>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select grade level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GRADE_LEVELS.map(level => (
-                            <SelectItem key={level} value={level}>
-                              {level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Learning Style */}
-                    <div>
-                      <Label
-                        htmlFor="learningStyle"
-                        className="text-sm font-medium text-gray-700">
-                        Learning Style
-                      </Label>
-                      <Select
-                        value={profileData.learningStyle}
-                        onValueChange={value =>
-                          handleInputChange('learningStyle', value)
-                        }>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select learning style" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {LEARNING_STYLES.map(style => (
-                            <SelectItem key={style.value} value={style.value}>
-                              <div>
-                                <div className="font-medium">{style.label}</div>
-                                <div className="text-xs text-gray-500">
-                                  {style.description}
-                                </div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Learning Style Description */}
-                  {currentLearningStyle && (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-teal-50 to-[#00af8f]/5 rounded-xl border border-teal-100">
-                      <div className="flex items-start space-x-3">
-                        <div
-                          className={`w-8 h-8 rounded-full ${currentLearningStyle.color} flex items-center justify-center flex-shrink-0`}>
-                          <Target className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900 mb-1">
-                            {currentLearningStyle.label} Learning Style
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {currentLearningStyle.description}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                
                 </div>
 
                 {/* Save Button */}

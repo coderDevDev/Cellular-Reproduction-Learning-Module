@@ -478,6 +478,67 @@ export default function StudentVARKModulePage() {
 
           {/* Module Info Sidebar */}
           <div className="space-y-6">
+            {/* Learning Style Profile */}
+            {user && (
+              <Card className="border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-3">
+                    {(user as any)?.preferredModules && (user as any).preferredModules.length > 1 ? (
+                      <div className="flex -space-x-2">
+                        {(user as any).preferredModules.slice(0, 3).map((module: string, idx: number) => {
+                          const moduleToKeyMap: Record<string, keyof typeof learningStyleIcons> = {
+                            'Visual': 'visual',
+                            'Aural': 'auditory',
+                            'Read/Write': 'reading_writing',
+                            'Kinesthetic': 'kinesthetic'
+                          };
+                          
+                          const styleKey = moduleToKeyMap[module] || 'visual';
+                          const Icon = learningStyleIcons[styleKey] || learningStyleIcons.visual;
+                          const colorClass = learningStyleColors[styleKey] || 'from-blue-500 to-blue-600';
+                          
+                          return (
+                            <div
+                              key={idx}
+                              className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-full flex items-center justify-center shadow-lg border-2 border-white`}>
+                              <Icon className="w-5 h-5 text-white" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div
+                        className={`w-12 h-12 bg-gradient-to-r ${
+                          learningStyleColors[
+                            userLearningStyle as keyof typeof learningStyleColors
+                          ]
+                        } rounded-full flex items-center justify-center shadow-lg`}>
+                        <LearningStyleIcon className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="text-sm font-bold text-gray-900">
+                        {(user as any)?.learningType || 'Unimodal'}
+                        <span className="text-gray-600"> Learner</span>
+                      </h3>
+                      {(user as any)?.preferredModules && (user as any).preferredModules.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(user as any).preferredModules.map((module: string, idx: number) => (
+                            <Badge
+                              key={idx}
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                              {module}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Module Overview */}
             <Card className="border-0 shadow-lg">
               <CardHeader>
@@ -487,27 +548,7 @@ export default function StudentVARKModulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-12 h-12 bg-gradient-to-r ${
-                      learningStyleColors[
-                        userLearningStyle as keyof typeof learningStyleColors
-                      ]
-                    } rounded-lg flex items-center justify-center`}>
-                    <LearningStyleIcon className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {
-                        learningStyleLabels[
-                          userLearningStyle as keyof typeof learningStyleLabels
-                        ]
-                      }{' '}
-                      Learner
-                    </p>
-                    <p className="text-xs text-gray-500">Your learning style</p>
-                  </div>
-                </div>
+              
 
                 <Separator />
 

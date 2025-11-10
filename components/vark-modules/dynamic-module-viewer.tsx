@@ -3797,7 +3797,7 @@ export default function DynamicModuleViewer({
 
               <div className="flex items-center space-x-4">
                 {/* Export Data Button */}
-                <Button
+                {/* <Button
                   variant="outline"
                   size="sm"
                   onClick={downloadSectionDataAsJSON}
@@ -3805,7 +3805,7 @@ export default function DynamicModuleViewer({
                   title="Download your answers and progress as JSON">
                   <FileText className="w-4 h-4" />
                   <span className="hidden lg:inline">Export My Data</span>
-                </Button>
+                </Button> */}
                 
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">
