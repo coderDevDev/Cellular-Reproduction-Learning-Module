@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,7 +219,9 @@ export default function VARKModuleBuilder({
     updated_at: new Date().toISOString(),
     // Class targeting fields
     target_class_id: initialData?.target_class_id || '',
-    target_learning_styles: initialData?.target_learning_styles || []
+    target_learning_styles: initialData?.target_learning_styles || [],
+    // Prerequisite field
+    prerequisite_module_id: (initialData as any)?.prerequisite_module_id || null
   });
 
   const totalSteps = 3;
