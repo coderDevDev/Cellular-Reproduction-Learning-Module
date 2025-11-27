@@ -325,7 +325,7 @@ export default function HomePage() {
                   assessment and access
                   <span className="font-semibold text-[#00af8f]">
                     {' '}
-                    AI-powered educational content
+                    Educational content
                   </span>{' '}
                   that adapts to how you learn best.
                 </p>
@@ -580,7 +580,7 @@ export default function HomePage() {
             </div>
 
             {/* Cards Grid with Improved Spacing */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
               {/* Student Experience Card */}
               <Card className="group relative border-0 shadow-xl bg-gradient-to-br from-white via-white to-teal-50/10 backdrop-blur-sm hover:shadow-2xl transition-all duration-700 transform hover:-translate-y-3 hover:scale-[1.02] overflow-hidden">
                 {/* Card Background Pattern */}
@@ -652,38 +652,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
 
-              {/* Smart Content Card */}
-              <Card className="group relative border-0 shadow-xl bg-gradient-to-br from-white via-white to-teal-50/10 backdrop-blur-sm hover:shadow-2xl transition-all duration-700 transform hover:-translate-y-3 hover:scale-[1.02] overflow-hidden">
-                {/* Card Background Pattern */}
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-[#00af8f]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#00af8f]/10 to-transparent rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
-                <CardContent className="relative z-10 p-8 lg:p-10 text-center h-full flex flex-col">
-                  {/* Enhanced Icon Container */}
-                  <div className="relative mb-8 flex-shrink-0">
-                    <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-[#00af8f] to-teal-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl group-hover:shadow-3xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3">
-                      <BookOpen className="w-10 h-10 lg:w-12 lg:h-12 text-white transition-transform duration-300 group-hover:scale-110" />
-                    </div>
-                    {/* Floating Elements */}
-                    <div className="absolute -top-2 -right-2 w-5 h-5 lg:w-6 lg:h-6 bg-gradient-to-br from-teal-600 to-[#00af8f] rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 animate-pulse"></div>
-                    <div className="absolute -bottom-2 -left-2 w-4 h-4 lg:w-5 lg:h-5 bg-gradient-to-br from-[#00af8f] to-teal-500 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 delay-200 animate-bounce"></div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-grow flex flex-col">
-                    <CardTitle className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-gray-900 via-[#00af8f] to-gray-900 bg-clip-text text-transparent mb-4 transition-all duration-300 group-hover:from-[#00af8f] group-hover:via-gray-900 group-hover:to-[#00af8f]">
-                      Smart Content
-                    </CardTitle>
-                    <p className="text-gray-600 leading-relaxed text-base lg:text-lg flex-grow transition-colors duration-300 group-hover:text-gray-700">
-                      <span className="font-semibold text-[#00af8f] transition-all duration-300 group-hover:text-teal-600">
-                        AI-powered content recommendations
-                      </span>{' '}
-                      based on learning styles, progress tracking, and adaptive
-                      assessments for optimal learning outcomes and engagement.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+           
             </div>
           </div>
         </div>
@@ -706,8 +675,7 @@ export default function HomePage() {
                 </div>
                 <p className="text-gray-300 text-lg leading-relaxed max-w-md">
                   Empowering educators and students with personalized learning
-                  experiences through advanced VARK assessment and AI-powered
-                  content delivery.
+                  experiences through advanced VARK assessment.
                 </p>
               </div>
 
