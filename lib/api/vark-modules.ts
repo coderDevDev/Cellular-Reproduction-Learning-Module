@@ -220,7 +220,17 @@ export class VARKModulesAPI {
     try {
       console.log('📥 Fetching module content from:', jsonUrl);
 
-      const response = await fetch(jsonUrl);
+      // Add cache-busting to ensure fresh content
+      const cacheBustUrl = `${jsonUrl}?t=${Date.now()}`;
+      console.log('🔄 Cache-busted URL:', cacheBustUrl);
+
+      const response = await fetch(cacheBustUrl, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch: ${response.statusText}`);
@@ -228,6 +238,9 @@ export class VARKModulesAPI {
 
       const content = await response.json();
       console.log('✅ Module content fetched successfully');
+      console.log('📊 Fetched content keys:', Object.keys(content));
+      console.log('🔄 Fetched sections count:', content.content_structure?.sections?.length || 0);
+      console.log('📋 Fetched section titles:', content.content_structure?.sections?.map((s: any) => s.title) || []);
       
       return content;
     } catch (error) {
@@ -683,6 +696,7 @@ export class VARKModulesAPI {
         is_published: cleanModuleData.is_published,
         target_class_id: cleanModuleData.target_class_id,
         target_learning_styles: cleanModuleData.target_learning_styles,
+        prerequisite_module_id: cleanModuleData.prerequisite_module_id,
         json_content_url: jsonUrl,
         updated_at: cleanModuleData.updated_at,
         // Update content summary

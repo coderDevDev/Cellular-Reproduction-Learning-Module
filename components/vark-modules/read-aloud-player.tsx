@@ -45,33 +45,83 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const wordsRef = useRef<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
+  const lastActionTimeRef = useRef<number>(0);
 
-  // Extract words from content
+  // Extract words from content and reset player state on section change
   useEffect(() => {
+    console.log('📝 Processing content for read-aloud (section changed)');
+    console.log('Content length:', data.content?.length || 0);
+    
+    // Stop any ongoing speech when section changes
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    
+    // Reset player state
+    setIsPlaying(false);
+    setIsPaused(false);
+    setCurrentWordIndex(-1);
+    setProgress(0);
+    
+    if (!data.content) {
+      console.warn('No content provided for read-aloud');
+      wordsRef.current = [];
+      return;
+    }
+    
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = data.content;
     const text = tempDiv.textContent || '';
     wordsRef.current = text.split(/\s+/).filter(word => word.length > 0);
+    
+    console.log('Extracted words:', wordsRef.current.length);
+    console.log('🔄 Player reset for new section');
   }, [data.content]);
 
   // Load available voices
   useEffect(() => {
     const loadVoices = () => {
+      if (!window.speechSynthesis) {
+        console.warn('Speech Synthesis not supported');
+        return;
+      }
+
       const voices = window.speechSynthesis.getVoices();
+      console.log('Available voices:', voices.length);
       setAvailableVoices(voices);
       
       // Set default voice
       if (!selectedVoice && voices.length > 0) {
         const defaultVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
         setSelectedVoice(defaultVoice.name);
+        console.log('Selected default voice:', defaultVoice.name);
+      } else if (voices.length === 0) {
+        console.warn('No voices available for speech synthesis');
       }
     };
 
+    // Load voices immediately
     loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    
+    // Also load when voices change (some browsers load them asynchronously)
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, [selectedVoice]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      console.log('🧹 Cleaning up Read Aloud Player');
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
 
@@ -99,7 +149,9 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
 
   // Split content into word spans
   const getContentWithSpans = useCallback(() => {
+    // If highlighting is disabled, return original content to preserve formatting
     if (!data.highlight_settings?.enabled) {
+      console.log('🎨 Word highlighting disabled - preserving original formatting');
       return { __html: data.content };
     }
 
@@ -107,7 +159,7 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = data.content;
     
-    // Function to wrap text nodes with spans
+    // Function to wrap text nodes with spans while preserving formatting
     const wrapTextNodes = (node: Node, wordIndex: { current: number }): void => {
       if (node.nodeType === Node.TEXT_NODE) {
         const text = node.textContent || '';
@@ -116,14 +168,20 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
         const fragment = document.createDocumentFragment();
         words.forEach((part) => {
           if (/\s+/.test(part)) {
-            // Whitespace - preserve it
+            // Whitespace - preserve it exactly
             fragment.appendChild(document.createTextNode(part));
           } else if (part.trim().length > 0) {
-            // Word - wrap it in a span
+            // Word - wrap it in a span with minimal styling impact
             const span = document.createElement('span');
             span.className = 'word-span';
             span.setAttribute('data-index', String(wordIndex.current));
             span.textContent = part;
+            // Preserve inline styles by making span display inline
+            span.style.display = 'inline';
+            span.style.margin = '0';
+            span.style.padding = '0';
+            span.style.border = 'none';
+            span.style.background = 'transparent';
             fragment.appendChild(span);
             wordIndex.current++;
           }
@@ -131,8 +189,7 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
         
         node.parentNode?.replaceChild(fragment, node);
       } else if (node.nodeType === Node.ELEMENT_NODE) {
-        // Process child nodes
-        Array.from(node.childNodes).forEach(child => wrapTextNodes(child, wordIndex));
+
       }
     };
 
@@ -145,12 +202,58 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
 
   // Play speech
   const play = useCallback(() => {
-    if (!wordsRef.current.length) return;
+    const now = Date.now();
+    const timeSinceLastAction = now - lastActionTimeRef.current;
+    
+    // Debounce rapid clicks (prevent actions within 500ms)
+    if (timeSinceLastAction < 500) {
+      console.log('⏳ Action debounced, too soon since last action');
+      return;
+    }
+    
+    lastActionTimeRef.current = now;
+    
+    console.log('🎵 Play button clicked');
+    console.log('Words available:', wordsRef.current.length);
+    console.log('Available voices:', availableVoices.length);
+    console.log('Selected voice:', selectedVoice);
+    console.log('Speech synthesis status:', {
+      speaking: window.speechSynthesis?.speaking,
+      pending: window.speechSynthesis?.pending,
+      paused: window.speechSynthesis?.paused
+    });
+    
+    if (!wordsRef.current.length) {
+      console.error('No words to speak');
+      return;
+    }
+
+    // Check if Speech Synthesis is supported
+    if (!window.speechSynthesis) {
+      console.error('Speech Synthesis not supported in this browser');
+      alert('Text-to-speech is not supported in your browser. Please try using Chrome, Firefox, or Safari.');
+      return;
+    }
 
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
-    const text = wordsRef.current.join(' ');
+    const text = wordsRef.current.join(' ').trim();
+    
+    // Validate text content
+    if (!text || text.length === 0) {
+      console.error('No text content to speak');
+      alert('No text content available for speech synthesis.');
+      return;
+    }
+    
+    if (text.length > 32767) {
+      console.error('Text too long for speech synthesis:', text.length);
+      alert('Text is too long for speech synthesis. Please use shorter content.');
+      return;
+    }
+    
+    console.log('Starting speech synthesis for text length:', text.length);
     const utterance = new SpeechSynthesisUtterance(text);
 
     // Configure voice
@@ -192,9 +295,55 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
+      console.error('Speech synthesis error:', {
+        error: event.error,
+        type: event.type,
+        elapsedTime: event.elapsedTime,
+        charIndex: event.charIndex,
+        name: event.name
+      });
+      
+      // Provide user-friendly error messages
+      let errorMessage = 'Speech synthesis failed. ';
+      let shouldShowAlert = true;
+      
+      switch (event.error) {
+        case 'interrupted':
+          console.log('Speech was interrupted (normal behavior)');
+          shouldShowAlert = false; // Don't show alert for interruptions
+          break;
+        case 'network':
+          errorMessage += 'Please check your internet connection.';
+          break;
+        case 'synthesis-failed':
+          errorMessage += 'Text-to-speech service is unavailable.';
+          break;
+        case 'synthesis-unavailable':
+          errorMessage += 'Text-to-speech is not available on this device.';
+          break;
+        case 'voice-unavailable':
+          errorMessage += 'Selected voice is not available. Try a different voice.';
+          break;
+        case 'text-too-long':
+          errorMessage += 'Text is too long for speech synthesis.';
+          break;
+        case 'invalid-argument':
+          errorMessage += 'Invalid speech settings detected.';
+          break;
+        default:
+          errorMessage += 'Unknown error occurred.';
+      }
+      
+      if (shouldShowAlert) {
+        console.warn('User-friendly error:', errorMessage);
+        // You could show a toast notification here instead of alert
+        // toast.error(errorMessage);
+      }
+      
       setIsPlaying(false);
       setIsPaused(false);
+      setCurrentWordIndex(-1);
+      setProgress(0);
     };
 
     utteranceRef.current = utterance;
@@ -205,11 +354,46 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
 
   // Pause speech
   const pause = useCallback(() => {
-    if (isPlaying && !isPaused) {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-    } else if (isPaused) {
-      window.speechSynthesis.resume();
+    const now = Date.now();
+    const timeSinceLastAction = now - lastActionTimeRef.current;
+    
+    // Debounce rapid clicks (prevent actions within 300ms for pause)
+    if (timeSinceLastAction < 300) {
+      console.log('⏳ Pause action debounced, too soon since last action');
+      return;
+    }
+    
+    lastActionTimeRef.current = now;
+    
+    console.log('⏸️ Pause/Resume button clicked');
+    console.log('Current state:', { isPlaying, isPaused });
+    console.log('Speech synthesis status:', {
+      speaking: window.speechSynthesis?.speaking,
+      pending: window.speechSynthesis?.pending,
+      paused: window.speechSynthesis?.paused
+    });
+    
+    if (!window.speechSynthesis) {
+      console.error('Speech Synthesis not available');
+      return;
+    }
+    
+    try {
+      if (isPlaying && !isPaused) {
+        console.log('Pausing speech...');
+        window.speechSynthesis.pause();
+        setIsPaused(true);
+      } else if (isPaused) {
+        console.log('Resuming speech...');
+        window.speechSynthesis.resume();
+        setIsPaused(false);
+      } else {
+        console.log('Invalid state for pause/resume');
+      }
+    } catch (error) {
+      console.error('Error in pause/resume:', error);
+      // Reset state on error
+      setIsPlaying(false);
       setIsPaused(false);
     }
   }, [isPlaying, isPaused]);
@@ -256,6 +440,26 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
   const highlightColor = data.highlight_settings?.color || '#FFD700';
   const highlightStyle = data.highlight_settings?.style || 'word';
   const highlightAnimation = data.highlight_settings?.animation || 'pulse';
+
+
+
+  // Add this right after your other hooks
+useEffect(() => {
+  if (!contentRef.current) return;
+
+  // Apply styles to all images
+  contentRef.current.querySelectorAll('img').forEach(img => {
+
+    console.log({img})
+     img.style = '';
+    img.style.display = 'block';
+    img.style.margin = '1rem auto';
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    img.style.borderRadius = '0.5rem';
+    img.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+  });
+}, [getContentWithSpans]); // Re-run when content changes
 
   return (
     <Card className="w-full border-0 shadow-lg">
@@ -412,16 +616,28 @@ export const ReadAloudPlayer: React.FC<ReadAloudPlayerProps> = ({
 
         {/* Content Display with Highlighting - NOW BELOW CONTROLS */}
         <div
-          ref={contentRef}
-          className="prose prose-lg max-w-none p-6 bg-gray-50 rounded-lg border-2 border-gray-200"
-          dangerouslySetInnerHTML={getContentWithSpans()}
-          style={{
-            ['--highlight-color' as any]: highlightColor
-          }}
-        />
+  ref={contentRef}
+  className="content-container prose prose-lg max-w-none p-6 bg-gray-50 rounded-lg border-2 border-gray-200"
+  dangerouslySetInnerHTML={getContentWithSpans()}
+  style={{
+    ['--highlight-color' as any]: highlightColor,
+    fontSize: data.font_size || '1rem',
+    lineHeight: 1.6,
+    color: '#374151',
+    textAlign: 'left', // keep text left-aligned
+  }}
+/>
 
         {/* Custom CSS for highlighting */}
         <style jsx>{`
+
+.content-container img {
+  display: block !important;
+  margin: 0 auto !important;
+  max-width: 100% !important;
+}
+
+
           .word-span {
             display: inline;
             padding: 2px;

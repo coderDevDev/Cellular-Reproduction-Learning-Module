@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,6 +55,12 @@ import {
 } from 'lucide-react';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { toast } from 'sonner';
+
+// Import VARKModulePreview for quick preview functionality
+const VARKModulePreview = dynamic(
+  () => import('../vark-module-preview'),
+  { ssr: false }
+);
 
 // Dynamically import CKEditor to avoid SSR issues
 const CKEditorContentEditor = dynamic(
@@ -233,6 +239,18 @@ export default function ContentStructureStep({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [multiSelectedIndices, setMultiSelectedIndices] = useState<Set<number>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{
+    show: boolean;
+    x: number;
+    y: number;
+    sectionIndex: number;
+  }>({ show: false, x: 0, y: 0, sectionIndex: -1 });
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moveSourceIndex, setMoveSourceIndex] = useState<number | null>(null);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneSourceIndex, setCloneSourceIndex] = useState<number | null>(null);
+  const [cloneMultiple, setCloneMultiple] = useState(false);
+  const [showQuickPreview, setShowQuickPreview] = useState(false);
   // ✅ Removed useEditorJS toggle - Editor.js is always embedded in the form
   const sections = formData.content_structure?.sections || [];
 
@@ -270,6 +288,158 @@ export default function ContentStructureStep({
     // Select the newly duplicated section
     setSelectedSectionIndex(index + 1);
     toast.success('Section duplicated successfully!');
+  };
+
+  // Context menu handlers
+  const handleContextMenu = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    setContextMenu({
+      show: true,
+      x: e.clientX,
+      y: e.clientY,
+      sectionIndex: index
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ show: false, x: 0, y: 0, sectionIndex: -1 });
+  };
+
+  // Close context menu on escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeContextMenu();
+      }
+    };
+
+    if (contextMenu.show) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [contextMenu.show]);
+
+  // Move section to specific position
+  const moveSection = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    const updatedSections = [...sections];
+    const [movedSection] = updatedSections.splice(fromIndex, 1);
+    updatedSections.splice(toIndex, 0, movedSection);
+
+    // Update position numbers for all sections
+    const reorderedSections = updatedSections.map((section, idx) => ({
+      ...section,
+      position: idx + 1
+    }));
+
+    updateFormData({
+      content_structure: {
+        ...formData.content_structure,
+        sections: reorderedSections
+      } as any
+    });
+
+    // Update selected index if needed
+    if (selectedSectionIndex === fromIndex) {
+      setSelectedSectionIndex(toIndex);
+    } else if (selectedSectionIndex !== null) {
+      if (fromIndex < selectedSectionIndex && toIndex >= selectedSectionIndex) {
+        setSelectedSectionIndex(selectedSectionIndex - 1);
+      } else if (fromIndex > selectedSectionIndex && toIndex <= selectedSectionIndex) {
+        setSelectedSectionIndex(selectedSectionIndex + 1);
+      }
+    }
+
+    toast.success(`Section moved to position ${toIndex + 1}!`);
+  };
+
+  const handleMoveToPosition = (targetIndex: number) => {
+    if (moveSourceIndex !== null) {
+      moveSection(moveSourceIndex, targetIndex);
+      setShowMoveModal(false);
+      setMoveSourceIndex(null);
+    }
+    closeContextMenu();
+  };
+
+  // Clone section(s) to specific position
+  const cloneSection = (sourceIndex: number, targetIndex: number) => {
+    const sectionToClone = sections[sourceIndex];
+    
+    // Deep clone the section to avoid shared references
+    const clonedSection: VARKModuleContentSection = JSON.parse(JSON.stringify({
+      ...sectionToClone,
+      id: crypto.randomUUID(), // Generate new ID
+      title: `${sectionToClone.title || `Section ${sourceIndex + 1}`} (Copy)`,
+    }));
+
+    const updatedSections = [...sections];
+    updatedSections.splice(targetIndex, 0, clonedSection);
+
+    // Update position numbers for all sections
+    const reorderedSections = updatedSections.map((section, idx) => ({
+      ...section,
+      position: idx + 1
+    }));
+
+    updateFormData({
+      content_structure: {
+        ...formData.content_structure,
+        sections: reorderedSections
+      } as any
+    });
+
+    toast.success(`Section cloned to position ${targetIndex + 1}!`);
+  };
+
+  // Clone multiple sections to specific position
+  const cloneMultipleSections = (sourceIndices: number[], targetIndex: number) => {
+    const sectionsToClone = sourceIndices.map(idx => {
+      const section = sections[idx];
+      return JSON.parse(JSON.stringify({
+        ...section,
+        id: crypto.randomUUID(),
+        title: `${section.title || `Section ${idx + 1}`} (Copy)`,
+      }));
+    });
+
+    const updatedSections = [...sections];
+    
+    // Insert all cloned sections at target position
+    updatedSections.splice(targetIndex, 0, ...sectionsToClone);
+
+    // Update position numbers for all sections
+    const reorderedSections = updatedSections.map((section, idx) => ({
+      ...section,
+      position: idx + 1
+    }));
+
+    updateFormData({
+      content_structure: {
+        ...formData.content_structure,
+        sections: reorderedSections
+      } as any
+    });
+
+    toast.success(`${sourceIndices.length} sections cloned to position ${targetIndex + 1}!`);
+  };
+
+  const handleCloneToPosition = (targetIndex: number) => {
+    if (cloneMultiple && multiSelectedIndices.size > 0) {
+      // Clone multiple selected sections
+      const indicesToClone = Array.from(multiSelectedIndices).sort((a, b) => a - b);
+      cloneMultipleSections(indicesToClone, targetIndex);
+      setMultiSelectedIndices(new Set()); // Clear selection
+    } else if (cloneSourceIndex !== null) {
+      // Clone single section
+      cloneSection(cloneSourceIndex, targetIndex);
+    }
+    
+    setShowCloneModal(false);
+    setCloneSourceIndex(null);
+    setCloneMultiple(false);
+    closeContextMenu();
   };
 
   // Drag and drop handlers
@@ -6466,6 +6636,7 @@ export default function ContentStructureStep({
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, index)}
                     onDragEnd={handleDragEnd}
+                    onContextMenu={(e) => handleContextMenu(e, index)}
                     className={`p-4 rounded-xl border-2 cursor-move transition-all duration-200 hover:shadow-md ${
                       draggedIndex === index
                         ? 'opacity-50 scale-95'
@@ -6582,10 +6753,20 @@ export default function ContentStructureStep({
                     {sections[selectedSectionIndex].title ||
                       `Section ${selectedSectionIndex + 1}`}
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Auto-Save Enabled
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowQuickPreview(true)}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-200">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Quick Preview
+                    </Button>
+                    <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Auto-Save Enabled
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
                 <CardContent>
@@ -6615,12 +6796,110 @@ export default function ContentStructureStep({
                       </Label>
                       <Select
                         value={sections[selectedSectionIndex].content_type}
-                        onValueChange={value =>
+                        onValueChange={value => {
+                          const currentSection = sections[selectedSectionIndex];
+                          const newContentType = value as any;
+                          const currentContentType = currentSection.content_type;
+                          
+                          console.log('🔄 Content Type Change Debug:');
+                          console.log('From:', currentContentType, 'To:', newContentType);
+                          console.log('Current section data:', currentSection);
+                          console.log('Current text content:', currentSection.content_data?.text);
+                          
+                          // Define content types that can share content
+                          const textCompatibleTypes = ['text', 'read_aloud', 'quick_write'];
+                          const assessmentCompatibleTypes = ['assessment', 'activity'];
+                          
+                          let newContentData = {};
+                          
+                          // Preserve content when switching between compatible types
+                          if (textCompatibleTypes.includes(currentContentType) && 
+                              textCompatibleTypes.includes(newContentType)) {
+                            // Get text content from the appropriate property based on current content type
+                            let currentText = '';
+                            if (currentContentType === 'text') {
+                              currentText = currentSection.content_data?.text || '';
+                            } else if (currentContentType === 'read_aloud') {
+                              currentText = currentSection.content_data?.read_aloud_data?.content || '';
+                            } else if (currentContentType === 'quick_write') {
+                              currentText = currentSection.content_data?.text || '';
+                            }
+                            
+                            console.log('✅ Compatible content types detected');
+                            console.log('Current content type:', currentContentType);
+                            console.log('New content type:', newContentType);
+                            console.log('Preserving HTML content (first 200 chars):', currentText.substring(0, 200) + '...');
+                            console.log('Content includes HTML tags:', /<[^>]*>/.test(currentText));
+                            console.log('Full content length:', currentText.length);
+                            
+                            if (newContentType === 'text') {
+                              newContentData = {
+                                text: currentText
+                              };
+                            } else if (newContentType === 'read_aloud') {
+                              newContentData = {
+                                read_aloud_data: {
+                                  title: currentSection.content_data?.read_aloud_data?.title || '',
+                                  content: currentText // Put text in the correct property
+                                },
+                                voice_settings: currentSection.content_data?.voice_settings || {
+                                  rate: 1,
+                                  pitch: 1,
+                                  volume: 1
+                                },
+                                highlight_settings: currentSection.content_data?.highlight_settings || {
+                                  enabled: true,
+                                  color: '#3b82f6'
+                                }
+                              };
+                            } else if (newContentType === 'quick_write') {
+                              newContentData = {
+                                text: currentText,
+                                prompt: currentSection.content_data?.prompt || '',
+                                word_limit: currentSection.content_data?.word_limit || 100
+                              };
+                            }
+                          } else if (assessmentCompatibleTypes.includes(currentContentType) && 
+                                     assessmentCompatibleTypes.includes(newContentType)) {
+                            // Preserve some assessment/activity data when switching between them
+                            const currentTitle = currentSection.content_data?.quiz_data?.title || 
+                                               currentSection.content_data?.activity_data?.title || '';
+                            const currentInstructions = currentSection.content_data?.quiz_data?.instructions || 
+                                                       currentSection.content_data?.activity_data?.instructions || '';
+                            
+                            console.log('✅ Compatible assessment types detected');
+                            
+                            if (newContentType === 'assessment') {
+                              newContentData = {
+                                quiz_data: {
+                                  title: currentTitle,
+                                  instructions: currentInstructions,
+                                  type: 'single_choice',
+                                  questions: [],
+                                  options: ['Option 1', 'Option 2'],
+                                  correct_answer: ''
+                                }
+                              };
+                            } else if (newContentType === 'activity') {
+                              newContentData = {
+                                activity_data: {
+                                  title: currentTitle,
+                                  instructions: currentInstructions,
+                                  type: 'discussion'
+                                }
+                              };
+                            }
+                          } else {
+                            console.log('❌ Incompatible content types - starting fresh');
+                          }
+                          
+                          console.log('New content data:', newContentData);
+                          
                           updateContentSection(selectedSectionIndex, {
-                            content_type: value as any,
-                            content_data: {} // Reset content data when type changes
-                          })
-                        }>
+                            content_type: newContentType,
+                            content_data: newContentData
+                          });
+                        }}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -6848,6 +7127,271 @@ export default function ContentStructureStep({
           )}
         </div>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu.show && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={closeContextMenu}
+          />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-[200px]"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+            }}
+          >
+            <div className="px-3 py-2 text-sm font-medium text-gray-700 border-b border-gray-100">
+              Section {contextMenu.sectionIndex + 1}: {sections[contextMenu.sectionIndex]?.title || 'Untitled'}
+            </div>
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              onClick={() => {
+                setMoveSourceIndex(contextMenu.sectionIndex);
+                setShowMoveModal(true);
+                closeContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              Move to Position...
+            </button>
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              onClick={() => {
+                setCloneSourceIndex(contextMenu.sectionIndex);
+                setCloneMultiple(false);
+                setShowCloneModal(true);
+                closeContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Clone to Position...
+            </button>
+            {multiSelectedIndices.size > 0 && (
+              <button
+                className="w-full px-3 py-2 text-left text-sm hover:bg-purple-50 text-purple-600 flex items-center gap-2"
+                onClick={() => {
+                  setCloneMultiple(true);
+                  setShowCloneModal(true);
+                  closeContextMenu();
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Clone {multiSelectedIndices.size} Selected to Position...
+              </button>
+            )}
+            <div className="border-t border-gray-100 my-1"></div>
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+              onClick={() => {
+                duplicateSection(contextMenu.sectionIndex);
+                closeContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+              </svg>
+              Duplicate Here
+            </button>
+            <button
+              className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
+              onClick={() => {
+                removeContentSection(contextMenu.sectionIndex);
+                closeContextMenu();
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete Section
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Move to Position Modal */}
+      <Dialog open={showMoveModal} onOpenChange={setShowMoveModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Move Section to Position</DialogTitle>
+            <DialogDescription>
+              Choose where to move "{sections[moveSourceIndex || 0]?.title || `Section ${(moveSourceIndex || 0) + 1}`}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-2">
+            {sections.map((section, index) => (
+              <div key={section.id}>
+                {/* Move Before Option */}
+                <button
+                  className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all"
+                  onClick={() => handleMoveToPosition(index)}
+                  disabled={index === moveSourceIndex}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">Move before: {section.title || `Section ${index + 1}`}</div>
+                      <div className="text-xs text-gray-500">Position {index + 1}</div>
+                    </div>
+                  </div>
+                </button>
+                
+                {/* Move After Option (only for last section) */}
+                {index === sections.length - 1 && (
+                  <button
+                    className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all mt-2"
+                    onClick={() => handleMoveToPosition(index + 1)}
+                    disabled={index + 1 === moveSourceIndex}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded bg-green-100 text-green-600 text-xs font-bold flex items-center justify-center">
+                        {index + 2}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">Move to end</div>
+                        <div className="text-xs text-gray-500">Position {index + 2}</div>
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMoveModal(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clone to Position Modal */}
+      <Dialog open={showCloneModal} onOpenChange={setShowCloneModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clone Section{cloneMultiple ? 's' : ''} to Position</DialogTitle>
+            <DialogDescription>
+              {cloneMultiple 
+                ? `Choose where to clone ${multiSelectedIndices.size} selected sections`
+                : `Choose where to clone "${sections[cloneSourceIndex || 0]?.title || `Section ${(cloneSourceIndex || 0) + 1}`}"`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-2">
+            {cloneMultiple && multiSelectedIndices.size > 0 && (
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="text-sm font-medium text-purple-800 mb-2">
+                  Cloning {multiSelectedIndices.size} sections:
+                </div>
+                <div className="space-y-1">
+                  {Array.from(multiSelectedIndices).sort((a, b) => a - b).map(idx => (
+                    <div key={idx} className="text-xs text-purple-600">
+                      • {sections[idx]?.title || `Section ${idx + 1}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {sections.map((section, index) => (
+              <div key={section.id}>
+                {/* Clone Before Option */}
+                <button
+                  className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all"
+                  onClick={() => handleCloneToPosition(index)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded bg-green-100 text-green-600 text-xs font-bold flex items-center justify-center">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">Clone before: {section.title || `Section ${index + 1}`}</div>
+                      <div className="text-xs text-gray-500">Position {index + 1}</div>
+                    </div>
+                  </div>
+                </button>
+                
+                {/* Clone After Option (only for last section) */}
+                {index === sections.length - 1 && (
+                  <button
+                    className="w-full p-3 text-left hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-all mt-2"
+                    onClick={() => handleCloneToPosition(index + 1)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded bg-blue-100 text-blue-600 text-xs font-bold flex items-center justify-center">
+                        {index + 2}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm">Clone to end</div>
+                        <div className="text-xs text-gray-500">Position {index + 2}</div>
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCloneModal(false);
+              setCloneSourceIndex(null);
+              setCloneMultiple(false);
+            }}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Preview Modal */}
+      {selectedSectionIndex !== null && sections[selectedSectionIndex] && (
+        <VARKModulePreview
+          isOpen={showQuickPreview}
+          onClose={() => setShowQuickPreview(false)}
+          currentStep={6}
+          formData={{
+            id: 'quick-preview',
+            title: `Preview: ${sections[selectedSectionIndex].title || `Section ${selectedSectionIndex + 1}`}`,
+            description: 'Quick preview of the current section you are editing',
+            content_structure: {
+              sections: [sections[selectedSectionIndex]],
+              learning_path: [sections[selectedSectionIndex].id]
+            },
+            basic_info: {
+              title: `Preview: ${sections[selectedSectionIndex].title || `Section ${selectedSectionIndex + 1}`}`,
+              description: 'Quick preview of the current section you are editing',
+              category: formData.basic_info?.category || 'General',
+              difficulty: formData.basic_info?.difficulty || 'beginner',
+              estimated_duration_minutes: sections[selectedSectionIndex].time_estimate_minutes || 10,
+              learning_objectives: formData.basic_info?.learning_objectives || ['Preview section content'],
+              prerequisites: formData.basic_info?.prerequisites || [],
+              target_audience: formData.basic_info?.target_audience || 'Students'
+            },
+            metadata: {
+              created_by: 'preview',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              version: '1.0.0',
+              tags: sections[selectedSectionIndex].learning_style_tags || [],
+              is_published: false,
+              prerequisite_module_id: null
+            }
+          } as VARKModule}
+          activeSectionIndex={0}
+          onSectionChange={() => {}}
+          onProgressUpdate={() => {}}
+          onSectionComplete={() => {}}
+        />
+      )}
 
       {/* Quick Preview Section */}
     </div>

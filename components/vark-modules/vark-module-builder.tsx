@@ -221,8 +221,25 @@ export default function VARKModuleBuilder({
     target_class_id: initialData?.target_class_id || '',
     target_learning_styles: initialData?.target_learning_styles || [],
     // Prerequisite field
-    prerequisite_module_id: (initialData as any)?.prerequisite_module_id || null
+    ...(initialData as any)?.prerequisite_module_id && { prerequisite_module_id: (initialData as any).prerequisite_module_id }
   });
+
+  // Update form data when initialData changes (for async loading in edit mode)
+  useEffect(() => {
+    if (initialData) {
+      console.log('📝 Updating form with fresh initialData after save');
+      console.log('🔄 Content structure sections:', initialData.content_structure?.sections?.length || 0);
+      console.log('📋 Section titles:', initialData.content_structure?.sections?.map(s => s.title) || []);
+      console.log('📊 Full initialData keys:', Object.keys(initialData));
+      console.log('📄 Content structure keys:', Object.keys(initialData.content_structure || {}));
+      
+      setFormData(prev => ({
+        ...prev,
+        ...initialData,
+        prerequisite_module_id: (initialData as any)?.prerequisite_module_id || null
+      }));
+    }
+  }, [initialData]);
 
   const totalSteps = 3;
   const progressPercentage = (currentStep / totalSteps) * 100;

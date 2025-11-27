@@ -47,7 +47,7 @@ export default function EditVARKModulePage() {
       }
 
       // Check if user is the creator
-      if (moduleData.created_by !== user.id) {
+      if (moduleData.created_by !== user?.id) {
         toast.error('You do not have permission to edit this module');
         router.push('/teacher/vark-modules');
         return;
@@ -76,8 +76,15 @@ export default function EditVARKModulePage() {
   const handleSave = async (updatedModule: VARKModule) => {
     try {
       console.log('💾 Saving module updates...');
+      console.log('📤 Sections being saved:', updatedModule.content_structure?.sections?.length || 0);
+      console.log('📋 Section titles being saved:', updatedModule.content_structure?.sections?.map(s => s.title) || []);
+      
       await varkAPI.updateModule(moduleId, updatedModule);
       toast.success('Module updated successfully!');
+      
+      // Small delay to ensure storage is fully updated
+      console.log('⏳ Waiting for storage to sync...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Reload the module to get fresh data
       await loadModule();
@@ -140,6 +147,7 @@ export default function EditVARKModulePage() {
       {/* Module Builder */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <VARKModuleBuilder
+          key={module.updated_at} // Force re-render when module updates
           initialData={module}
           onSave={handleSave}
           onCancel={handleCancel}

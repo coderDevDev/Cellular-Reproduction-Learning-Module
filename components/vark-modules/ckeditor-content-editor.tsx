@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import {
   ClassicEditor,
@@ -58,6 +58,7 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
   readOnly = false
 }) => {
   const editorRef = useRef<any>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   console.log('🎯 CKEditor Component Mounted:', {
     hasData: !!data,
@@ -65,6 +66,31 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
     dataPreview: data?.substring(0, 100) || '(empty)',
     readOnly
   });
+
+  // Debounced onChange handler to prevent excessive re-renders
+  const debouncedOnChange = useCallback((content: string) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      console.log('📝 CKEditor debounced onChange:', {
+        contentLength: content.length,
+        hasContent: content.length > 0,
+        preview: content.substring(0, 100)
+      });
+      onChange(content);
+    }, 300); // 300ms debounce
+  }, [onChange]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="border border-gray-300 rounded-lg bg-white overflow-hidden">
@@ -373,15 +399,16 @@ const CKEditorContentEditor: React.FC<CKEditorContentEditorProps> = ({
         }}
         onChange={(event, editor) => {
           const content = editor.getData();
-          console.log('📝 CKEditor onChange:', {
-            contentLength: content.length,
-            hasContent: content.length > 0,
-            preview: content.substring(0, 100)
-          });
-          onChange(content);
+          debouncedOnChange(content);
         }}
         onBlur={(event, editor) => {
-          console.log('💾 CKEditor onBlur - content saved');
+          // Save immediately on blur to ensure content is not lost
+          if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+            const content = editor.getData();
+            console.log('💾 CKEditor onBlur - immediate save');
+            onChange(content);
+          }
         }}
         onFocus={(event, editor) => {
           console.log('🎯 CKEditor focused');
