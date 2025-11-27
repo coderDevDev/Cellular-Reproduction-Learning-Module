@@ -30,8 +30,17 @@ import {
   PenTool,
   FileText,
   XCircle,
-  AlertCircle,BarChart3
+  AlertCircle,
+  BarChart3
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 import { VARKModule, VARKModuleContentSection } from '@/types/vark-module';
 import { Textarea } from '@/components/ui/textarea';
 import { VARKModulesAPI } from '@/lib/api/vark-modules';
@@ -41,10 +50,9 @@ import { toast } from 'sonner';
 import FillInBlanksActivity from './fill-in-blanks-activity';
 
 // Dynamically import ReadAloudPlayer to avoid SSR issues
-const ReadAloudPlayer = dynamic(
-  () => import('./read-aloud-player'),
-  { ssr: false }
-);
+const ReadAloudPlayer = dynamic(() => import('./read-aloud-player'), {
+  ssr: false
+});
 
 // Import mobile enhancement components
 import {
@@ -64,6 +72,7 @@ interface DynamicModuleViewerProps {
   activeSectionIndex?: number;
   userId?: string; // Student ID for completion tracking
   userName?: string; // Student name for notifications
+  studentLearningStyles?: string[]; // Student's learning styles (e.g., ['visual', 'auditory'])
 }
 
 const learningStyleIcons = {
@@ -82,6 +91,96 @@ const learningStyleColors = {
   kinesthetic: 'from-orange-500 to-orange-600'
 };
 
+// Helper function to check if a section is a Pre-Test
+const isPreTestSection = (
+  section: VARKModuleContentSection | undefined
+): boolean => {
+  if (!section) return false;
+
+  // Check by section ID
+  const sectionId = section.id?.toLowerCase() || '';
+  if (sectionId === 'pre-test-section' || sectionId.includes('pre-test')) {
+    return true;
+  }
+
+  // Check by section title
+  const sectionTitle = section.title?.toLowerCase() || '';
+  if (sectionTitle.includes('pre-test') || sectionTitle.includes('pretest')) {
+    return true;
+  }
+
+  return false;
+};
+
+// Helper function to check if student matches auditory learning style
+const studentMatchesAuditory = (
+  studentLearningStyles: string[] = []
+): boolean => {
+  if (!studentLearningStyles || studentLearningStyles.length === 0)
+    return false;
+
+  // Check if 'auditory' is in the student's learning styles
+  return studentLearningStyles.includes('auditory');
+};
+
+// Helper function to check if a section has audio content
+const sectionHasAudioContent = (section: VARKModuleContentSection): boolean => {
+  if (!section) return false;
+
+  // Direct audio content type
+  if (section.content_type === 'audio') {
+    return true;
+  }
+
+  // Text section with embedded audio_data
+  if (section.content_type === 'text' && section.content_data?.audio_data) {
+    return true;
+  }
+
+  // Check learning style tags - if section is tagged as auditory, it likely has audio
+  if (
+    section.learning_style_tags &&
+    section.learning_style_tags.includes('auditory')
+  ) {
+    // But only if it's not read_aloud (read_aloud is also auditory but different)
+    if (section.content_type !== 'read_aloud') {
+      return true;
+    }
+  }
+
+  // Text section with HTML containing audio tags or embedded audio
+  if (section.content_type === 'text' && section.content_data?.text) {
+    const htmlContent = section.content_data.text.toLowerCase();
+
+    // Check for audio tags, embedded audio, or audio-related services
+    // More specific checks to avoid false positives
+    const hasAudioIndicators =
+      htmlContent.includes('<audio') || // HTML audio element
+      htmlContent.includes('</audio>') || // Closing audio tag
+      htmlContent.includes('soundcloud.com') || // SoundCloud embeds
+      (htmlContent.includes('soundcloud') && htmlContent.includes('embed')) || // SoundCloud embed
+      (htmlContent.includes('<embed') && htmlContent.includes('audio')) || // Embedded audio
+      (htmlContent.includes('<iframe') &&
+        (htmlContent.includes('soundcloud') ||
+          htmlContent.includes('audio'))) || // Audio iframe
+      htmlContent.includes('tap to play') || // "Tap to play" text indicator
+      htmlContent.includes('click to play') || // "Click to play" text indicator
+      htmlContent.includes('play audio') || // "Play audio" text indicator
+      htmlContent.includes('.mp3') || // Audio file extension
+      htmlContent.includes('.wav') || // Audio file extension
+      htmlContent.includes('.ogg') || // Audio file extension
+      htmlContent.includes('.m4a') || // Audio file extension
+      htmlContent.includes('.aac') || // Audio file extension
+      (htmlContent.includes('controls') && htmlContent.includes('audio')) || // Audio controls attribute
+      htmlContent.includes('type="audio') || // Audio MIME type
+      htmlContent.includes("type='audio"); // Audio MIME type (single quotes)
+
+    return hasAudioIndicators;
+  }
+
+  return false;
+};
+
 export default function DynamicModuleViewer({
   module,
   onProgressUpdate,
@@ -90,7 +189,8 @@ export default function DynamicModuleViewer({
   previewMode = false,
   activeSectionIndex = 0,
   userId,
-  userName
+  userName,
+  studentLearningStyles = []
 }: DynamicModuleViewerProps) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [sectionProgress, setSectionProgress] =
@@ -99,10 +199,14 @@ export default function DynamicModuleViewer({
   const [showQuizResults, setShowQuizResults] = useState<
     Record<string, boolean>
   >({});
-  const [sectionStartTimes, setSectionStartTimes] = useState<Record<string, number>>({});
+  const [sectionStartTimes, setSectionStartTimes] = useState<
+    Record<string, number>
+  >({});
   const [isSavingSubmission, setIsSavingSubmission] = useState(false);
-  const [assessmentResults, setAssessmentResults] = useState<Record<string, any>>({});
-  
+  const [assessmentResults, setAssessmentResults] = useState<
+    Record<string, any>
+  >({});
+
   // 💾 SUBMISSION CONFIRMATION MODAL STATE
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [submissionModalData, setSubmissionModalData] = useState<{
@@ -111,7 +215,7 @@ export default function DynamicModuleViewer({
     timeSpent: number;
     assessmentResult?: any;
   } | null>(null);
-  
+
   // ✅ MODULE COMPLETION STATE
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionData, setCompletionData] = useState<any>(null);
@@ -119,14 +223,50 @@ export default function DynamicModuleViewer({
   const [startTime] = useState(Date.now());
   const [hasShownCompletion, setHasShownCompletion] = useState(false);
 
+  // 🎧 PRE-TEST AUDITORY WARNING MODAL STATE
+  const [showPreTestAuditoryModal, setShowPreTestAuditoryModal] =
+    useState(false);
+  const [pendingNextSectionIndex, setPendingNextSectionIndex] = useState<
+    number | null
+  >(null);
+
+  // 🎵 AUDIO PREFERENCE STATE (audio-based vs read-aloud)
+  const [audioPreference, setAudioPreference] = useState<
+    'audio' | 'read_aloud' | null
+  >(null);
+
   const mountedRef = useRef(true);
   const previousSectionsRef = useRef<string[]>([]);
 
+  // Memoize sections to prevent unnecessary re-renders
+  // Filter sections based on audio preference
+  const memoizedSections = useMemo(() => {
+    const allSections = module.content_structure.sections || [];
+
+    // If no preference is set, return all sections
+    if (!audioPreference) {
+      return allSections;
+    }
+
+    // Filter sections based on preference:
+    // - If user chose 'audio': hide 'read_aloud' sections (they'll be auto-completed)
+    // - If user chose 'read_aloud': hide sections with audio content (they'll be auto-completed)
+    return allSections.filter(section => {
+      if (audioPreference === 'audio') {
+        // Show all sections except 'read_aloud' (those will be auto-completed)
+        return section.content_type !== 'read_aloud';
+      } else if (audioPreference === 'read_aloud') {
+        // Show all sections except those with audio content (audio sections and text sections with embedded audio)
+        // These will be auto-completed
+        return !sectionHasAudioContent(section);
+      }
+      return true;
+    });
+  }, [module.content_structure.sections, audioPreference]);
+
   const currentSection =
-    module.content_structure.sections[
-      previewMode ? activeSectionIndex : currentSectionIndex
-    ];
-  const totalSections = module.content_structure.sections.length;
+    memoizedSections[previewMode ? activeSectionIndex : currentSectionIndex];
+  const totalSections = memoizedSections.length;
   const completedSections =
     Object.values(sectionProgress).filter(Boolean).length;
   const progressPercentage = (completedSections / totalSections) * 100;
@@ -137,10 +277,53 @@ export default function DynamicModuleViewer({
     return options;
   }, []);
 
-  // Memoize sections to prevent unnecessary re-renders
-  const memoizedSections = useMemo(() => {
-    return module.content_structure.sections || [];
-  }, [module.content_structure.sections]);
+  // Auto-complete filtered sections based on preference
+  useEffect(() => {
+    if (!audioPreference || !module.content_structure.sections) return;
+
+    const sectionsToAutoComplete: string[] = [];
+
+    module.content_structure.sections.forEach(section => {
+      if (
+        audioPreference === 'audio' &&
+        section.content_type === 'read_aloud'
+      ) {
+        // Auto-complete read_aloud sections when user prefers audio
+        sectionsToAutoComplete.push(section.id);
+      } else if (
+        audioPreference === 'read_aloud' &&
+        sectionHasAudioContent(section)
+      ) {
+        // Auto-complete sections with audio content (audio sections and text sections with embedded audio)
+        // when user prefers read_aloud
+        sectionsToAutoComplete.push(section.id);
+      }
+    });
+
+    // Mark filtered sections as complete
+    sectionsToAutoComplete.forEach(sectionId => {
+      if (!sectionProgress[sectionId]) {
+        setSectionProgress(prev => ({
+          ...prev,
+          [sectionId]: true
+        }));
+
+        // Notify parent components
+        if (onProgressUpdate) {
+          onProgressUpdate(sectionId, true);
+        }
+        if (onSectionComplete) {
+          onSectionComplete(sectionId);
+        }
+      }
+    });
+  }, [
+    audioPreference,
+    module.content_structure.sections,
+    sectionProgress,
+    onProgressUpdate,
+    onSectionComplete
+  ]);
 
   // ✅ ASSESSMENT VALIDATION FUNCTIONS
   const validateAnswer = useCallback((question: any, userAnswer: any) => {
@@ -150,7 +333,7 @@ export default function DynamicModuleViewer({
     }
 
     const { type, correct_answer, points = 1 } = question;
-    
+
     switch (type) {
       case 'single_choice':
       case 'true_false':
@@ -158,76 +341,88 @@ export default function DynamicModuleViewer({
           isCorrect: userAnswer === correct_answer,
           earnedPoints: userAnswer === correct_answer ? points : 0
         };
-        
+
       case 'multiple_choice':
         if (!Array.isArray(correct_answer) || !Array.isArray(userAnswer)) {
           return { isCorrect: false, earnedPoints: 0 };
         }
         const correctSet = new Set(correct_answer);
         const userSet = new Set(userAnswer);
-        const isCorrect = 
+        const isCorrect =
           correctSet.size === userSet.size &&
           [...correctSet].every(ans => userSet.has(ans));
         return { isCorrect, earnedPoints: isCorrect ? points : 0 };
-        
+
       case 'short_answer':
         // Case-insensitive comparison, trim whitespace
-        const userAns = String(userAnswer || '').trim().toLowerCase();
-        const correctAns = String(correct_answer || '').trim().toLowerCase();
+        const userAns = String(userAnswer || '')
+          .trim()
+          .toLowerCase();
+        const correctAns = String(correct_answer || '')
+          .trim()
+          .toLowerCase();
         const isMatch = userAns === correctAns;
         return { isCorrect: isMatch, earnedPoints: isMatch ? points : 0 };
-        
+
       default:
         // For other types (audio, visual, interactive), give full credit if answered
-        return { 
-          isCorrect: !!userAnswer, 
-          earnedPoints: userAnswer ? points : 0 
+        return {
+          isCorrect: !!userAnswer,
+          earnedPoints: userAnswer ? points : 0
         };
     }
   }, []);
 
-  const calculateAssessmentScore = useCallback((questions: any[], answers: Record<string, any>) => {
-    const results = questions.map((question, index) => {
-      const answerKey = `question_${index}`;
-      const userAnswerRaw = answers[answerKey];
-      
-      // Extract actual answer value based on question type
-      let userAnswerValue;
-      if (userAnswerRaw && typeof userAnswerRaw === 'object') {
-        // Single choice uses 'selected', short answer uses 'answer', multiple choice uses array
-        userAnswerValue = userAnswerRaw.selected || userAnswerRaw.answer || userAnswerRaw;
-      } else {
-        userAnswerValue = userAnswerRaw;
-      }
-      
-      const validation = validateAnswer(question, userAnswerValue);
-      
+  const calculateAssessmentScore = useCallback(
+    (questions: any[], answers: Record<string, any>) => {
+      const results = questions.map((question, index) => {
+        const answerKey = `question_${index}`;
+        const userAnswerRaw = answers[answerKey];
+
+        // Extract actual answer value based on question type
+        let userAnswerValue;
+        if (userAnswerRaw && typeof userAnswerRaw === 'object') {
+          // Single choice uses 'selected', short answer uses 'answer', multiple choice uses array
+          userAnswerValue =
+            userAnswerRaw.selected || userAnswerRaw.answer || userAnswerRaw;
+        } else {
+          userAnswerValue = userAnswerRaw;
+        }
+
+        const validation = validateAnswer(question, userAnswerValue);
+
+        return {
+          questionId: question.id,
+          questionNumber: index + 1,
+          question: question.question,
+          userAnswer: userAnswerValue,
+          correctAnswer: question.correct_answer,
+          explanation: question.explanation,
+          ...validation
+        };
+      });
+
+      const totalEarned = results.reduce((sum, r) => sum + r.earnedPoints, 0);
+      const totalPossible = questions.reduce(
+        (sum, q) => sum + (q.points || 1),
+        0
+      );
+      const percentage =
+        totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
+      const correctCount = results.filter(r => r.isCorrect).length;
+
       return {
-        questionId: question.id,
-        questionNumber: index + 1,
-        question: question.question,
-        userAnswer: userAnswerValue,
-        correctAnswer: question.correct_answer,
-        explanation: question.explanation,
-        ...validation
+        results,
+        totalEarned,
+        totalPossible,
+        percentage,
+        correctCount,
+        totalQuestions: questions.length,
+        passed: percentage >= 60 // 60% passing score
       };
-    });
-    
-    const totalEarned = results.reduce((sum, r) => sum + r.earnedPoints, 0);
-    const totalPossible = questions.reduce((sum, q) => sum + (q.points || 1), 0);
-    const percentage = totalPossible > 0 ? (totalEarned / totalPossible) * 100 : 0;
-    const correctCount = results.filter(r => r.isCorrect).length;
-    
-    return {
-      results,
-      totalEarned,
-      totalPossible,
-      percentage,
-      correctCount,
-      totalQuestions: questions.length,
-      passed: percentage >= 60 // 60% passing score
-    };
-  }, [validateAnswer]);
+    },
+    [validateAnswer]
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -273,7 +468,7 @@ export default function DynamicModuleViewer({
 
   // 📊 EXPORT ALL SECTION DATA - Comprehensive data capture
   const exportAllSectionData = useCallback(() => {
-    const allSectionData = module.content_structure.sections.map((section) => {
+    const allSectionData = module.content_structure.sections.map(section => {
       const sectionId = section.id;
       const answers = quizAnswers[sectionId] || {};
       const results = assessmentResults[sectionId];
@@ -288,30 +483,33 @@ export default function DynamicModuleViewer({
         learning_style_tags: section.learning_style_tags,
         time_estimate_minutes: section.time_estimate_minutes,
         is_required: section.is_required,
-        
+
         // Student interaction data
         student_answers: answers,
-        assessment_results: results ? {
-          score: results.totalEarned,
-          total_possible: results.totalPossible,
-          percentage: results.percentage,
-          correct_count: results.correctCount,
-          total_questions: results.totalQuestions,
-          passed: results.passed,
-          detailed_results: results.results
-        } : null,
-        
+        assessment_results: results
+          ? {
+              score: results.totalEarned,
+              total_possible: results.totalPossible,
+              percentage: results.percentage,
+              correct_count: results.correctCount,
+              total_questions: results.totalQuestions,
+              passed: results.passed,
+              detailed_results: results.results
+            }
+          : null,
+
         time_spent_seconds: timeSpent,
         is_completed: isCompleted,
         completed_at: isCompleted ? new Date().toISOString() : null,
-        
+
         // Section content snapshot (for reference)
         content_summary: {
           has_assessment: section.content_type === 'assessment',
           has_activity: section.content_type === 'activity',
-          question_count: section.content_type === 'assessment' 
-            ? (section.content_data as any)?.questions?.length || 0
-            : 0
+          question_count:
+            section.content_type === 'assessment'
+              ? (section.content_data as any)?.questions?.length || 0
+              : 0
         }
       };
     });
@@ -324,23 +522,37 @@ export default function DynamicModuleViewer({
       total_sections: module.content_structure.sections.length,
       completed_sections: Object.values(sectionProgress).filter(Boolean).length,
       sections_data: allSectionData,
-      
+
       // Overall statistics
       overall_stats: {
-        total_time_spent_seconds: allSectionData.reduce((sum, s) => sum + s.time_spent_seconds, 0),
-        total_assessments: allSectionData.filter(s => s.section_type === 'assessment').length,
-        assessments_passed: allSectionData.filter(s => s.assessment_results?.passed).length,
+        total_time_spent_seconds: allSectionData.reduce(
+          (sum, s) => sum + s.time_spent_seconds,
+          0
+        ),
+        total_assessments: allSectionData.filter(
+          s => s.section_type === 'assessment'
+        ).length,
+        assessments_passed: allSectionData.filter(
+          s => s.assessment_results?.passed
+        ).length,
         average_score: (() => {
           const scores = allSectionData
             .filter(s => s.assessment_results)
             .map(s => s.assessment_results!.percentage);
-          return scores.length > 0 
-            ? scores.reduce((sum, score) => sum + score, 0) / scores.length 
+          return scores.length > 0
+            ? scores.reduce((sum, score) => sum + score, 0) / scores.length
             : 0;
         })()
       }
     };
-  }, [module, quizAnswers, assessmentResults, sectionProgress, sectionStartTimes, userId]);
+  }, [
+    module,
+    quizAnswers,
+    assessmentResults,
+    sectionProgress,
+    sectionStartTimes,
+    userId
+  ]);
 
   // 💾 SAVE ALL SECTION DATA TO DATABASE
   const saveAllSectionsToDatabase = useCallback(async () => {
@@ -349,12 +561,12 @@ export default function DynamicModuleViewer({
     try {
       const varkAPI = new VARKModulesAPI();
       const exportData = exportAllSectionData();
-      
+
       console.log('💾 Saving all section data to database...');
       console.log('📊 Export data:', exportData);
 
       // Save each section's data
-      const savePromises = exportData.sections_data.map(async (sectionData) => {
+      const savePromises = exportData.sections_data.map(async sectionData => {
         try {
           await varkAPI.saveSubmission({
             student_id: userId,
@@ -374,13 +586,16 @@ export default function DynamicModuleViewer({
           });
           console.log(`✅ Saved section: ${sectionData.section_title}`);
         } catch (error) {
-          console.error(`❌ Failed to save section ${sectionData.section_title}:`, error);
+          console.error(
+            `❌ Failed to save section ${sectionData.section_title}:`,
+            error
+          );
         }
       });
 
       await Promise.all(savePromises);
       console.log('✅ All section data saved to database!');
-      
+
       return exportData;
     } catch (error) {
       console.error('❌ Error saving section data:', error);
@@ -401,7 +616,7 @@ export default function DynamicModuleViewer({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    
+
     toast.success('Section data exported as JSON!');
     console.log('📥 Downloaded section data:', exportData);
   }, [exportAllSectionData, module.id, userId]);
@@ -483,12 +698,14 @@ export default function DynamicModuleViewer({
             sectionTitle: section.title,
             sectionType: section.content_type,
             timeSpent: timeSpentSeconds,
-            assessmentResult: assessmentResult ? {
-              score: assessmentResult.correctCount || 0,
-              totalQuestions: assessmentResult.totalQuestions || 0,
-              percentage: assessmentResult.percentage || 0,
-              passed: assessmentResult.passed || false
-            } : undefined
+            assessmentResult: assessmentResult
+              ? {
+                  score: assessmentResult.correctCount || 0,
+                  totalQuestions: assessmentResult.totalQuestions || 0,
+                  percentage: assessmentResult.percentage || 0,
+                  passed: assessmentResult.passed || false
+                }
+              : undefined
           });
           setShowSubmissionModal(true);
         }
@@ -510,13 +727,13 @@ export default function DynamicModuleViewer({
       // Save answers
       setQuizAnswers(prev => ({ ...prev, [sectionId]: answers }));
       setShowQuizResults(prev => ({ ...prev, [sectionId]: true }));
-      
+
       // ✅ Calculate scores and validate if questions provided
       let results = null;
       if (questions && questions.length > 0) {
         results = calculateAssessmentScore(questions, answers);
         setAssessmentResults(prev => ({ ...prev, [sectionId]: results }));
-        
+
         console.log('📊 Assessment Results:', {
           sectionId,
           score: `${results.totalEarned}/${results.totalPossible}`,
@@ -525,16 +742,23 @@ export default function DynamicModuleViewer({
           correct: `${results.correctCount}/${results.totalQuestions}`
         });
       }
-      
+
       // 💾 Save submission to database
-      const section = module.content_structure.sections.find(s => s.id === sectionId);
+      const section = module.content_structure.sections.find(
+        s => s.id === sectionId
+      );
       if (section) {
         await saveSubmissionToDatabase(section, answers, results, 'submitted');
       }
-      
+
       handleSectionComplete(sectionId);
     },
-    [handleSectionComplete, calculateAssessmentScore, module.content_structure.sections, saveSubmissionToDatabase]
+    [
+      handleSectionComplete,
+      calculateAssessmentScore,
+      module.content_structure.sections,
+      saveSubmissionToDatabase
+    ]
   );
 
   const handleQuizAnswerChange = useCallback(
@@ -553,9 +777,12 @@ export default function DynamicModuleViewer({
   // Clean inline styles from images for better display
   const cleanImageStyles = (html: string): string => {
     if (!html) return '';
-    
+
     // Remove style attributes from img tags
-    return html.replace(/<img([^>]*?)\s+style\s*=\s*["'][^"']*["']([^>]*?)>/gi, '<img$1$2>');
+    return html.replace(
+      /<img([^>]*?)\s+style\s*=\s*["'][^"']*["']([^>]*?)>/gi,
+      '<img$1$2>'
+    );
   };
 
   const renderContentSection = (section: VARKModuleContentSection) => {
@@ -572,7 +799,7 @@ export default function DynamicModuleViewer({
         return (
           <div className="prose prose-lg max-w-none">
             {/* Render CKEditor HTML content with enhanced styling */}
-            <div 
+            <div
               className="text-gray-700 leading-relaxed
                 prose-headings:text-gray-900 prose-headings:font-bold
                 prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg
@@ -833,7 +1060,7 @@ export default function DynamicModuleViewer({
         if (content_data.read_aloud_data) {
           return (
             <div className="space-y-4">
-              <ReadAloudPlayer 
+              <ReadAloudPlayer
                 data={content_data.read_aloud_data}
                 onComplete={() => {
                   console.log('Read-aloud section completed');
@@ -1077,19 +1304,32 @@ export default function DynamicModuleViewer({
       case 'assessment':
         // ✅ Use section-specific questions from content_data (PRIMARY)
         // Each section has its own questions in section.content_data.questions
-        let assessmentQuestions = (section.content_data as any)?.questions || [];
-        
+        let assessmentQuestions =
+          (section.content_data as any)?.questions || [];
+
         // 🔄 Fallback to global module.assessment_questions (BACKWARD COMPATIBILITY)
         // Only if section doesn't have its own questions
-        if (assessmentQuestions.length === 0 && module.assessment_questions && module.assessment_questions.length > 0) {
-          console.warn(`⚠️ Section "${section.title}" has no questions in content_data, falling back to module.assessment_questions`);
-          
+        if (
+          assessmentQuestions.length === 0 &&
+          module.assessment_questions &&
+          module.assessment_questions.length > 0
+        ) {
+          console.warn(
+            `⚠️ Section "${section.title}" has no questions in content_data, falling back to module.assessment_questions`
+          );
+
           // Filter questions based on section ID for backward compatibility
-          if (section.id === 'pre-test-section' || section.id.includes('pre-test')) {
+          if (
+            section.id === 'pre-test-section' ||
+            section.id.includes('pre-test')
+          ) {
             assessmentQuestions = module.assessment_questions.filter(q =>
               q.id.startsWith('pre-test')
             );
-          } else if (section.id === 'post-test-section' || section.id.includes('post-test')) {
+          } else if (
+            section.id === 'post-test-section' ||
+            section.id.includes('post-test')
+          ) {
             assessmentQuestions = module.assessment_questions.filter(q =>
               q.id.startsWith('post-test')
             );
@@ -1098,16 +1338,17 @@ export default function DynamicModuleViewer({
             assessmentQuestions = module.assessment_questions;
           }
         }
-        
+
         // 📊 Log for debugging
         console.log(`📝 Assessment section "${section.title}":`, {
           sectionId: section.id,
           questionsInSection: assessmentQuestions.length,
-          source: (section.content_data as any)?.questions ? 'section.content_data.questions' : 'module.assessment_questions (fallback)'
+          source: (section.content_data as any)?.questions
+            ? 'section.content_data.questions'
+            : 'module.assessment_questions (fallback)'
         });
-        
-        if (assessmentQuestions.length > 0) {
 
+        if (assessmentQuestions.length > 0) {
           const sectionAnswers = quizAnswers[section.id] || {};
           const showResults = showQuizResults[section.id];
 
@@ -1388,7 +1629,11 @@ export default function DynamicModuleViewer({
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <Button
                       onClick={() =>
-                        handleQuizSubmit(section.id, sectionAnswers, assessmentQuestions)
+                        handleQuizSubmit(
+                          section.id,
+                          sectionAnswers,
+                          assessmentQuestions
+                        )
                       }
                       className={`w-full bg-gradient-to-r ${
                         section.id === 'pre-test-section'
@@ -1429,20 +1674,24 @@ export default function DynamicModuleViewer({
                 (() => {
                   const results = assessmentResults[section.id];
                   if (!results) return null;
-                  
+
                   return (
                     <div className="space-y-6">
                       {/* Score Summary */}
-                      <div className={`p-6 rounded-xl border-2 ${
-                        results.passed 
-                          ? 'bg-green-50 border-green-300' 
-                          : 'bg-yellow-50 border-yellow-300'
-                      }`}>
+                      <div
+                        className={`p-6 rounded-xl border-2 ${
+                          results.passed
+                            ? 'bg-green-50 border-green-300'
+                            : 'bg-yellow-50 border-yellow-300'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center space-x-3">
-                            <div className={`p-2 rounded-lg ${
-                              results.passed ? 'bg-green-500' : 'bg-yellow-500'
-                            }`}>
+                            <div
+                              className={`p-2 rounded-lg ${
+                                results.passed
+                                  ? 'bg-green-500'
+                                  : 'bg-yellow-500'
+                              }`}>
                               {results.passed ? (
                                 <CheckCircle className="w-6 h-6 text-white" />
                               ) : (
@@ -1450,61 +1699,82 @@ export default function DynamicModuleViewer({
                               )}
                             </div>
                             <div>
-                              <h3 className={`text-2xl font-bold ${
-                                results.passed ? 'text-green-800' : 'text-yellow-800'
-                              }`}>
+                              <h3
+                                className={`text-2xl font-bold ${
+                                  results.passed
+                                    ? 'text-green-800'
+                                    : 'text-yellow-800'
+                                }`}>
                                 {results.passed ? '✅ Passed!' : '📝 Completed'}
                               </h3>
-                              <p className={results.passed ? 'text-green-700' : 'text-yellow-700'}>
-                                {results.passed 
+                              <p
+                                className={
+                                  results.passed
+                                    ? 'text-green-700'
+                                    : 'text-yellow-700'
+                                }>
+                                {results.passed
                                   ? 'Great job! You passed the assessment.'
                                   : 'Keep practicing to improve your score.'}
                               </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className={`text-4xl font-bold ${
-                              results.passed ? 'text-green-600' : 'text-yellow-600'
-                            }`}>
+                            <div
+                              className={`text-4xl font-bold ${
+                                results.passed
+                                  ? 'text-green-600'
+                                  : 'text-yellow-600'
+                              }`}>
                               {results.percentage.toFixed(0)}%
                             </div>
-                            <div className={`text-sm ${
-                              results.passed ? 'text-green-700' : 'text-yellow-700'
-                            }`}>
-                              {results.totalEarned}/{results.totalPossible} points
+                            <div
+                              className={`text-sm ${
+                                results.passed
+                                  ? 'text-green-700'
+                                  : 'text-yellow-700'
+                              }`}>
+                              {results.totalEarned}/{results.totalPossible}{' '}
+                              points
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4 mt-4">
                           <div className="p-3 bg-white rounded-lg border">
-                            <div className="text-sm text-gray-600">Correct Answers</div>
+                            <div className="text-sm text-gray-600">
+                              Correct Answers
+                            </div>
                             <div className="text-2xl font-bold text-green-600">
                               {results.correctCount}/{results.totalQuestions}
                             </div>
                           </div>
                           <div className="p-3 bg-white rounded-lg border">
-                            <div className="text-sm text-gray-600">Wrong Answers</div>
+                            <div className="text-sm text-gray-600">
+                              Wrong Answers
+                            </div>
                             <div className="text-2xl font-bold text-red-600">
                               {results.totalQuestions - results.correctCount}
                             </div>
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Per-Question Results */}
                       <div className="space-y-4">
                         <h4 className="font-semibold text-lg flex items-center">
                           <FileText className="w-5 h-5 mr-2" />
                           Question-by-Question Results:
                         </h4>
-                        
+
                         {results.results.map((result: any, idx: number) => (
-                          <div key={idx} className={`p-4 rounded-lg border-2 ${
-                            result.isCorrect 
-                              ? 'bg-green-50 border-green-300' 
-                              : 'bg-red-50 border-red-300'
-                          }`}>
+                          <div
+                            key={idx}
+                            className={`p-4 rounded-lg border-2 ${
+                              result.isCorrect
+                                ? 'bg-green-50 border-green-300'
+                                : 'bg-red-50 border-red-300'
+                            }`}>
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-2">
                                 {result.isCorrect ? (
@@ -1516,33 +1786,43 @@ export default function DynamicModuleViewer({
                                   Question {result.questionNumber}
                                 </span>
                               </div>
-                              <Badge className={`${
-                                result.isCorrect ? 'bg-green-600' : 'bg-red-600'
-                              } text-white`}>
-                                {result.earnedPoints}/{assessmentQuestions[idx]?.points || 1} pts
+                              <Badge
+                                className={`${
+                                  result.isCorrect
+                                    ? 'bg-green-600'
+                                    : 'bg-red-600'
+                                } text-white`}>
+                                {result.earnedPoints}/
+                                {assessmentQuestions[idx]?.points || 1} pts
                               </Badge>
                             </div>
-                            
+
                             <p className="text-sm font-medium mb-3 text-gray-800">
                               {result.question}
                             </p>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                               <div>
-                                <span className="font-medium text-gray-700">Your Answer:</span>
-                                <p className={`mt-1 p-2 rounded ${
-                                  result.isCorrect 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {typeof result.userAnswer === 'object' 
-                                    ? result.userAnswer?.answer || JSON.stringify(result.userAnswer)
+                                <span className="font-medium text-gray-700">
+                                  Your Answer:
+                                </span>
+                                <p
+                                  className={`mt-1 p-2 rounded ${
+                                    result.isCorrect
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                  {typeof result.userAnswer === 'object'
+                                    ? result.userAnswer?.answer ||
+                                      JSON.stringify(result.userAnswer)
                                     : result.userAnswer || 'No answer'}
                                 </p>
                               </div>
                               {!result.isCorrect && result.correctAnswer && (
                                 <div>
-                                  <span className="font-medium text-gray-700">Correct Answer:</span>
+                                  <span className="font-medium text-gray-700">
+                                    Correct Answer:
+                                  </span>
                                   <p className="mt-1 p-2 rounded bg-green-100 text-green-800">
                                     {typeof result.correctAnswer === 'object'
                                       ? JSON.stringify(result.correctAnswer)
@@ -1551,7 +1831,7 @@ export default function DynamicModuleViewer({
                                 </div>
                               )}
                             </div>
-                            
+
                             {result.explanation && !result.isCorrect && (
                               <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
                                 <p className="text-sm text-blue-800">
@@ -1559,7 +1839,9 @@ export default function DynamicModuleViewer({
                                     <Brain className="w-4 h-4" />
                                     Explanation:
                                   </strong>
-                                  <span className="mt-1 block">{result.explanation}</span>
+                                  <span className="mt-1 block">
+                                    {result.explanation}
+                                  </span>
                                 </p>
                               </div>
                             )}
@@ -1810,7 +2092,11 @@ export default function DynamicModuleViewer({
                   )}
 
                   <Button
-                    onClick={() => handleQuizSubmit(section.id, sectionAnswers, [{ ...quiz, id: section.id }])}
+                    onClick={() =>
+                      handleQuizSubmit(section.id, sectionAnswers, [
+                        { ...quiz, id: section.id }
+                      ])
+                    }
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     disabled={
                       quiz.type === 'single_choice'
@@ -1886,7 +2172,8 @@ export default function DynamicModuleViewer({
         );
 
       case 'quick_write':
-        const quickWriteAnswer = quizAnswers[section.id]?.quick_write_answer || '';
+        const quickWriteAnswer =
+          quizAnswers[section.id]?.quick_write_answer || '';
         return (
           <div className="space-y-4">
             <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
@@ -1898,7 +2185,7 @@ export default function DynamicModuleViewer({
                   ✍️ Quick Write
                 </h4>
               </div>
-              
+
               <div className="space-y-3">
                 <div className="p-4 bg-white border border-indigo-200 rounded-lg">
                   <p className="text-gray-800 font-medium whitespace-pre-line">
@@ -1918,7 +2205,7 @@ export default function DynamicModuleViewer({
                   <Textarea
                     placeholder="Type your answer here..."
                     value={quickWriteAnswer}
-                    onChange={(e) => {
+                    onChange={e => {
                       setQuizAnswers(prev => ({
                         ...prev,
                         [section.id]: {
@@ -1929,17 +2216,28 @@ export default function DynamicModuleViewer({
                     }}
                     className="min-h-[150px] resize-y border-indigo-300 focus:border-indigo-500 focus:ring-indigo-500"
                   />
-                  
+
                   {/* Word count display */}
                   <div className="flex items-center justify-between text-xs text-gray-500">
                     <span>
-                      Word count: {quickWriteAnswer.trim().split(/\s+/).filter(w => w.length > 0).length}
+                      Word count:{' '}
+                      {
+                        quickWriteAnswer
+                          .trim()
+                          .split(/\s+/)
+                          .filter(w => w.length > 0).length
+                      }
                     </span>
-                    {(content_data.min_words > 0 || content_data.max_words > 0) && (
+                    {(content_data.min_words > 0 ||
+                      content_data.max_words > 0) && (
                       <span>
-                        {content_data.min_words > 0 && `Min: ${content_data.min_words} words`}
-                        {content_data.min_words > 0 && content_data.max_words > 0 && ' | '}
-                        {content_data.max_words > 0 && `Max: ${content_data.max_words} words`}
+                        {content_data.min_words > 0 &&
+                          `Min: ${content_data.min_words} words`}
+                        {content_data.min_words > 0 &&
+                          content_data.max_words > 0 &&
+                          ' | '}
+                        {content_data.max_words > 0 &&
+                          `Max: ${content_data.max_words} words`}
                       </span>
                     )}
                   </div>
@@ -1947,23 +2245,36 @@ export default function DynamicModuleViewer({
 
                 <Button
                   onClick={() => {
-                    const wordCount = quickWriteAnswer.trim().split(/\s+/).filter(w => w.length > 0).length;
-                    
+                    const wordCount = quickWriteAnswer
+                      .trim()
+                      .split(/\s+/)
+                      .filter(w => w.length > 0).length;
+
                     // Validate word count if limits are set
-                    if (content_data.min_words > 0 && wordCount < content_data.min_words) {
-                      alert(`Please write at least ${content_data.min_words} words. Current: ${wordCount}`);
+                    if (
+                      content_data.min_words > 0 &&
+                      wordCount < content_data.min_words
+                    ) {
+                      alert(
+                        `Please write at least ${content_data.min_words} words. Current: ${wordCount}`
+                      );
                       return;
                     }
-                    if (content_data.max_words > 0 && wordCount > content_data.max_words) {
-                      alert(`Please keep your answer under ${content_data.max_words} words. Current: ${wordCount}`);
+                    if (
+                      content_data.max_words > 0 &&
+                      wordCount > content_data.max_words
+                    ) {
+                      alert(
+                        `Please keep your answer under ${content_data.max_words} words. Current: ${wordCount}`
+                      );
                       return;
                     }
-                    
+
                     if (!quickWriteAnswer || quickWriteAnswer.trim() === '') {
                       alert('Please write your answer before continuing.');
                       return;
                     }
-                    
+
                     handleSectionComplete(section.id);
                   }}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white">
@@ -2051,99 +2362,133 @@ export default function DynamicModuleViewer({
                           </thead>
                           <tbody>
                             {activity.matching_pairs.map((pair, index) => {
-                              const matchingAnswers = quizAnswers[section.id]?.matching_answers || {};
-                              const studentAnswer = matchingAnswers[index] || '';
-                              const isSubmitted = quizAnswers[section.id]?.matching_submitted || false;
-                              const isCorrect = isSubmitted && studentAnswer.toUpperCase() === pair.correct_answer?.toUpperCase();
-                              const isIncorrect = isSubmitted && studentAnswer && studentAnswer.toUpperCase() !== pair.correct_answer?.toUpperCase();
-                              
+                              const matchingAnswers =
+                                quizAnswers[section.id]?.matching_answers || {};
+                              const studentAnswer =
+                                matchingAnswers[index] || '';
+                              const isSubmitted =
+                                quizAnswers[section.id]?.matching_submitted ||
+                                false;
+                              const isCorrect =
+                                isSubmitted &&
+                                studentAnswer.toUpperCase() ===
+                                  pair.correct_answer?.toUpperCase();
+                              const isIncorrect =
+                                isSubmitted &&
+                                studentAnswer &&
+                                studentAnswer.toUpperCase() !==
+                                  pair.correct_answer?.toUpperCase();
+
                               return (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="border border-gray-300 px-4 py-3">
-                                  <input
-                                    type="text"
-                                    value={studentAnswer}
-                                    onChange={(e) => {
-                                      const value = e.target.value.toUpperCase();
-                                      if (value === '' || /^[A-Z]$/.test(value)) {
-                                        setQuizAnswers(prev => ({
-                                          ...prev,
-                                          [section.id]: {
-                                            ...prev[section.id],
-                                            matching_answers: {
-                                              ...prev[section.id]?.matching_answers,
-                                              [index]: value
+                                <tr key={index} className="hover:bg-gray-50">
+                                  <td className="border border-gray-300 px-4 py-3">
+                                    <input
+                                      type="text"
+                                      value={studentAnswer}
+                                      onChange={e => {
+                                        const value =
+                                          e.target.value.toUpperCase();
+                                        if (
+                                          value === '' ||
+                                          /^[A-Z]$/.test(value)
+                                        ) {
+                                          setQuizAnswers(prev => ({
+                                            ...prev,
+                                            [section.id]: {
+                                              ...prev[section.id],
+                                              matching_answers: {
+                                                ...prev[section.id]
+                                                  ?.matching_answers,
+                                                [index]: value
+                                              }
                                             }
-                                          }
-                                        }));
-                                      }
-                                    }}
-                                    disabled={isSubmitted}
-                                    className={`w-full px-2 py-1 border-2 rounded text-center font-semibold focus:outline-none ${
-                                      isCorrect ? 'border-green-500 bg-green-50 text-green-700' :
-                                      isIncorrect ? 'border-red-500 bg-red-50 text-red-700' :
-                                      'border-gray-300 focus:border-green-500'
-                                    }`}
-                                    placeholder="?"
-                                    maxLength={1}
-                                  />
-                                  {isSubmitted && (
-                                    <div className="text-center mt-1">
-                                      {isCorrect ? (
-                                        <span className="text-xs text-green-600 font-semibold">✓</span>
-                                      ) : isIncorrect ? (
-                                        <span className="text-xs text-red-600 font-semibold">✗ {pair.correct_answer}</span>
-                                      ) : null}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="border border-gray-300 px-4 py-3">
-                                  <div className="flex items-center space-x-2">
-                                    <span className="font-bold text-gray-700">{index + 1}.</span>
-                                    {pair.has_image && pair.image_url ? (
-                                      <div className="flex-1">
-                                        <img 
-                                          src={pair.image_url} 
-                                          alt={pair.description || `Diagram ${index + 1}`}
-                                          className="max-w-full h-32 object-contain border border-gray-200 rounded p-2 bg-white"
-                                          onError={(e) => {
-                                            // Fallback to description if image fails to load
-                                            const parent = (e.target as HTMLElement).parentElement;
-                                            if (parent) {
-                                              parent.innerHTML = `<span class="text-gray-600 italic">${pair.description || 'Image not available'}</span>`;
-                                            }
-                                          }}
-                                        />
-                                        {pair.description && (
-                                          <p className="text-xs text-gray-500 mt-1 italic">{pair.description}</p>
-                                        )}
+                                          }));
+                                        }
+                                      }}
+                                      disabled={isSubmitted}
+                                      className={`w-full px-2 py-1 border-2 rounded text-center font-semibold focus:outline-none ${
+                                        isCorrect
+                                          ? 'border-green-500 bg-green-50 text-green-700'
+                                          : isIncorrect
+                                          ? 'border-red-500 bg-red-50 text-red-700'
+                                          : 'border-gray-300 focus:border-green-500'
+                                      }`}
+                                      placeholder="?"
+                                      maxLength={1}
+                                    />
+                                    {isSubmitted && (
+                                      <div className="text-center mt-1">
+                                        {isCorrect ? (
+                                          <span className="text-xs text-green-600 font-semibold">
+                                            ✓
+                                          </span>
+                                        ) : isIncorrect ? (
+                                          <span className="text-xs text-red-600 font-semibold">
+                                            ✗ {pair.correct_answer}
+                                          </span>
+                                        ) : null}
                                       </div>
-                                    ) : (
-                                      <span className="font-medium text-gray-800">
-                                        {pair.description}
-                                      </span>
                                     )}
-                                  </div>
-                                </td>
-                                <td className="border border-gray-300 px-4 py-3">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    {activity.matching_pairs &&
-                                      activity.matching_pairs.map(
-                                        (pair, termIndex) => (
-                                          <div
-                                            key={termIndex}
-                                            className="p-2 bg-gray-100 rounded text-center font-medium text-gray-700 hover:bg-gray-200 cursor-pointer transition-colors">
-                                            {String.fromCharCode(
-                                              65 + termIndex
-                                            )}
-                                            . {pair.term}
-                                          </div>
-                                        )
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-3">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="font-bold text-gray-700">
+                                        {index + 1}.
+                                      </span>
+                                      {pair.has_image && pair.image_url ? (
+                                        <div className="flex-1">
+                                          <img
+                                            src={pair.image_url}
+                                            alt={
+                                              pair.description ||
+                                              `Diagram ${index + 1}`
+                                            }
+                                            className="max-w-full h-32 object-contain border border-gray-200 rounded p-2 bg-white"
+                                            onError={e => {
+                                              // Fallback to description if image fails to load
+                                              const parent = (
+                                                e.target as HTMLElement
+                                              ).parentElement;
+                                              if (parent) {
+                                                parent.innerHTML = `<span class="text-gray-600 italic">${
+                                                  pair.description ||
+                                                  'Image not available'
+                                                }</span>`;
+                                              }
+                                            }}
+                                          />
+                                          {pair.description && (
+                                            <p className="text-xs text-gray-500 mt-1 italic">
+                                              {pair.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="font-medium text-gray-800">
+                                          {pair.description}
+                                        </span>
                                       )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
+                                    </div>
+                                  </td>
+                                  <td className="border border-gray-300 px-4 py-3">
+                                    <div className="grid grid-cols-1 gap-2">
+                                      {activity.matching_pairs &&
+                                        activity.matching_pairs.map(
+                                          (pair, termIndex) => (
+                                            <div
+                                              key={termIndex}
+                                              className="p-2 bg-gray-100 rounded text-center font-medium text-gray-700 hover:bg-gray-200 cursor-pointer transition-colors">
+                                              {String.fromCharCode(
+                                                65 + termIndex
+                                              )}
+                                              . {pair.term}
+                                            </div>
+                                          )
+                                        )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
                             })}
                           </tbody>
                         </table>
@@ -2156,19 +2501,38 @@ export default function DynamicModuleViewer({
                   <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
                     <div className="text-center">
                       <h6 className="text-2xl font-bold text-green-800 mb-2">
-                        Your Score: {quizAnswers[section.id]?.matching_score || 0} / {activity.matching_pairs?.length || 0}
+                        Your Score:{' '}
+                        {quizAnswers[section.id]?.matching_score || 0} /{' '}
+                        {activity.matching_pairs?.length || 0}
                       </h6>
                       <p className="text-lg text-green-700">
-                        {Math.round(((quizAnswers[section.id]?.matching_score || 0) / (activity.matching_pairs?.length || 1)) * 100)}% Correct
+                        {Math.round(
+                          ((quizAnswers[section.id]?.matching_score || 0) /
+                            (activity.matching_pairs?.length || 1)) *
+                            100
+                        )}
+                        % Correct
                       </p>
                       <div className="mt-4 flex items-center justify-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <span className="text-green-600 font-bold text-xl">✓</span>
-                          <span className="text-gray-700">{quizAnswers[section.id]?.matching_score || 0} Correct</span>
+                          <span className="text-green-600 font-bold text-xl">
+                            ✓
+                          </span>
+                          <span className="text-gray-700">
+                            {quizAnswers[section.id]?.matching_score || 0}{' '}
+                            Correct
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-red-600 font-bold text-xl">✗</span>
-                          <span className="text-gray-700">{(activity.matching_pairs?.length || 0) - (quizAnswers[section.id]?.matching_score || 0)} Incorrect</span>
+                          <span className="text-red-600 font-bold text-xl">
+                            ✗
+                          </span>
+                          <span className="text-gray-700">
+                            {(activity.matching_pairs?.length || 0) -
+                              (quizAnswers[section.id]?.matching_score ||
+                                0)}{' '}
+                            Incorrect
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2182,7 +2546,9 @@ export default function DynamicModuleViewer({
                       <CheckCircle className="w-4 h-4 mr-2" />
                       Expected Outcome:
                     </h6>
-                    <p className="text-green-700">{activity.expected_outcome}</p>
+                    <p className="text-green-700">
+                      {activity.expected_outcome}
+                    </p>
                   </div>
                 )}
 
@@ -2190,9 +2556,11 @@ export default function DynamicModuleViewer({
                 {!quizAnswers[section.id]?.matching_submitted ? (
                   <Button
                     onClick={() => {
-                      const matchingAnswers = quizAnswers[section.id]?.matching_answers || {};
-                      const totalQuestions = activity.matching_pairs?.length || 0;
-                      
+                      const matchingAnswers =
+                        quizAnswers[section.id]?.matching_answers || {};
+                      const totalQuestions =
+                        activity.matching_pairs?.length || 0;
+
                       // Check if all answers are filled
                       let allAnswered = true;
                       for (let i = 0; i < totalQuestions; i++) {
@@ -2201,20 +2569,23 @@ export default function DynamicModuleViewer({
                           break;
                         }
                       }
-                      
+
                       if (!allAnswered) {
                         alert('Please answer all questions before submitting.');
                         return;
                       }
-                      
+
                       // Calculate score
                       let score = 0;
                       activity.matching_pairs?.forEach((pair, index) => {
-                        if (matchingAnswers[index]?.toUpperCase() === pair.correct_answer?.toUpperCase()) {
+                        if (
+                          matchingAnswers[index]?.toUpperCase() ===
+                          pair.correct_answer?.toUpperCase()
+                        ) {
                           score++;
                         }
                       });
-                      
+
                       // Save score and mark as submitted
                       setQuizAnswers(prev => ({
                         ...prev,
@@ -2263,21 +2634,22 @@ export default function DynamicModuleViewer({
                   <p className="text-amber-700 mb-4">{activity.description}</p>
 
                   {/* Instructions */}
-                  {activity.instructions && activity.instructions.length > 0 && (
-                    <div className="space-y-3">
-                      <h6 className="font-semibold text-amber-800 flex items-center">
-                        <Target className="w-4 h-4 mr-2" />
-                        Instructions:
-                      </h6>
-                      <ol className="list-decimal list-inside space-y-2 text-amber-700">
-                        {activity.instructions.map((instruction, index) => (
-                          <li key={index} className="font-medium">
-                            {instruction}
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                  {activity.instructions &&
+                    activity.instructions.length > 0 && (
+                      <div className="space-y-3">
+                        <h6 className="font-semibold text-amber-800 flex items-center">
+                          <Target className="w-4 h-4 mr-2" />
+                          Instructions:
+                        </h6>
+                        <ol className="list-decimal list-inside space-y-2 text-amber-700">
+                          {activity.instructions.map((instruction, index) => (
+                            <li key={index} className="font-medium">
+                              {instruction}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
                 </div>
 
                 {/* Statements Table */}
@@ -2309,24 +2681,34 @@ export default function DynamicModuleViewer({
                         <tbody>
                           {activity.statements.map((item, index) => {
                             const statementKey = `${section.id}_statement_${index}`;
-                            const answerData = quizAnswers[section.id]?.statements?.[index] || {};
-                            const isSubmitted = quizAnswers[section.id]?.tf_correction_submitted;
-                            const correctAnswer = item.is_true ? 'true' : 'false';
-                            const isCorrect = answerData.answer === correctAnswer;
-                            
+                            const answerData =
+                              quizAnswers[section.id]?.statements?.[index] ||
+                              {};
+                            const isSubmitted =
+                              quizAnswers[section.id]?.tf_correction_submitted;
+                            const correctAnswer = item.is_true
+                              ? 'true'
+                              : 'false';
+                            const isCorrect =
+                              answerData.answer === correctAnswer;
+
                             return (
-                              <tr key={index} className={`hover:bg-gray-50 ${
-                                isSubmitted 
-                                  ? isCorrect 
-                                    ? 'bg-green-50' 
-                                    : 'bg-red-50'
-                                  : ''
-                              }`}>
+                              <tr
+                                key={index}
+                                className={`hover:bg-gray-50 ${
+                                  isSubmitted
+                                    ? isCorrect
+                                      ? 'bg-green-50'
+                                      : 'bg-red-50'
+                                    : ''
+                                }`}>
                                 <td className="border border-gray-300 px-4 py-3 text-center font-semibold text-gray-700">
                                   {index + 1}
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
-                                  <p className="text-gray-800">{item.statement}</p>
+                                  <p className="text-gray-800">
+                                    {item.statement}
+                                  </p>
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
                                   <div className="flex justify-center items-center space-x-4">
@@ -2338,13 +2720,14 @@ export default function DynamicModuleViewer({
                                           value="true"
                                           checked={answerData.answer === 'true'}
                                           disabled={isSubmitted}
-                                          onChange={(e) => {
+                                          onChange={e => {
                                             setQuizAnswers(prev => ({
                                               ...prev,
                                               [section.id]: {
                                                 ...prev[section.id],
                                                 statements: {
-                                                  ...prev[section.id]?.statements,
+                                                  ...prev[section.id]
+                                                    ?.statements,
                                                   [index]: {
                                                     ...answerData,
                                                     answer: 'true'
@@ -2355,22 +2738,27 @@ export default function DynamicModuleViewer({
                                           }}
                                           className="w-4 h-4 text-green-600"
                                         />
-                                        <span className="text-sm font-medium text-green-700">True</span>
+                                        <span className="text-sm font-medium text-green-700">
+                                          True
+                                        </span>
                                       </label>
                                       <label className="flex items-center space-x-2 cursor-pointer">
                                         <input
                                           type="radio"
                                           name={statementKey}
                                           value="false"
-                                          checked={answerData.answer === 'false'}
+                                          checked={
+                                            answerData.answer === 'false'
+                                          }
                                           disabled={isSubmitted}
-                                          onChange={(e) => {
+                                          onChange={e => {
                                             setQuizAnswers(prev => ({
                                               ...prev,
                                               [section.id]: {
                                                 ...prev[section.id],
                                                 statements: {
-                                                  ...prev[section.id]?.statements,
+                                                  ...prev[section.id]
+                                                    ?.statements,
                                                   [index]: {
                                                     ...answerData,
                                                     answer: 'false'
@@ -2381,18 +2769,25 @@ export default function DynamicModuleViewer({
                                           }}
                                           className="w-4 h-4 text-red-600"
                                         />
-                                        <span className="text-sm font-medium text-red-700">False</span>
+                                        <span className="text-sm font-medium text-red-700">
+                                          False
+                                        </span>
                                       </label>
                                     </div>
                                     {isSubmitted && (
                                       <div className="flex items-center">
                                         {isCorrect ? (
-                                          <span className="text-green-600 font-bold text-xl">✓</span>
+                                          <span className="text-green-600 font-bold text-xl">
+                                            ✓
+                                          </span>
                                         ) : (
                                           <div className="flex items-center space-x-1">
-                                            <span className="text-red-600 font-bold text-xl">✗</span>
+                                            <span className="text-red-600 font-bold text-xl">
+                                              ✗
+                                            </span>
                                             <span className="text-xs text-gray-600">
-                                              ({item.is_true ? 'TRUE' : 'FALSE'})
+                                              ({item.is_true ? 'TRUE' : 'FALSE'}
+                                              )
                                             </span>
                                           </div>
                                         )}
@@ -2405,7 +2800,7 @@ export default function DynamicModuleViewer({
                                     placeholder="If false, write the correct statement here..."
                                     value={answerData.correction || ''}
                                     disabled={isSubmitted}
-                                    onChange={(e) => {
+                                    onChange={e => {
                                       setQuizAnswers(prev => ({
                                         ...prev,
                                         [section.id]: {
@@ -2438,19 +2833,38 @@ export default function DynamicModuleViewer({
                   <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
                     <div className="text-center">
                       <h6 className="text-2xl font-bold text-green-800 mb-2">
-                        Your Score: {quizAnswers[section.id]?.tf_correction_score || 0} / {activity.statements?.length || 0}
+                        Your Score:{' '}
+                        {quizAnswers[section.id]?.tf_correction_score || 0} /{' '}
+                        {activity.statements?.length || 0}
                       </h6>
                       <p className="text-lg text-green-700">
-                        {Math.round(((quizAnswers[section.id]?.tf_correction_score || 0) / (activity.statements?.length || 1)) * 100)}% Correct (True/False)
+                        {Math.round(
+                          ((quizAnswers[section.id]?.tf_correction_score || 0) /
+                            (activity.statements?.length || 1)) *
+                            100
+                        )}
+                        % Correct (True/False)
                       </p>
                       <div className="mt-4 flex items-center justify-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <span className="text-green-600 font-bold text-xl">✓</span>
-                          <span className="text-gray-700">{quizAnswers[section.id]?.tf_correction_score || 0} Correct</span>
+                          <span className="text-green-600 font-bold text-xl">
+                            ✓
+                          </span>
+                          <span className="text-gray-700">
+                            {quizAnswers[section.id]?.tf_correction_score || 0}{' '}
+                            Correct
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-red-600 font-bold text-xl">✗</span>
-                          <span className="text-gray-700">{(activity.statements?.length || 0) - (quizAnswers[section.id]?.tf_correction_score || 0)} Incorrect</span>
+                          <span className="text-red-600 font-bold text-xl">
+                            ✗
+                          </span>
+                          <span className="text-gray-700">
+                            {(activity.statements?.length || 0) -
+                              (quizAnswers[section.id]?.tf_correction_score ||
+                                0)}{' '}
+                            Incorrect
+                          </span>
                         </div>
                       </div>
                       <p className="text-sm text-gray-600 mt-3 italic">
@@ -2467,7 +2881,7 @@ export default function DynamicModuleViewer({
                       // Validate that all statements have been answered
                       const statements = activity.statements || [];
                       const answers = quizAnswers[section.id]?.statements || {};
-                      
+
                       let allAnswered = true;
                       for (let i = 0; i < statements.length; i++) {
                         if (!answers[i]?.answer) {
@@ -2475,17 +2889,24 @@ export default function DynamicModuleViewer({
                           break;
                         }
                         // Check if false answer has correction
-                        if (answers[i]?.answer === 'false' && !answers[i]?.correction?.trim()) {
-                          alert(`Please provide a correction for statement ${i + 1}`);
+                        if (
+                          answers[i]?.answer === 'false' &&
+                          !answers[i]?.correction?.trim()
+                        ) {
+                          alert(
+                            `Please provide a correction for statement ${i + 1}`
+                          );
                           return;
                         }
                       }
-                      
+
                       if (!allAnswered) {
-                        alert('Please answer all statements before continuing.');
+                        alert(
+                          'Please answer all statements before continuing.'
+                        );
                         return;
                       }
-                      
+
                       // Calculate score (only for True/False part)
                       let score = 0;
                       statements.forEach((stmt, index) => {
@@ -2494,7 +2915,7 @@ export default function DynamicModuleViewer({
                           score++;
                         }
                       });
-                      
+
                       // Save score and mark as submitted
                       setQuizAnswers(prev => ({
                         ...prev,
@@ -2547,26 +2968,32 @@ export default function DynamicModuleViewer({
                 {activity.statements && activity.statements.length > 0 && (
                   <div className="space-y-4">
                     {activity.statements.map((item, index) => {
-                      const studentAnswer = quizAnswers[section.id]?.simple_tf_answers?.[index];
-                      const isSubmitted = quizAnswers[section.id]?.simple_tf_submitted;
-                      const isCorrect = studentAnswer === (item.is_true ? 'true' : 'false');
-                      
+                      const studentAnswer =
+                        quizAnswers[section.id]?.simple_tf_answers?.[index];
+                      const isSubmitted =
+                        quizAnswers[section.id]?.simple_tf_submitted;
+                      const isCorrect =
+                        studentAnswer === (item.is_true ? 'true' : 'false');
+
                       return (
-                        <div 
-                          key={index} 
+                        <div
+                          key={index}
                           className={`p-4 border-2 rounded-lg ${
-                            isSubmitted 
-                              ? isCorrect 
-                                ? 'border-green-400 bg-green-50' 
+                            isSubmitted
+                              ? isCorrect
+                                ? 'border-green-400 bg-green-50'
                                 : 'border-red-400 bg-red-50'
                               : 'border-gray-300 bg-white'
-                          }`}
-                        >
+                          }`}>
                           <div className="flex items-start space-x-3">
-                            <span className="font-bold text-gray-700 text-lg">{index + 1}.</span>
+                            <span className="font-bold text-gray-700 text-lg">
+                              {index + 1}.
+                            </span>
                             <div className="flex-1 space-y-3">
-                              <p className="text-gray-800 font-medium">{item.statement}</p>
-                              
+                              <p className="text-gray-800 font-medium">
+                                {item.statement}
+                              </p>
+
                               <div className="flex items-center space-x-6">
                                 <label className="flex items-center space-x-2 cursor-pointer">
                                   <input
@@ -2581,7 +3008,8 @@ export default function DynamicModuleViewer({
                                         [section.id]: {
                                           ...prev[section.id],
                                           simple_tf_answers: {
-                                            ...prev[section.id]?.simple_tf_answers,
+                                            ...prev[section.id]
+                                              ?.simple_tf_answers,
                                             [index]: 'true'
                                           }
                                         }
@@ -2589,7 +3017,9 @@ export default function DynamicModuleViewer({
                                     }}
                                     className="w-4 h-4 text-green-600"
                                   />
-                                  <span className="text-sm font-semibold text-green-700">TRUE</span>
+                                  <span className="text-sm font-semibold text-green-700">
+                                    TRUE
+                                  </span>
                                 </label>
                                 <label className="flex items-center space-x-2 cursor-pointer">
                                   <input
@@ -2604,7 +3034,8 @@ export default function DynamicModuleViewer({
                                         [section.id]: {
                                           ...prev[section.id],
                                           simple_tf_answers: {
-                                            ...prev[section.id]?.simple_tf_answers,
+                                            ...prev[section.id]
+                                              ?.simple_tf_answers,
                                             [index]: 'false'
                                           }
                                         }
@@ -2612,18 +3043,27 @@ export default function DynamicModuleViewer({
                                     }}
                                     className="w-4 h-4 text-red-600"
                                   />
-                                  <span className="text-sm font-semibold text-red-700">FALSE</span>
+                                  <span className="text-sm font-semibold text-red-700">
+                                    FALSE
+                                  </span>
                                 </label>
-                                
+
                                 {isSubmitted && (
                                   <div className="flex items-center space-x-2">
                                     {isCorrect ? (
-                                      <span className="text-green-600 font-bold text-xl">✓</span>
+                                      <span className="text-green-600 font-bold text-xl">
+                                        ✓
+                                      </span>
                                     ) : (
                                       <>
-                                        <span className="text-red-600 font-bold text-xl">✗</span>
+                                        <span className="text-red-600 font-bold text-xl">
+                                          ✗
+                                        </span>
                                         <span className="text-sm text-gray-600">
-                                          Correct: <span className="font-bold">{item.is_true ? 'TRUE' : 'FALSE'}</span>
+                                          Correct:{' '}
+                                          <span className="font-bold">
+                                            {item.is_true ? 'TRUE' : 'FALSE'}
+                                          </span>
                                         </span>
                                       </>
                                     )}
@@ -2643,19 +3083,38 @@ export default function DynamicModuleViewer({
                   <div className="p-6 bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-xl">
                     <div className="text-center">
                       <h6 className="text-2xl font-bold text-green-800 mb-2">
-                        Your Score: {quizAnswers[section.id]?.simple_tf_score || 0} / {activity.statements?.length || 0}
+                        Your Score:{' '}
+                        {quizAnswers[section.id]?.simple_tf_score || 0} /{' '}
+                        {activity.statements?.length || 0}
                       </h6>
                       <p className="text-lg text-green-700">
-                        {Math.round(((quizAnswers[section.id]?.simple_tf_score || 0) / (activity.statements?.length || 1)) * 100)}% Correct
+                        {Math.round(
+                          ((quizAnswers[section.id]?.simple_tf_score || 0) /
+                            (activity.statements?.length || 1)) *
+                            100
+                        )}
+                        % Correct
                       </p>
                       <div className="mt-4 flex items-center justify-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <span className="text-green-600 font-bold text-xl">✓</span>
-                          <span className="text-gray-700">{quizAnswers[section.id]?.simple_tf_score || 0} Correct</span>
+                          <span className="text-green-600 font-bold text-xl">
+                            ✓
+                          </span>
+                          <span className="text-gray-700">
+                            {quizAnswers[section.id]?.simple_tf_score || 0}{' '}
+                            Correct
+                          </span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className="text-red-600 font-bold text-xl">✗</span>
-                          <span className="text-gray-700">{(activity.statements?.length || 0) - (quizAnswers[section.id]?.simple_tf_score || 0)} Incorrect</span>
+                          <span className="text-red-600 font-bold text-xl">
+                            ✗
+                          </span>
+                          <span className="text-gray-700">
+                            {(activity.statements?.length || 0) -
+                              (quizAnswers[section.id]?.simple_tf_score ||
+                                0)}{' '}
+                            Incorrect
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2667,8 +3126,9 @@ export default function DynamicModuleViewer({
                   <Button
                     onClick={() => {
                       const statements = activity.statements || [];
-                      const answers = quizAnswers[section.id]?.simple_tf_answers || {};
-                      
+                      const answers =
+                        quizAnswers[section.id]?.simple_tf_answers || {};
+
                       // Check all answered
                       let allAnswered = true;
                       for (let i = 0; i < statements.length; i++) {
@@ -2677,12 +3137,14 @@ export default function DynamicModuleViewer({
                           break;
                         }
                       }
-                      
+
                       if (!allAnswered) {
-                        alert('Please answer all statements before submitting.');
+                        alert(
+                          'Please answer all statements before submitting.'
+                        );
                         return;
                       }
-                      
+
                       // Calculate score
                       let score = 0;
                       statements.forEach((stmt, index) => {
@@ -2691,7 +3153,7 @@ export default function DynamicModuleViewer({
                           score++;
                         }
                       });
-                      
+
                       // Save score and mark as submitted
                       setQuizAnswers(prev => ({
                         ...prev,
@@ -2741,58 +3203,70 @@ export default function DynamicModuleViewer({
                 </div>
 
                 {/* Part I: Sentence Completion */}
-                {activity.part1_title && activity.sentences && activity.sentences.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-                      <h5 className="font-bold text-cyan-800 text-lg">{activity.part1_title}</h5>
-                      {activity.part1_instruction && (
-                        <p className="text-sm text-cyan-700 mt-1">
-                          <strong>Instruction:</strong> {activity.part1_instruction}
-                        </p>
-                      )}
-                    </div>
-
+                {activity.part1_title &&
+                  activity.sentences &&
+                  activity.sentences.length > 0 && (
                     <div className="space-y-4">
-                      {activity.sentences.map((sentence, index) => {
-                        const sentenceKey = `sentence_${index}`;
-                        const answer = quizAnswers[section.id]?.sentences?.[index] || '';
-                        
-                        return (
-                          <div key={index} className="p-4 bg-white border border-gray-300 rounded-lg">
-                            <div className="space-y-2">
-                              <p className="text-gray-800 font-medium">{sentence.prompt}</p>
-                              <div className="border-b-2 border-gray-400 pb-2">
-                                <Textarea
-                                  placeholder="Complete the sentence..."
-                                  value={answer}
-                                  onChange={(e) => {
-                                    setQuizAnswers(prev => ({
-                                      ...prev,
-                                      [section.id]: {
-                                        ...prev[section.id],
-                                        sentences: {
-                                          ...prev[section.id]?.sentences,
-                                          [index]: e.target.value
+                      <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
+                        <h5 className="font-bold text-cyan-800 text-lg">
+                          {activity.part1_title}
+                        </h5>
+                        {activity.part1_instruction && (
+                          <p className="text-sm text-cyan-700 mt-1">
+                            <strong>Instruction:</strong>{' '}
+                            {activity.part1_instruction}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {activity.sentences.map((sentence, index) => {
+                          const sentenceKey = `sentence_${index}`;
+                          const answer =
+                            quizAnswers[section.id]?.sentences?.[index] || '';
+
+                          return (
+                            <div
+                              key={index}
+                              className="p-4 bg-white border border-gray-300 rounded-lg">
+                              <div className="space-y-2">
+                                <p className="text-gray-800 font-medium">
+                                  {sentence.prompt}
+                                </p>
+                                <div className="border-b-2 border-gray-400 pb-2">
+                                  <Textarea
+                                    placeholder="Complete the sentence..."
+                                    value={answer}
+                                    onChange={e => {
+                                      setQuizAnswers(prev => ({
+                                        ...prev,
+                                        [section.id]: {
+                                          ...prev[section.id],
+                                          sentences: {
+                                            ...prev[section.id]?.sentences,
+                                            [index]: e.target.value
+                                          }
                                         }
-                                      }
-                                    }));
-                                  }}
-                                  className="min-h-[80px] resize-y border-0 focus:ring-0 px-0"
-                                />
+                                      }));
+                                    }}
+                                    className="min-h-[80px] resize-y border-0 focus:ring-0 px-0"
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Part II: Creative Writing */}
                 {activity.part2_title && activity.writing_prompt && (
                   <div className="space-y-4">
                     <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-                      <h5 className="font-bold text-cyan-800 text-lg">{activity.part2_title}</h5>
+                      <h5 className="font-bold text-cyan-800 text-lg">
+                        {activity.part2_title}
+                      </h5>
                     </div>
 
                     {activity.writing_prompt.title && (
@@ -2800,19 +3274,26 @@ export default function DynamicModuleViewer({
                         <h6 className="font-semibold text-gray-800 mb-3">
                           <strong>Instructions:</strong>
                         </h6>
-                        {activity.writing_prompt.instructions && activity.writing_prompt.instructions.length > 0 && (
-                          <ol className="space-y-2 text-gray-700">
-                            {activity.writing_prompt.instructions.map((instruction, index) => (
-                              <li key={index} className="text-sm">
-                                {instruction.trim().startsWith('-') ? (
-                                  <span className="ml-4">{instruction}</span>
-                                ) : (
-                                  <span>{index + 1}. {instruction}</span>
-                                )}
-                              </li>
-                            ))}
-                          </ol>
-                        )}
+                        {activity.writing_prompt.instructions &&
+                          activity.writing_prompt.instructions.length > 0 && (
+                            <ol className="space-y-2 text-gray-700">
+                              {activity.writing_prompt.instructions.map(
+                                (instruction, index) => (
+                                  <li key={index} className="text-sm">
+                                    {instruction.trim().startsWith('-') ? (
+                                      <span className="ml-4">
+                                        {instruction}
+                                      </span>
+                                    ) : (
+                                      <span>
+                                        {index + 1}. {instruction}
+                                      </span>
+                                    )}
+                                  </li>
+                                )
+                              )}
+                            </ol>
+                          )}
                       </div>
                     )}
 
@@ -2821,7 +3302,7 @@ export default function DynamicModuleViewer({
                       <Textarea
                         placeholder="Write your poem or creative response here..."
                         value={quizAnswers[section.id]?.creative_writing || ''}
-                        onChange={(e) => {
+                        onChange={e => {
                           setQuizAnswers(prev => ({
                             ...prev,
                             [section.id]: {
@@ -2845,7 +3326,8 @@ export default function DynamicModuleViewer({
                         Assessment Rubric
                       </h5>
                       <p className="text-sm text-cyan-700 mt-1">
-                        Your work will be evaluated based on the following criteria:
+                        Your work will be evaluated based on the following
+                        criteria:
                       </p>
                     </div>
 
@@ -2895,8 +3377,9 @@ export default function DynamicModuleViewer({
                   onClick={() => {
                     // Validate that all sentences are completed
                     const sentences = activity.sentences || [];
-                    const sentenceAnswers = quizAnswers[section.id]?.sentences || {};
-                    
+                    const sentenceAnswers =
+                      quizAnswers[section.id]?.sentences || {};
+
                     let allSentencesCompleted = true;
                     for (let i = 0; i < sentences.length; i++) {
                       if (!sentenceAnswers[i]?.trim()) {
@@ -2904,19 +3387,22 @@ export default function DynamicModuleViewer({
                         break;
                       }
                     }
-                    
+
                     if (!allSentencesCompleted) {
                       alert('Please complete all sentences before continuing.');
                       return;
                     }
-                    
+
                     // Check creative writing
-                    const creativeWriting = quizAnswers[section.id]?.creative_writing || '';
+                    const creativeWriting =
+                      quizAnswers[section.id]?.creative_writing || '';
                     if (!creativeWriting.trim()) {
-                      alert('Please complete the creative writing section before continuing.');
+                      alert(
+                        'Please complete the creative writing section before continuing.'
+                      );
                       return;
                     }
-                    
+
                     handleSectionComplete(section.id);
                   }}
                   className="w-full bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-700 hover:to-cyan-800 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
@@ -2953,7 +3439,9 @@ export default function DynamicModuleViewer({
                 {activity.part_a_title && activity.table && (
                   <div className="space-y-4">
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h5 className="font-bold text-blue-800 text-lg">{activity.part_a_title}</h5>
+                      <h5 className="font-bold text-blue-800 text-lg">
+                        {activity.part_a_title}
+                      </h5>
                       {activity.part_a_instruction && (
                         <p className="text-sm text-blue-700 mt-1">
                           {activity.part_a_instruction}
@@ -2978,8 +3466,10 @@ export default function DynamicModuleViewer({
                         </thead>
                         <tbody>
                           {activity.table.rows?.map((row, index) => {
-                            const rowAnswers = quizAnswers[section.id]?.table_rows?.[index] || {};
-                            
+                            const rowAnswers =
+                              quizAnswers[section.id]?.table_rows?.[index] ||
+                              {};
+
                             return (
                               <tr key={index} className="hover:bg-gray-50">
                                 <td className="border border-gray-300 px-4 py-3 font-semibold text-gray-800 bg-gray-50">
@@ -2987,9 +3477,11 @@ export default function DynamicModuleViewer({
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
                                   <Textarea
-                                    placeholder={row.sexual || 'Type your answer...'}
+                                    placeholder={
+                                      row.sexual || 'Type your answer...'
+                                    }
                                     value={rowAnswers.sexual || ''}
-                                    onChange={(e) => {
+                                    onChange={e => {
                                       setQuizAnswers(prev => ({
                                         ...prev,
                                         [section.id]: {
@@ -3009,9 +3501,11 @@ export default function DynamicModuleViewer({
                                 </td>
                                 <td className="border border-gray-300 px-4 py-3">
                                   <Textarea
-                                    placeholder={row.asexual || 'Type your answer...'}
+                                    placeholder={
+                                      row.asexual || 'Type your answer...'
+                                    }
                                     value={rowAnswers.asexual || ''}
-                                    onChange={(e) => {
+                                    onChange={e => {
                                       setQuizAnswers(prev => ({
                                         ...prev,
                                         [section.id]: {
@@ -3039,64 +3533,86 @@ export default function DynamicModuleViewer({
                 )}
 
                 {/* Part B: Generalization Questions */}
-                {activity.part_b_title && activity.questions && activity.questions.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h5 className="font-bold text-blue-800 text-lg">{activity.part_b_title}</h5>
-                      {activity.part_b_instruction && (
-                        <p className="text-sm text-blue-700 mt-1">
-                          {activity.part_b_instruction}
-                        </p>
-                      )}
-                    </div>
-
+                {activity.part_b_title &&
+                  activity.questions &&
+                  activity.questions.length > 0 && (
                     <div className="space-y-4">
-                      {activity.questions.map((question, index) => {
-                        const questionText = typeof question === 'string' ? question : question.question || '';
-                        const questionPoints = typeof question === 'object' ? question.points || 5 : 5;
-                        const questionRubric = typeof question === 'object' ? question.rubric || '' : '';
-                        const answer = quizAnswers[section.id]?.generalization_answers?.[index] || '';
-                        
-                        return (
-                          <div key={index} className="p-4 bg-white border border-gray-300 rounded-lg">
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between">
-                                <p className="text-gray-800 font-medium flex-1">
-                                  <span className="font-bold">{index + 1}.</span> {questionText}
-                                </p>
-                                <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                                  {questionPoints} pts
-                                </span>
-                              </div>
-                              {questionRubric && (
-                                <p className="text-xs text-gray-500 italic">
-                                  Rubric: {questionRubric}
-                                </p>
-                              )}
-                              <Textarea
-                                placeholder="Write your answer here..."
-                                value={answer}
-                                onChange={(e) => {
-                                  setQuizAnswers(prev => ({
-                                    ...prev,
-                                    [section.id]: {
-                                      ...prev[section.id],
-                                      generalization_answers: {
-                                        ...prev[section.id]?.generalization_answers,
-                                        [index]: e.target.value
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h5 className="font-bold text-blue-800 text-lg">
+                          {activity.part_b_title}
+                        </h5>
+                        {activity.part_b_instruction && (
+                          <p className="text-sm text-blue-700 mt-1">
+                            {activity.part_b_instruction}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        {activity.questions.map((question, index) => {
+                          const questionText =
+                            typeof question === 'string'
+                              ? question
+                              : question.question || '';
+                          const questionPoints =
+                            typeof question === 'object'
+                              ? question.points || 5
+                              : 5;
+                          const questionRubric =
+                            typeof question === 'object'
+                              ? question.rubric || ''
+                              : '';
+                          const answer =
+                            quizAnswers[section.id]?.generalization_answers?.[
+                              index
+                            ] || '';
+
+                          return (
+                            <div
+                              key={index}
+                              className="p-4 bg-white border border-gray-300 rounded-lg">
+                              <div className="space-y-2">
+                                <div className="flex items-start justify-between">
+                                  <p className="text-gray-800 font-medium flex-1">
+                                    <span className="font-bold">
+                                      {index + 1}.
+                                    </span>{' '}
+                                    {questionText}
+                                  </p>
+                                  <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                    {questionPoints} pts
+                                  </span>
+                                </div>
+                                {questionRubric && (
+                                  <p className="text-xs text-gray-500 italic">
+                                    Rubric: {questionRubric}
+                                  </p>
+                                )}
+                                <Textarea
+                                  placeholder="Write your answer here..."
+                                  value={answer}
+                                  onChange={e => {
+                                    setQuizAnswers(prev => ({
+                                      ...prev,
+                                      [section.id]: {
+                                        ...prev[section.id],
+                                        generalization_answers: {
+                                          ...prev[section.id]
+                                            ?.generalization_answers,
+                                          [index]: e.target.value
+                                        }
                                       }
-                                    }
-                                  }));
-                                }}
-                                className="min-h-[100px] resize-y"
-                              />
+                                    }));
+                                  }}
+                                  className="min-h-[100px] resize-y"
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Score Display */}
                 {quizAnswers[section.id]?.table_submitted && (
@@ -3105,24 +3621,41 @@ export default function DynamicModuleViewer({
                       <h6 className="text-2xl font-bold text-green-800 mb-4">
                         🎯 Activity Results
                       </h6>
-                      
+
                       {/* Part A Score */}
                       <div className="mb-4 p-4 bg-white rounded-lg">
-                        <h6 className="text-lg font-semibold text-gray-800 mb-2">Part A: Table Score</h6>
+                        <h6 className="text-lg font-semibold text-gray-800 mb-2">
+                          Part A: Table Score
+                        </h6>
                         <p className="text-3xl font-bold text-blue-600">
-                          {quizAnswers[section.id]?.table_score || 0} / {(activity.table?.rows?.length || 0) * 2}
+                          {quizAnswers[section.id]?.table_score || 0} /{' '}
+                          {(activity.table?.rows?.length || 0) * 2}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {Math.round(((quizAnswers[section.id]?.table_score || 0) / ((activity.table?.rows?.length || 1) * 2)) * 100)}% Correct
+                          {Math.round(
+                            ((quizAnswers[section.id]?.table_score || 0) /
+                              ((activity.table?.rows?.length || 1) * 2)) *
+                              100
+                          )}
+                          % Correct
                         </p>
                       </div>
 
                       {/* Part B Info */}
                       <div className="p-4 bg-white rounded-lg">
-                        <h6 className="text-lg font-semibold text-gray-800 mb-2">Part B: Generalization Questions</h6>
+                        <h6 className="text-lg font-semibold text-gray-800 mb-2">
+                          Part B: Generalization Questions
+                        </h6>
                         <p className="text-sm text-gray-600">
-                          Total Points Available: <span className="font-bold text-blue-600">
-                            {activity.questions?.reduce((sum, q) => sum + (typeof q === 'object' ? q.points || 5 : 5), 0) || 0} points
+                          Total Points Available:{' '}
+                          <span className="font-bold text-blue-600">
+                            {activity.questions?.reduce(
+                              (sum, q) =>
+                                sum +
+                                (typeof q === 'object' ? q.points || 5 : 5),
+                              0
+                            ) || 0}{' '}
+                            points
                           </span>
                         </p>
                         <p className="text-xs text-gray-500 mt-2 italic">
@@ -3139,25 +3672,32 @@ export default function DynamicModuleViewer({
                     onClick={() => {
                       // Validate that all table cells are filled
                       const rows = activity.table?.rows || [];
-                      const tableAnswers = quizAnswers[section.id]?.table_rows || {};
-                      
+                      const tableAnswers =
+                        quizAnswers[section.id]?.table_rows || {};
+
                       let allTableFilled = true;
                       for (let i = 0; i < rows.length; i++) {
-                        if (!tableAnswers[i]?.sexual?.trim() || !tableAnswers[i]?.asexual?.trim()) {
+                        if (
+                          !tableAnswers[i]?.sexual?.trim() ||
+                          !tableAnswers[i]?.asexual?.trim()
+                        ) {
                           allTableFilled = false;
                           break;
                         }
                       }
-                      
+
                       if (!allTableFilled) {
-                        alert('Please fill in all table cells before continuing.');
+                        alert(
+                          'Please fill in all table cells before continuing.'
+                        );
                         return;
                       }
-                      
+
                       // Validate that all questions are answered
                       const questions = activity.questions || [];
-                      const generalizationAnswers = quizAnswers[section.id]?.generalization_answers || {};
-                      
+                      const generalizationAnswers =
+                        quizAnswers[section.id]?.generalization_answers || {};
+
                       let allQuestionsAnswered = true;
                       for (let i = 0; i < questions.length; i++) {
                         if (!generalizationAnswers[i]?.trim()) {
@@ -3165,33 +3705,50 @@ export default function DynamicModuleViewer({
                           break;
                         }
                       }
-                      
+
                       if (!allQuestionsAnswered) {
-                        alert('Please answer all generalization questions before continuing.');
+                        alert(
+                          'Please answer all generalization questions before continuing.'
+                        );
                         return;
                       }
-                      
+
                       // Auto-grade Part A (Table)
                       let tableScore = 0;
                       rows.forEach((row, index) => {
-                        const studentSexual = tableAnswers[index]?.sexual?.toLowerCase().trim() || '';
-                        const studentAsexual = tableAnswers[index]?.asexual?.toLowerCase().trim() || '';
-                        const correctSexual = row.answer_sexual?.toLowerCase() || '';
-                        const correctAsexual = row.answer_asexual?.toLowerCase() || '';
-                        
+                        const studentSexual =
+                          tableAnswers[index]?.sexual?.toLowerCase().trim() ||
+                          '';
+                        const studentAsexual =
+                          tableAnswers[index]?.asexual?.toLowerCase().trim() ||
+                          '';
+                        const correctSexual =
+                          row.answer_sexual?.toLowerCase() || '';
+                        const correctAsexual =
+                          row.answer_asexual?.toLowerCase() || '';
+
                         // Check if student answer contains key words from correct answer
-                        if (correctSexual && studentSexual.includes(correctSexual.toLowerCase())) {
+                        if (
+                          correctSexual &&
+                          studentSexual.includes(correctSexual.toLowerCase())
+                        ) {
                           tableScore++;
                         }
                         if (correctAsexual) {
                           // For multiple acceptable answers (e.g., "Budding, Binary fission")
-                          const acceptableAnswers = correctAsexual.split(',').map(a => a.trim().toLowerCase());
-                          if (acceptableAnswers.some(ans => studentAsexual.includes(ans))) {
+                          const acceptableAnswers = correctAsexual
+                            .split(',')
+                            .map(a => a.trim().toLowerCase());
+                          if (
+                            acceptableAnswers.some(ans =>
+                              studentAsexual.includes(ans)
+                            )
+                          ) {
                             tableScore++;
                           }
                         }
                       });
-                      
+
                       // Save score and mark as submitted
                       setQuizAnswers(prev => ({
                         ...prev,
@@ -3240,21 +3797,22 @@ export default function DynamicModuleViewer({
                   <p className="text-purple-700 mb-4">{activity.description}</p>
 
                   {/* Instructions */}
-                  {activity.instructions && activity.instructions.length > 0 && (
-                    <div className="space-y-3">
-                      <h6 className="font-semibold text-purple-800 flex items-center">
-                        <Target className="w-4 h-4 mr-2" />
-                        Quick Instructions:
-                      </h6>
-                      <ul className="list-decimal list-inside space-y-2 text-purple-700">
-                        {activity.instructions.map((instruction, index) => (
-                          <li key={index} className="font-medium">
-                            {instruction}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  {activity.instructions &&
+                    activity.instructions.length > 0 && (
+                      <div className="space-y-3">
+                        <h6 className="font-semibold text-purple-800 flex items-center">
+                          <Target className="w-4 h-4 mr-2" />
+                          Quick Instructions:
+                        </h6>
+                        <ul className="list-decimal list-inside space-y-2 text-purple-700">
+                          {activity.instructions.map((instruction, index) => (
+                            <li key={index} className="font-medium">
+                              {instruction}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                 </div>
 
                 {/* Materials Needed */}
@@ -3414,7 +3972,9 @@ export default function DynamicModuleViewer({
 
                 {activity.instructions && activity.instructions.length > 0 && (
                   <div className="space-y-3">
-                    <h6 className="font-medium text-purple-800">Instructions:</h6>
+                    <h6 className="font-medium text-purple-800">
+                      Instructions:
+                    </h6>
                     <ul className="list-decimal list-inside space-y-1 text-purple-700">
                       {activity.instructions.map((instruction, index) => (
                         <li key={index}>{instruction}</li>
@@ -3490,25 +4050,28 @@ export default function DynamicModuleViewer({
   };
 
   // ✅ VALIDATION: Check if section is complete before allowing navigation
-  const isSectionComplete = useCallback((sectionId: string) => {
-    return sectionProgress[sectionId] === true;
-  }, [sectionProgress]);
+  const isSectionComplete = useCallback(
+    (sectionId: string) => {
+      return sectionProgress[sectionId] === true;
+    },
+    [sectionProgress]
+  );
 
   const canNavigateToNext = useCallback(() => {
     const currentSectionId = currentSection.id;
     const isComplete = isSectionComplete(currentSectionId);
-    
+
     // Check if section has assessment that needs completion
     const hasAssessment = currentSection.content_type === 'assessment';
     const hasSubmittedAssessment = showQuizResults[currentSectionId];
-    
+
     if (hasAssessment && !hasSubmittedAssessment) {
       return {
         allowed: false,
         reason: 'Please complete and submit the assessment before proceeding.'
       };
     }
-    
+
     // Check if section is marked complete
     if (!isComplete) {
       return {
@@ -3516,30 +4079,79 @@ export default function DynamicModuleViewer({
         reason: 'Please complete this section before moving to the next one.'
       };
     }
-    
+
     return { allowed: true, reason: '' };
   }, [currentSection, isSectionComplete, showQuizResults]);
 
   const goToNextSection = () => {
     const validation = canNavigateToNext();
-    
+
     if (!validation.allowed) {
       // Show warning toast
       alert(validation.reason);
       return;
     }
-    
+
     // If on last section, complete the module
     if (currentSectionIndex === totalSections - 1) {
       handleModuleCompletion();
       return;
     }
-    
+
+    // Check if next section is a Pre-Test and student matches auditory
+    const nextSectionIndex = currentSectionIndex + 1;
+    const nextSection = module.content_structure.sections[nextSectionIndex];
+
+    if (
+      nextSection &&
+      isPreTestSection(nextSection) &&
+      studentMatchesAuditory(studentLearningStyles)
+    ) {
+      // Show modal before navigating to Pre-Test for auditory learners
+      setPendingNextSectionIndex(nextSectionIndex);
+      setShowPreTestAuditoryModal(true);
+      return;
+    }
+
     // Otherwise, go to next section
     if (currentSectionIndex < totalSections - 1) {
       setCurrentSectionIndex(currentSectionIndex + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  // Handle Pre-Test modal - user chooses audio preference
+  const handlePreTestModalChooseAudio = () => {
+    // User prefers audio-based content
+    setAudioPreference('audio');
+    setShowPreTestAuditoryModal(false);
+    if (pendingNextSectionIndex !== null) {
+      setCurrentSectionIndex(pendingNextSectionIndex);
+      setPendingNextSectionIndex(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    toast.success(
+      'Audio-based content selected. Read-aloud sections will be auto-completed.'
+    );
+  };
+
+  const handlePreTestModalChooseReadAloud = () => {
+    // User prefers read-aloud content
+    setAudioPreference('read_aloud');
+    setShowPreTestAuditoryModal(false);
+    if (pendingNextSectionIndex !== null) {
+      setCurrentSectionIndex(pendingNextSectionIndex);
+      setPendingNextSectionIndex(null);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    toast.success(
+      'Read-aloud content selected. Audio sections will be auto-completed.'
+    );
+  };
+
+  const handlePreTestModalCancel = () => {
+    setShowPreTestAuditoryModal(false);
+    setPendingNextSectionIndex(null);
   };
 
   const goToPreviousSection = () => {
@@ -3555,32 +4167,37 @@ export default function DynamicModuleViewer({
 
     try {
       const varkAPI = new VARKModulesAPI();
-      
+
       // Calculate time spent (in minutes)
       const timeSpentMinutes = Math.round((Date.now() - startTime) / 60000);
-      
+
       // Get assessment scores
-      const preTestResult = Object.entries(assessmentResults).find(([key]) => 
+      const preTestResult = Object.entries(assessmentResults).find(([key]) =>
         key.includes('pre-test')
       )?.[1];
-      const postTestResult = Object.entries(assessmentResults).find(([key]) => 
+      const postTestResult = Object.entries(assessmentResults).find(([key]) =>
         key.includes('post-test')
       )?.[1];
-      
+
       const preTestScore = preTestResult?.percentage || 0;
       const postTestScore = postTestResult?.percentage || 0;
-      
+
       // Calculate final score (average of all assessments or post-test)
       const allScores = Object.values(assessmentResults)
         .filter((result: any) => result?.percentage)
         .map((result: any) => result.percentage);
-      const finalScore = allScores.length > 0
-        ? Math.round(allScores.reduce((sum: number, score: number) => sum + score, 0) / allScores.length)
-        : postTestScore || 0;
-      
+      const finalScore =
+        allScores.length > 0
+          ? Math.round(
+              allScores.reduce((sum: number, score: number) => sum + score, 0) /
+                allScores.length
+            )
+          : postTestScore || 0;
+
       // Count perfect sections (100% score)
-      const perfectSections = Object.values(assessmentResults)
-        .filter((result: any) => result?.percentage === 100).length;
+      const perfectSections = Object.values(assessmentResults).filter(
+        (result: any) => result?.percentage === 100
+      ).length;
 
       console.log('🎉 Module Completion Data:', {
         finalScore,
@@ -3654,7 +4271,10 @@ export default function DynamicModuleViewer({
           badge_icon: badge.icon,
           badge_rarity: badge.rarity,
           module_id: module.id,
-          criteria_met: { score: finalScore, improvement: postTestScore - preTestScore }
+          criteria_met: {
+            score: finalScore,
+            improvement: postTestScore - preTestScore
+          }
         });
       } else if (finalScore >= 80) {
         badge = {
@@ -3756,10 +4376,17 @@ export default function DynamicModuleViewer({
       const timer = setTimeout(() => {
         handleModuleCompletion();
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
-  }, [completedSections, totalSections, previewMode, hasShownCompletion, userId, handleModuleCompletion]);
+  }, [
+    completedSections,
+    totalSections,
+    previewMode,
+    hasShownCompletion,
+    userId,
+    handleModuleCompletion
+  ]);
 
   return (
     <div className="space-y-6 relative pb-24 md:pb-0">
@@ -3768,7 +4395,7 @@ export default function DynamicModuleViewer({
         <MobileSectionList
           sections={memoizedSections}
           currentSectionIndex={currentSectionIndex}
-          onSectionChange={(index) => {
+          onSectionChange={index => {
             setCurrentSectionIndex(index);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
@@ -3806,7 +4433,7 @@ export default function DynamicModuleViewer({
                   <FileText className="w-4 h-4" />
                   <span className="hidden lg:inline">Export My Data</span>
                 </Button> */}
-                
+
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">
                     {Math.round(progressPercentage)}%
@@ -3822,228 +4449,319 @@ export default function DynamicModuleViewer({
 
       {/* ✨ Swipe Handler for Mobile Gestures */}
       <SwipeHandler
-      onSwipeLeft={() => {
-        if (!previewMode && currentSectionIndex < totalSections - 1) {
-          setCurrentSectionIndex(prev => prev + 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      }}
-      onSwipeRight={() => {
-        if (!previewMode && currentSectionIndex > 0) {
-          setCurrentSectionIndex(prev => prev - 1);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      }}
-    >
-      {/* Mobile Section Header */}
-      {!previewMode && (
-        <MobileSectionHeader
-          section={currentSection}
-          sectionNumber={currentSectionIndex + 1}
-          totalSections={totalSections}
-          isCompleted={sectionProgress[currentSection.id]}
-        />
-      )}
+        onSwipeLeft={() => {
+          if (!previewMode && currentSectionIndex < totalSections - 1) {
+            setCurrentSectionIndex(prev => prev + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        onSwipeRight={() => {
+          if (!previewMode && currentSectionIndex > 0) {
+            setCurrentSectionIndex(prev => prev - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}>
+        {/* Mobile Section Header */}
+        {!previewMode && (
+          <MobileSectionHeader
+            section={currentSection}
+            sectionNumber={currentSectionIndex + 1}
+            totalSections={totalSections}
+            isCompleted={sectionProgress[currentSection.id]}
+          />
+        )}
 
-      {/* Section Navigation - Desktop only */}
+        {/* Section Navigation - Desktop only */}
+        {!previewMode && (
+          <div className="hidden md:flex items-center justify-between mb-6">
+            <Button
+              variant="outline"
+              onClick={goToPreviousSection}
+              disabled={currentSectionIndex === 0}
+              className="flex items-center space-x-2">
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+
+            <div className="text-sm text-gray-600">
+              Section {currentSectionIndex + 1} of {totalSections}
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={goToNextSection}
+              disabled={currentSectionIndex === totalSections - 1}
+              className="flex items-center space-x-2">
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Current Section - Enhanced for Mobile */}
+        <MobileContentWrapper>
+          <Card className="mb-6 border-0 shadow-lg">
+            <CardHeader>
+              {/* Desktop Section Title */}
+              <div className="hidden md:block">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-xl font-semibold text-gray-900 mb-2">
+                      {currentSection.title}
+                    </CardTitle>
+
+                    {/* Learning Style Tags */}
+                    {currentSection.learning_style_tags.length > 0 &&
+                      renderLearningStyleTags(
+                        currentSection.learning_style_tags
+                      )}
+
+                    {/* Section Info */}
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{currentSection.time_estimate_minutes} min</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Target className="w-4 h-4" />
+                        <span>
+                          {currentSection.is_required ? 'Required' : 'Optional'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section Status - Desktop only */}
+                  {!previewMode && (
+                    <div className="flex items-center space-x-2">
+                      {sectionProgress[currentSection.id] ? (
+                        <Badge className="bg-green-100 text-green-800">
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Completed
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-gray-300">
+                          <Clock className="w-4 h-4 mr-1" />
+                          Pending
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-0">
+              {renderContentSection(currentSection)}
+
+              {/* Mark as Complete Button - Mobile friendly */}
+              {!previewMode && !sectionProgress[currentSection.id] && (
+                <div className="mt-6 pt-6 border-t">
+                  <Button
+                    onClick={() => handleSectionComplete(currentSection.id)}
+                    className="w-full md:w-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800">
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Mark as Complete
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </MobileContentWrapper>
+      </SwipeHandler>
+
+      {/* Section Navigation Footer - Desktop only */}
       {!previewMode && (
-        <div className="hidden md:flex items-center justify-between mb-6">
+        <div className="hidden md:flex items-center justify-between">
           <Button
             variant="outline"
             onClick={goToPreviousSection}
             disabled={currentSectionIndex === 0}
-            className="flex items-center space-x-2"
-          >
+            className="flex items-center space-x-2">
             <ChevronLeft className="w-4 h-4" />
-            Previous
+            Previous Section
           </Button>
 
-          <div className="text-sm text-gray-600">
-            Section {currentSectionIndex + 1} of {totalSections}
+          <div className="text-sm text-gray-500">
+            {currentSectionIndex + 1} of {totalSections} sections
           </div>
 
           <Button
-            variant="outline"
             onClick={goToNextSection}
-            disabled={currentSectionIndex === totalSections - 1}
-            className="flex items-center space-x-2"
-          >
-            Next
+            disabled={!canNavigateToNext().allowed}
+            className={`flex items-center space-x-2 ${
+              !canNavigateToNext().allowed
+                ? 'bg-gray-400 cursor-not-allowed'
+                : currentSectionIndex === totalSections - 1
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={
+              !canNavigateToNext().allowed ? canNavigateToNext().reason : ''
+            }>
+            {currentSectionIndex === totalSections - 1
+              ? 'Complete Module'
+              : 'Next Section'}
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       )}
 
-      {/* Current Section - Enhanced for Mobile */}
-      <MobileContentWrapper>
-        <Card className="mb-6 border-0 shadow-lg">
-          <CardHeader>
-            {/* Desktop Section Title */}
-            <div className="hidden md:block">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-xl font-semibold text-gray-900 mb-2">
-                    {currentSection.title}
-                  </CardTitle>
+      {/* Mobile Bottom Navigation - Sticky bottom bar */}
+      {!previewMode && (
+        <MobileBottomNavigation
+          sections={memoizedSections}
+          currentSectionIndex={currentSectionIndex}
+          onSectionChange={index => {
+            setCurrentSectionIndex(index);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          sectionProgress={sectionProgress}
+        />
+      )}
 
-                  {/* Learning Style Tags */}
-                  {currentSection.learning_style_tags.length > 0 &&
-                    renderLearningStyleTags(currentSection.learning_style_tags)}
+      {/* 💾 SUBMISSION CONFIRMATION MODAL */}
+      {submissionModalData && (
+        <SubmissionConfirmationModal
+          isOpen={showSubmissionModal}
+          onClose={() => {
+            setShowSubmissionModal(false);
+            setSubmissionModalData(null);
+          }}
+          onContinue={() => {
+            setShowSubmissionModal(false);
+            setSubmissionModalData(null);
+            // Auto-navigate to next section
+            if (currentSectionIndex < totalSections - 1) {
+              setCurrentSectionIndex(currentSectionIndex + 1);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          sectionTitle={submissionModalData.sectionTitle}
+          sectionType={submissionModalData.sectionType}
+          timeSpent={submissionModalData.timeSpent}
+          assessmentResult={submissionModalData.assessmentResult}
+          isLastSection={currentSectionIndex === totalSections - 1}
+        />
+      )}
 
-                  {/* Section Info */}
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{currentSection.time_estimate_minutes} min</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Target className="w-4 h-4" />
-                      <span>
-                        {currentSection.is_required ? 'Required' : 'Optional'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      {/* ✅ MODULE COMPLETION MODAL */}
+      {completionData && (
+        <ModuleCompletionModal
+          isOpen={showCompletionModal}
+          onClose={() => {
+            setShowCompletionModal(false);
+            // Optionally redirect to dashboard or modules page
+            if (typeof window !== 'undefined') {
+              window.location.href = '/student/vark-modules';
+            }
+          }}
+          moduleTitle={module.title}
+          completionData={completionData}
+          badge={earnedBadge}
+          onDownloadCertificate={() => {
+            // TODO: Implement certificate generation
+            toast.info('Certificate generation coming soon!');
+          }}
+          onViewSummary={() => {
+            // TODO: Navigate to detailed summary page
+            toast.info('Detailed summary coming soon!');
+          }}
+        />
+      )}
 
-                {/* Section Status - Desktop only */}
-                {!previewMode && (
-                  <div className="flex items-center space-x-2">
-                    {sectionProgress[currentSection.id] ? (
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Completed
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-gray-300">
-                        <Clock className="w-4 h-4 mr-1" />
-                        Pending
-                      </Badge>
-                    )}
-                  </div>
-                )}
+      {/* 🎧 PRE-TEST AUDITORY WARNING MODAL */}
+      <Dialog
+        open={showPreTestAuditoryModal}
+        onOpenChange={handlePreTestModalCancel}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <div className="flex flex-col items-center text-center space-y-3">
+              {/* Auditory Icon */}
+              <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center">
+                <Headphones className="w-10 h-10 text-green-600" />
               </div>
+
+              <DialogTitle className="text-2xl font-bold text-gray-900">
+                Choose Your Audio Preference
+              </DialogTitle>
+
+              <DialogDescription className="text-gray-600">
+                As an auditory learner, choose how you'd like to experience the
+                content. The other option will be automatically completed.
+              </DialogDescription>
             </div>
-          </CardHeader>
+          </DialogHeader>
 
-          <CardContent className="pt-0">
-            {renderContentSection(currentSection)}
-
-            {/* Mark as Complete Button - Mobile friendly */}
-            {!previewMode && !sectionProgress[currentSection.id] && (
-              <div className="mt-6 pt-6 border-t">
-                <Button
-                  onClick={() => handleSectionComplete(currentSection.id)}
-                  className="w-full md:w-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Mark as Complete
-                </Button>
+          <div className="space-y-4 py-4">
+            {pendingNextSectionIndex !== null && (
+              <div className="text-sm text-gray-600 mb-4">
+                <p className="font-medium mb-1">Next Section:</p>
+                <p className="text-gray-700">
+                  {module.content_structure.sections[pendingNextSectionIndex]
+                    ?.title || 'Pre-Test'}
+                </p>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </MobileContentWrapper>
-    </SwipeHandler>
 
-    {/* Section Navigation Footer - Desktop only */}
-    {!previewMode && (
-      <div className="hidden md:flex items-center justify-between">
-        <Button
-          variant="outline"
-          onClick={goToPreviousSection}
-          disabled={currentSectionIndex === 0}
-          className="flex items-center space-x-2"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Previous Section
-        </Button>
+            {/* Audio-Based Option */}
+            <button
+              onClick={handlePreTestModalChooseAudio}
+              className="w-full text-left p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg hover:border-green-400 hover:shadow-md transition-all duration-200">
+              <div className="flex items-start space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                  <Headphones className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-green-900 mb-1">
+                    Audio-Based Content
+                  </h4>
+                  <p className="text-sm text-green-800 mb-2">
+                    Listen to audio recordings and audio-based questions.
+                    Read-aloud sections will be automatically completed.
+                  </p>
+                  {/* <Badge
+                    variant="outline"
+                    className="text-xs bg-green-100 text-green-800 border-green-300">
+                    Recommended for Audio Learners
+                  </Badge> */}
+                </div>
+              </div>
+            </button>
 
-        <div className="text-sm text-gray-500">
-          {currentSectionIndex + 1} of {totalSections} sections
-        </div>
+            {/* Read-Aloud Option */}
+            <button
+              onClick={handlePreTestModalChooseReadAloud}
+              className="w-full text-left p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:shadow-md transition-all duration-200">
+              <div className="flex items-start space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                  <FileText className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-purple-900 mb-1">
+                    Read-Aloud Content
+                  </h4>
+                  <p className="text-sm text-purple-800 mb-2">
+                    Experience text-to-speech with word highlighting. Audio
+                    sections will be automatically completed.
+                  </p>
+                  {/* <Badge
+                    variant="outline"
+                    className="text-xs bg-purple-100 text-purple-800 border-purple-300">
+                    Text-to-Speech with Highlighting
+                  </Badge> */}
+                </div>
+              </div>
+            </button>
+          </div>
 
-        <Button
-          onClick={goToNextSection}
-          disabled={!canNavigateToNext().allowed}
-          className={`flex items-center space-x-2 ${
-            !canNavigateToNext().allowed 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : currentSectionIndex === totalSections - 1
-              ? 'bg-green-600 hover:bg-green-700'
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-          title={!canNavigateToNext().allowed ? canNavigateToNext().reason : ''}
-        >
-          {currentSectionIndex === totalSections - 1
-            ? 'Complete Module'
-            : 'Next Section'}
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    )}
-
-    {/* Mobile Bottom Navigation - Sticky bottom bar */}
-    {!previewMode && (
-      <MobileBottomNavigation
-        sections={memoizedSections}
-        currentSectionIndex={currentSectionIndex}
-        onSectionChange={(index) => {
-          setCurrentSectionIndex(index);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-        sectionProgress={sectionProgress}
-      />
-    )}
-
-    {/* 💾 SUBMISSION CONFIRMATION MODAL */}
-    {submissionModalData && (
-      <SubmissionConfirmationModal
-        isOpen={showSubmissionModal}
-        onClose={() => {
-          setShowSubmissionModal(false);
-          setSubmissionModalData(null);
-        }}
-        onContinue={() => {
-          setShowSubmissionModal(false);
-          setSubmissionModalData(null);
-          // Auto-navigate to next section
-          if (currentSectionIndex < totalSections - 1) {
-            setCurrentSectionIndex(currentSectionIndex + 1);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
-        }}
-        sectionTitle={submissionModalData.sectionTitle}
-        sectionType={submissionModalData.sectionType}
-        timeSpent={submissionModalData.timeSpent}
-        assessmentResult={submissionModalData.assessmentResult}
-        isLastSection={currentSectionIndex === totalSections - 1}
-      />
-    )}
-
-    {/* ✅ MODULE COMPLETION MODAL */}
-    {completionData && (
-      <ModuleCompletionModal
-        isOpen={showCompletionModal}
-        onClose={() => {
-          setShowCompletionModal(false);
-          // Optionally redirect to dashboard or modules page
-          if (typeof window !== 'undefined') {
-            window.location.href = '/student/vark-modules';
-          }
-        }}
-        moduleTitle={module.title}
-        completionData={completionData}
-        badge={earnedBadge}
-        onDownloadCertificate={() => {
-          // TODO: Implement certificate generation
-          toast.info('Certificate generation coming soon!');
-        }}
-        onViewSummary={() => {
-          // TODO: Navigate to detailed summary page
-          toast.info('Detailed summary coming soon!');
-        }}
-      />
-    )}
-  </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={handlePreTestModalCancel}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

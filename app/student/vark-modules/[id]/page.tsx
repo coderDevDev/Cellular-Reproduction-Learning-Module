@@ -70,6 +70,36 @@ const difficultyIcons = {
   advanced: Star
 };
 
+// Helper function to check if a section is a Pre-Test
+const isPreTestSection = (section: any): boolean => {
+  if (!section) return false;
+
+  // Check by section ID
+  const sectionId = section.id?.toLowerCase() || '';
+  if (sectionId === 'pre-test-section' || sectionId.includes('pre-test')) {
+    return true;
+  }
+
+  // Check by section title
+  const sectionTitle = section.title?.toLowerCase() || '';
+  if (sectionTitle.includes('pre-test') || sectionTitle.includes('pretest')) {
+    return true;
+  }
+
+  return false;
+};
+
+// Helper function to check if the current section (by ID) is a Pre-Test
+const isCurrentSectionPreTest = (
+  sectionId: string | null,
+  sections: any[]
+): boolean => {
+  if (!sectionId || !sections || sections.length === 0) return false;
+
+  const currentSection = sections.find((s: any) => s.id === sectionId);
+  return isPreTestSection(currentSection);
+};
+
 export default function StudentVARKModulePage() {
   const params = useParams();
   const router = useRouter();
@@ -79,6 +109,7 @@ export default function StudentVARKModulePage() {
   const [loading, setLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [previousSubmissions, setPreviousSubmissions] = useState<any[]>([]);
+  const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
 
   const varkAPI = new VARKModulesAPI();
   const moduleId = params.id as string;
@@ -118,10 +149,10 @@ export default function StudentVARKModulePage() {
       // ✨ Map preferred_modules to learning style tags format
       // "Visual" → "visual", "Aural" → "auditory", "Read/Write" → "reading_writing", "Kinesthetic" → "kinesthetic"
       const learningStyleMap: Record<string, string> = {
-        'Visual': 'visual',
-        'Aural': 'auditory',
+        Visual: 'visual',
+        Aural: 'auditory',
         'Read/Write': 'reading_writing',
-        'Kinesthetic': 'kinesthetic',
+        Kinesthetic: 'kinesthetic',
         'General Module': 'everyone' // General module students see everything
       };
 
@@ -135,8 +166,12 @@ export default function StudentVARKModulePage() {
 
       // ✨ Apply MULTI-STYLE personalized content filtering
       // Show sections that match ANY of the student's preferred learning styles
-      if (moduleData.content_structure?.sections && studentLearningStyles.length > 0) {
-        const originalSectionCount = moduleData.content_structure.sections.length;
+      if (
+        moduleData.content_structure?.sections &&
+        studentLearningStyles.length > 0
+      ) {
+        const originalSectionCount =
+          moduleData.content_structure.sections.length;
 
         console.log('🔍 === CONTENT FILTERING START ===');
         console.log('👤 Student Preferred Modules:', preferredModules);
@@ -144,46 +179,78 @@ export default function StudentVARKModulePage() {
         console.log('📦 Total sections in module:', originalSectionCount);
 
         // STRICT MULTI-STYLE FILTERING: Show section if:
+        // 0. Section is a Pre-Test (always show for baseline assessment), OR
         // 1. Section has "everyone" tag (universal content), OR
         // 2. Section has no tags (universal content), OR
         // 3. Section has ALL of the student's preferred learning styles (STRICT MATCH)
-        const filteredSections = moduleData.content_structure.sections.filter((section, index) => {
-          const tags = section.learning_style_tags || [];
+        const filteredSections = moduleData.content_structure.sections.filter(
+          (section, index) => {
+            const tags = section.learning_style_tags || [];
 
-          // Rule 1: If section has "everyone" tag, ALWAYS show it
-          if (tags.includes('everyone')) {
-            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (has "everyone" tag)`);
-            return true;
+            // Rule 0: If section is a Pre-Test, ALWAYS show it (baseline assessment)
+            if (isPreTestSection(section)) {
+              console.log(
+                `✅ Section ${index + 1}: "${
+                  section.title
+                }" - INCLUDED (Pre-Test section)`
+              );
+              return true;
+            }
+
+            // Rule 1: If section has "everyone" tag, ALWAYS show it
+            if (tags.includes('everyone')) {
+              console.log(
+                `✅ Section ${index + 1}: "${
+                  section.title
+                }" - INCLUDED (has "everyone" tag)`
+              );
+              return true;
+            }
+
+            // Rule 2: If section has no tags, show it (universal content)
+            if (tags.length === 0) {
+              console.log(
+                `✅ Section ${index + 1}: "${
+                  section.title
+                }" - INCLUDED (no tags = universal)`
+              );
+              return true;
+            }
+
+            // Rule 3: EXACT MATCH - Section tags must EXACTLY match student's learning styles
+            // For multi-style students (Bimodal, Trimodal, Multimodal): section must have ALL their styles
+            // For single-style students (Unimodal): section must have only that one style
+
+            // Check if section tags exactly match student's learning styles
+            const tagsSet = new Set(tags);
+            const studentStylesSet = new Set(studentLearningStyles);
+
+            // For EXACT match: both sets must be equal
+            const isExactMatch =
+              tags.length === studentLearningStyles.length &&
+              tags.every((tag: string) => studentStylesSet.has(tag));
+
+            if (isExactMatch) {
+              console.log(
+                `✅ Section ${index + 1}: "${
+                  section.title
+                }" - INCLUDED (EXACT MATCH: section tags ${JSON.stringify(
+                  tags
+                )} === student styles ${JSON.stringify(studentLearningStyles)})`
+              );
+              return true;
+            }
+
+            // Otherwise, HIDE the section
+            console.log(
+              `❌ Section ${index + 1}: "${
+                section.title
+              }" - EXCLUDED (not exact match)`,
+              { sectionTags: tags, studentStyles: studentLearningStyles }
+            );
+            return false;
           }
-
-          // Rule 2: If section has no tags, show it (universal content)
-          if (tags.length === 0) {
-            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (no tags = universal)`);
-            return true;
-          }
-
-          // Rule 3: EXACT MATCH - Section tags must EXACTLY match student's learning styles
-          // For multi-style students (Bimodal, Trimodal, Multimodal): section must have ALL their styles
-          // For single-style students (Unimodal): section must have only that one style
-          
-          // Check if section tags exactly match student's learning styles
-          const tagsSet = new Set(tags);
-          const studentStylesSet = new Set(studentLearningStyles);
-          
-          // For EXACT match: both sets must be equal
-          const isExactMatch = 
-            tags.length === studentLearningStyles.length &&
-            tags.every((tag: string) => studentStylesSet.has(tag));
-          
-          if (isExactMatch) {
-            console.log(`✅ Section ${index + 1}: "${section.title}" - INCLUDED (EXACT MATCH: section tags ${JSON.stringify(tags)} === student styles ${JSON.stringify(studentLearningStyles)})`);
-            return true;
-          }
-
-          // Otherwise, HIDE the section
-          console.log(`❌ Section ${index + 1}: "${section.title}" - EXCLUDED (not exact match)`, { sectionTags: tags, studentStyles: studentLearningStyles });
-          return false;
-        });
+        );
 
         // Update module with filtered sections
         moduleData.content_structure.sections = filteredSections;
@@ -191,7 +258,9 @@ export default function StudentVARKModulePage() {
         // Calculate statistics
         const filteredCount = filteredSections.length;
         const hiddenCount = originalSectionCount - filteredCount;
-        const percentageShown = Math.round((filteredCount / originalSectionCount) * 100);
+        const percentageShown = Math.round(
+          (filteredCount / originalSectionCount) * 100
+        );
 
         console.log('📊 === FILTERING RESULTS ===');
         console.log(`✅ Sections shown: ${filteredCount}`);
@@ -201,10 +270,10 @@ export default function StudentVARKModulePage() {
 
         // Show toast notification about personalization
         const learningStyleLabels = {
-          'visual': 'Visual',
-          'auditory': 'Auditory',
-          'reading_writing': 'Reading/Writing',
-          'kinesthetic': 'Kinesthetic'
+          visual: 'Visual',
+          auditory: 'Auditory',
+          reading_writing: 'Reading/Writing',
+          kinesthetic: 'Kinesthetic'
         };
 
         if (hiddenCount > 0) {
@@ -223,7 +292,9 @@ export default function StudentVARKModulePage() {
       } else if (moduleData.content_structure?.sections) {
         // No learning style set - show all sections
         const totalSections = moduleData.content_structure.sections.length;
-        console.log(`ℹ️ No learning style set for student, showing all ${totalSections} sections`);
+        console.log(
+          `ℹ️ No learning style set for student, showing all ${totalSections} sections`
+        );
         toast.info(
           `Showing all ${totalSections} sections (no learning style preference set)`,
           { duration: 3000 }
@@ -350,10 +421,18 @@ export default function StudentVARKModulePage() {
   const DifficultyIcon =
     difficultyIcons[module.difficulty_level as keyof typeof difficultyIcons];
 
+  // Check if current section is a Pre-Test
+  const currentSectionIsPreTest =
+    progress && module?.content_structure?.sections
+      ? isCurrentSectionPreTest(
+          progress.current_section_id || null,
+          module.content_structure.sections
+        )
+      : false;
 
-    console.log({userLearningStyle})
-
-    console.log({module})
+  console.log({ userLearningStyle });
+  console.log({ module });
+  console.log('🔍 Current section is Pre-Test:', currentSectionIsPreTest);
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
       {/* Header */}
@@ -429,6 +508,22 @@ export default function StudentVARKModulePage() {
                     module={module}
                     userId={user?.id}
                     userName={`${user?.first_name} ${user?.last_name}`}
+                    studentLearningStyles={(() => {
+                      // Map preferred_modules to learning style tags format
+                      const learningStyleMap: Record<string, string> = {
+                        Visual: 'visual',
+                        Aural: 'auditory',
+                        'Read/Write': 'reading_writing',
+                        Kinesthetic: 'kinesthetic'
+                      };
+                      const preferredModules =
+                        (user as any)?.preferredModules || [];
+                      return preferredModules
+                        .map((module: string) => learningStyleMap[module])
+                        .filter(
+                          (style: string | undefined) => style !== undefined
+                        );
+                    })()}
                     onSectionComplete={(sectionId: string) => {
                       const sectionIndex =
                         module.content_structure?.sections?.findIndex(
@@ -483,28 +578,38 @@ export default function StudentVARKModulePage() {
               <Card className="border-0 shadow-lg bg-gradient-to-r from-[#00af8f]/5 to-[#00af90]/5">
                 <CardContent className="p-4">
                   <div className="flex items-center space-x-3">
-                    {(user as any)?.preferredModules && (user as any).preferredModules.length > 1 ? (
+                    {(user as any)?.preferredModules &&
+                    (user as any).preferredModules.length > 1 ? (
                       <div className="flex -space-x-2">
-                        {(user as any).preferredModules.slice(0, 3).map((module: string, idx: number) => {
-                          const moduleToKeyMap: Record<string, keyof typeof learningStyleIcons> = {
-                            'Visual': 'visual',
-                            'Aural': 'auditory',
-                            'Read/Write': 'reading_writing',
-                            'Kinesthetic': 'kinesthetic'
-                          };
-                          
-                          const styleKey = moduleToKeyMap[module] || 'visual';
-                          const Icon = learningStyleIcons[styleKey] || learningStyleIcons.visual;
-                          const colorClass = learningStyleColors[styleKey] || 'from-blue-500 to-blue-600';
-                          
-                          return (
-                            <div
-                              key={idx}
-                              className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-full flex items-center justify-center shadow-lg border-2 border-white`}>
-                              <Icon className="w-5 h-5 text-white" />
-                            </div>
-                          );
-                        })}
+                        {(user as any).preferredModules
+                          .slice(0, 3)
+                          .map((module: string, idx: number) => {
+                            const moduleToKeyMap: Record<
+                              string,
+                              keyof typeof learningStyleIcons
+                            > = {
+                              Visual: 'visual',
+                              Aural: 'auditory',
+                              'Read/Write': 'reading_writing',
+                              Kinesthetic: 'kinesthetic'
+                            };
+
+                            const styleKey = moduleToKeyMap[module] || 'visual';
+                            const Icon =
+                              learningStyleIcons[styleKey] ||
+                              learningStyleIcons.visual;
+                            const colorClass =
+                              learningStyleColors[styleKey] ||
+                              'from-blue-500 to-blue-600';
+
+                            return (
+                              <div
+                                key={idx}
+                                className={`w-10 h-10 bg-gradient-to-r ${colorClass} rounded-full flex items-center justify-center shadow-lg border-2 border-white`}>
+                                <Icon className="w-5 h-5 text-white" />
+                              </div>
+                            );
+                          })}
                       </div>
                     ) : (
                       <div
@@ -521,18 +626,21 @@ export default function StudentVARKModulePage() {
                         {(user as any)?.learningType || 'Unimodal'}
                         <span className="text-gray-600"> Learner</span>
                       </h3>
-                      {(user as any)?.preferredModules && (user as any).preferredModules.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {(user as any).preferredModules.map((module: string, idx: number) => (
-                            <Badge
-                              key={idx}
-                              variant="outline"
-                              className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
-                              {module}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      {(user as any)?.preferredModules &&
+                        (user as any).preferredModules.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {(user as any).preferredModules.map(
+                              (module: string, idx: number) => (
+                                <Badge
+                                  key={idx}
+                                  variant="outline"
+                                  className="text-xs px-1.5 py-0 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 text-[#00af8f] border border-[#00af8f]/20">
+                                  {module}
+                                </Badge>
+                              )
+                            )}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </CardContent>
@@ -548,8 +656,6 @@ export default function StudentVARKModulePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-              
-
                 <Separator />
 
                 <div className="space-y-3">

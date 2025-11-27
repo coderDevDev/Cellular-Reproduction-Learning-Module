@@ -24,7 +24,10 @@ export default function ModuleCompletionBadge({
   const loadCompletion = async () => {
     try {
       const varkAPI = new VARKModulesAPI();
-      const data = await varkAPI.getStudentModuleCompletion(studentId, moduleId);
+      const data = await varkAPI.getStudentModuleCompletion(
+        studentId,
+        moduleId
+      );
       setCompletion(data);
     } catch (error) {
       console.error('Error loading completion:', error);
@@ -47,7 +50,7 @@ export default function ModuleCompletionBadge({
       </Badge>
 
       {/* Score Badge */}
-      <Badge
+      {/* <Badge
         className={
           completion.final_score >= 90
             ? 'bg-green-600'
@@ -59,7 +62,7 @@ export default function ModuleCompletionBadge({
         }>
         <Trophy className="w-3 h-3 mr-1" />
         {completion.final_score}%
-      </Badge>
+      </Badge> */}
 
       {/* Time Badge */}
       <Badge variant="outline" className="flex items-center gap-1">
@@ -77,7 +80,8 @@ export default function ModuleCompletionBadge({
       {/* Improvement Badge */}
       {completion.post_test_score && completion.pre_test_score && (
         <Badge className="bg-purple-600 text-white">
-          +{Math.round(completion.post_test_score - completion.pre_test_score)}% Growth
+          +{Math.round(completion.post_test_score - completion.pre_test_score)}%
+          Growth
         </Badge>
       )}
     </div>

@@ -126,7 +126,9 @@ export default function StudentVARKModulesPage() {
   >('all');
   const [bookmarkedModules, setBookmarkedModules] = useState<string[]>([]);
   const [showResultsModal, setShowResultsModal] = useState(false);
-  const [selectedModuleForResults, setSelectedModuleForResults] = useState<string | null>(null);
+  const [selectedModuleForResults, setSelectedModuleForResults] = useState<
+    string | null
+  >(null);
   const [resultsData, setResultsData] = useState<any>(null);
   const [loadingResults, setLoadingResults] = useState(false);
 
@@ -263,10 +265,10 @@ export default function StudentVARKModulesPage() {
   const getModuleStatus = (moduleId: string) => {
     const moduleProgress = progress.find(p => p.module_id === moduleId);
     if (!moduleProgress) return 'not_started';
-    
+
     // Check status field first (set by getStudentProgress for completed modules)
     if (moduleProgress.status === 'completed') return 'completed';
-    
+
     // Fallback to progress percentage
     if (moduleProgress.progress_percentage === 100) return 'completed';
     if (moduleProgress.progress_percentage > 0) return 'in_progress';
@@ -316,22 +318,30 @@ export default function StudentVARKModulesPage() {
   const isModuleLocked = (module: VARKModule) => {
     const prerequisiteId = (module as any).prerequisite_module_id;
     if (!prerequisiteId) return false; // No prerequisite = unlocked
-    
+
     // Check if prerequisite module is completed
-    const prerequisiteProgress = progress.find(p => p.module_id === prerequisiteId);
-    
+    const prerequisiteProgress = progress.find(
+      p => p.module_id === prerequisiteId
+    );
+
     if (!prerequisiteProgress) {
-      console.log(`🔒 Module "${module.title}" is LOCKED - prerequisite not started`);
+      console.log(
+        `🔒 Module "${module.title}" is LOCKED - prerequisite not started`
+      );
       return true; // Locked if no progress
     }
-    
+
     // Unlocked if prerequisite is completed (check both status and percentage)
-    const isPrerequisiteCompleted = 
-      prerequisiteProgress.status === 'completed' || 
+    const isPrerequisiteCompleted =
+      prerequisiteProgress.status === 'completed' ||
       prerequisiteProgress.progress_percentage === 100;
-    
-    console.log(`🔓 Module "${module.title}" - Prerequisite completed:`, isPrerequisiteCompleted, prerequisiteProgress);
-    
+
+    console.log(
+      `🔓 Module "${module.title}" - Prerequisite completed:`,
+      isPrerequisiteCompleted,
+      prerequisiteProgress
+    );
+
     return !isPrerequisiteCompleted; // Locked if prerequisite NOT completed
   };
 
@@ -878,7 +888,8 @@ export default function StudentVARKModulesPage() {
                             <p className="text-xs text-orange-700">
                               Complete{' '}
                               <span className="font-semibold">
-                                {getPrerequisiteModule(module)?.title || 'previous module'}
+                                {getPrerequisiteModule(module)?.title ||
+                                  'previous module'}
                               </span>{' '}
                               first
                             </p>
@@ -887,16 +898,23 @@ export default function StudentVARKModulesPage() {
                       </div>
                     )}
 
-
                     {/* Debug Info */}
-                    {console.log('Module:', module.title, '| Status:', moduleStatus, '| Progress:', progress.find(p => p.module_id === module.id))}
-                    
+                    {console.log(
+                      'Module:',
+                      module.title,
+                      '| Status:',
+                      moduleStatus,
+                      '| Progress:',
+                      progress.find(p => p.module_id === module.id)
+                    )}
+
                     {/* Action Buttons */}
                     <div className="space-y-2">
                       {/* For completed modules, show two buttons */}
-                      {moduleStatus === 'completed' && !isModuleLocked(module) ? (
+                      {moduleStatus === 'completed' &&
+                      !isModuleLocked(module) ? (
                         <>
-                          <Button
+                          {/* <Button
                             onClick={() => {
                               window.location.href = `/student/vark-modules/${module.id}`;
                             }}
@@ -904,7 +922,7 @@ export default function StudentVARKModulesPage() {
                             className="w-full border-green-600 text-green-600 hover:bg-green-50">
                             <BookOpen className="w-4 h-4 mr-2" />
                             Review Module
-                          </Button>
+                          </Button> */}
                           <Button
                             onClick={() => handleViewResults(module.id)}
                             className="w-full bg-green-600 hover:bg-green-700 text-white">
@@ -917,7 +935,9 @@ export default function StudentVARKModulesPage() {
                           onClick={() => {
                             if (isModuleLocked(module)) {
                               toast.error(
-                                `Please complete "${getPrerequisiteModule(module)?.title}" first`
+                                `Please complete "${
+                                  getPrerequisiteModule(module)?.title
+                                }" first`
                               );
                               return;
                             }
@@ -1037,7 +1057,9 @@ export default function StudentVARKModulesPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Trophy className="w-6 h-6" />
-                      <Badge className="bg-white text-green-600 text-xs">Score</Badge>
+                      <Badge className="bg-white text-green-600 text-xs">
+                        Score
+                      </Badge>
                     </div>
                     <div className="text-3xl font-bold">
                       {resultsData.completion?.final_score || 0}%
@@ -1057,11 +1079,18 @@ export default function StudentVARKModulesPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <Clock className="w-6 h-6" />
-                      <Badge className="bg-white text-blue-600 text-xs">Time</Badge>
+                      <Badge className="bg-white text-blue-600 text-xs">
+                        Time
+                      </Badge>
                     </div>
                     <div className="text-3xl font-bold">
-                      {Math.floor((resultsData.completion?.time_spent_minutes || 0) / 60) > 0
-                        ? `${Math.floor((resultsData.completion?.time_spent_minutes || 0) / 60)}h`
+                      {Math.floor(
+                        (resultsData.completion?.time_spent_minutes || 0) / 60
+                      ) > 0
+                        ? `${Math.floor(
+                            (resultsData.completion?.time_spent_minutes || 0) /
+                              60
+                          )}h`
                         : `${resultsData.completion?.time_spent_minutes || 0}m`}
                     </div>
                     <p className="text-blue-100 text-sm mt-1">Study time</p>
@@ -1073,7 +1102,9 @@ export default function StudentVARKModulesPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <CheckCircle className="w-6 h-6" />
-                      <Badge className="bg-white text-purple-600 text-xs">Sections</Badge>
+                      <Badge className="bg-white text-purple-600 text-xs">
+                        Sections
+                      </Badge>
                     </div>
                     <div className="text-3xl font-bold">
                       {resultsData.completion?.sections_completed || 0}
@@ -1101,7 +1132,9 @@ export default function StudentVARKModulesPage() {
                         <p className="text-sm text-gray-600">Completed On</p>
                         <p className="font-semibold">
                           {resultsData.completion?.completion_date
-                            ? new Date(resultsData.completion.completion_date).toLocaleDateString('en-US', {
+                            ? new Date(
+                                resultsData.completion.completion_date
+                              ).toLocaleDateString('en-US', {
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
@@ -1115,8 +1148,12 @@ export default function StudentVARKModulesPage() {
                       <div className="flex items-center space-x-3">
                         <Target className="w-5 h-5 text-gray-400" />
                         <div>
-                          <p className="text-sm text-gray-600">Pre-Test Score</p>
-                          <p className="font-semibold">{resultsData.completion.pre_test_score}%</p>
+                          <p className="text-sm text-gray-600">
+                            Pre-Test Score
+                          </p>
+                          <p className="font-semibold">
+                            {resultsData.completion.pre_test_score}%
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1125,8 +1162,12 @@ export default function StudentVARKModulesPage() {
                       <div className="flex items-center space-x-3">
                         <Zap className="w-5 h-5 text-gray-400" />
                         <div>
-                          <p className="text-sm text-gray-600">Post-Test Score</p>
-                          <p className="font-semibold">{resultsData.completion.post_test_score}%</p>
+                          <p className="text-sm text-gray-600">
+                            Post-Test Score
+                          </p>
+                          <p className="font-semibold">
+                            {resultsData.completion.post_test_score}%
+                          </p>
                         </div>
                       </div>
                     )}
@@ -1145,53 +1186,70 @@ export default function StudentVARKModulesPage() {
                 <CardContent>
                   <div className="space-y-3">
                     {resultsData.submissions?.length === 0 ? (
-                      <p className="text-gray-600 text-center py-4">No submissions found.</p>
+                      <p className="text-gray-600 text-center py-4">
+                        No submissions found.
+                      </p>
                     ) : (
-                      resultsData.submissions?.map((submission: any, index: number) => (
-                        <div
-                          key={submission.section_id}
-                          className="border rounded-lg p-3 hover:bg-gray-50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <span className="font-semibold text-sm">
-                                  {index + 1}. {submission.section_title}
-                                </span>
-                                <Badge variant="outline" className="text-xs">
-                                  {submission.section_type}
-                                </Badge>
+                      resultsData.submissions?.map(
+                        (submission: any, index: number) => (
+                          <div
+                            key={submission.section_id}
+                            className="border rounded-lg p-3 hover:bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <span className="font-semibold text-sm">
+                                    {index + 1}. {submission.section_title}
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    {submission.section_type}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-gray-600">
+                                  {new Date(
+                                    submission.submitted_at
+                                  ).toLocaleString()}
+                                </p>
                               </div>
-                              <p className="text-xs text-gray-600">
-                                {new Date(submission.submitted_at).toLocaleString()}
-                              </p>
+
+                              {submission.assessment_results && (
+                                <div className="text-right">
+                                  <div
+                                    className={`text-xl font-bold ${
+                                      submission.assessment_results.passed
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
+                                    }`}>
+                                    {submission.assessment_results.percentage.toFixed(
+                                      1
+                                    )}
+                                    %
+                                  </div>
+                                  <p className="text-xs text-gray-600">
+                                    {
+                                      submission.assessment_results
+                                        .correct_count
+                                    }
+                                    /
+                                    {
+                                      submission.assessment_results
+                                        .total_questions
+                                    }{' '}
+                                    correct
+                                  </p>
+                                </div>
+                              )}
                             </div>
 
                             {submission.assessment_results && (
-                              <div className="text-right">
-                                <div
-                                  className={`text-xl font-bold ${
-                                    submission.assessment_results.passed
-                                      ? 'text-green-600'
-                                      : 'text-red-600'
-                                  }`}>
-                                  {submission.assessment_results.percentage.toFixed(1)}%
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  {submission.assessment_results.correct_count}/
-                                  {submission.assessment_results.total_questions} correct
-                                </p>
-                              </div>
+                              <Progress
+                                value={submission.assessment_results.percentage}
+                                className="h-2 mt-2"
+                              />
                             )}
                           </div>
-
-                          {submission.assessment_results && (
-                            <Progress
-                              value={submission.assessment_results.percentage}
-                              className="h-2 mt-2"
-                            />
-                          )}
-                        </div>
-                      ))
+                        )
+                      )
                     )}
                   </div>
                 </CardContent>
