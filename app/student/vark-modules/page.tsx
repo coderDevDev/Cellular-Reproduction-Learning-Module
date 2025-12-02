@@ -914,7 +914,7 @@ export default function StudentVARKModulesPage() {
                       {moduleStatus === 'completed' &&
                       !isModuleLocked(module) ? (
                         <>
-                          {/* <Button
+                          <Button
                             onClick={() => {
                               window.location.href = `/student/vark-modules/${module.id}`;
                             }}
@@ -922,7 +922,7 @@ export default function StudentVARKModulesPage() {
                             className="w-full border-green-600 text-green-600 hover:bg-green-50">
                             <BookOpen className="w-4 h-4 mr-2" />
                             Review Module
-                          </Button> */}
+                          </Button>
                           <Button
                             onClick={() => handleViewResults(module.id)}
                             className="w-full bg-green-600 hover:bg-green-700 text-white">
